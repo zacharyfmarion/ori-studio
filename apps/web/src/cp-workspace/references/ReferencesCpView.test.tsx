@@ -68,6 +68,7 @@ let root: Root | null = null;
 function stubWebgl(): void {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
     getExtension: () => ({ loseContext: () => {} }),
+    isContextLost: () => false,
   } as unknown as RenderingContext);
 }
 

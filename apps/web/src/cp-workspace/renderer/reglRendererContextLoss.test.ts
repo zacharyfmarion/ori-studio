@@ -7,13 +7,16 @@ import type { CpRenderFrame } from './CpRenderer';
 /**
  * The context-loss contract, which is the one graphics failure that strikes a
  * device already drawing happily: iOS reclaims GL contexts under memory
- * pressure. The host must be told at loss and again at restore, and must not be
- * told to rebuild in between — `getContext` hands back the same dead context
- * until the browser restores it, so a rebuild attempted at loss fails with the
- * error a machine with no WebGL at all produces.
+ * pressure, and a document short of contexts has them taken. The host must be
+ * told at loss and again at restore, and must not be told to rebuild in between
+ * — `getContext` hands back the same dead context until the browser restores
+ * it, so a rebuild attempted at loss fails with the error a machine with no
+ * WebGL at all produces.
+ *
+ * What a lost renderer may do is covered with the real programs in
+ * `reglRendererLostContext.test.ts`; this is the frame loop.
  */
 
-const listeners = new Map<string, () => void>();
 const clear = vi.fn();
 
 vi.mock('regl', () => ({
@@ -23,10 +26,6 @@ vi.mock('regl', () => ({
     destroy: () => {},
     buffer: () => ({ destroy: () => {} }),
     texture: () => ({ destroy: () => {} }),
-    on: (type: string, callback: () => void) => {
-      listeners.set(type, callback);
-      return { cancel: () => listeners.delete(type) };
-    },
   }),
 }));
 
@@ -58,48 +57,61 @@ const FRAME: CpRenderFrame = {
 };
 
 function mountRenderer() {
-  listeners.clear();
   clear.mockClear();
+  const gl = {
+    lost: false,
+    isContextLost() {
+      return this.lost;
+    },
+    getExtension(name: string) {
+      return !this.lost && name.toLowerCase() === 'angle_instanced_arrays' ? {} : null;
+    },
+  };
+  const canvas = document.createElement('canvas');
+  Object.defineProperty(canvas, 'getContext', { value: () => gl });
   const onContextLost = vi.fn();
   const onContextRestored = vi.fn();
-  const renderer = createReglRenderer(document.createElement('canvas'), {
-    onContextLost,
-    onContextRestored,
-  });
+  const renderer = createReglRenderer(canvas, { onContextLost, onContextRestored });
   renderer.resize({ width: 100, height: 100, dpr: 1 });
-  return { renderer, onContextLost, onContextRestored };
+  const lose = () => {
+    gl.lost = true;
+    canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
+  };
+  const restore = () => {
+    gl.lost = false;
+    canvas.dispatchEvent(new Event('webglcontextrestored'));
+  };
+  return { renderer, onContextLost, onContextRestored, lose, restore };
 }
 
 describe('reglRenderer context loss', () => {
-  it('subscribes to regl rather than the canvas, so restore runs after regl has rebuilt its objects', () => {
-    mountRenderer();
-    expect([...listeners.keys()].sort()).toEqual(['lost', 'restore']);
-  });
-
   it('reports loss and restore separately', () => {
-    const { onContextLost, onContextRestored } = mountRenderer();
+    const { onContextLost, onContextRestored, lose, restore } = mountRenderer();
 
-    listeners.get('lost')?.();
+    lose();
     expect(onContextLost).toHaveBeenCalledOnce();
     // Nothing may ask for a rebuild yet: the context is still dead.
     expect(onContextRestored).not.toHaveBeenCalled();
 
-    listeners.get('restore')?.();
+    restore();
     expect(onContextRestored).toHaveBeenCalledOnce();
   });
 
-  it('draws nothing while the context is lost, and draws again once it is back', () => {
-    const { renderer } = mountRenderer();
+  // The restore is the host's cue to build a replacement. This renderer's GL
+  // objects went with the old context, so drawing with it again would only
+  // issue calls against objects the new context has never heard of.
+  it('draws nothing once the context is lost, and nothing after it is back', () => {
+    const { renderer, lose, restore } = mountRenderer();
 
     renderer.render(FRAME);
     expect(clear).toHaveBeenCalledTimes(1);
 
-    listeners.get('lost')?.();
+    lose();
     renderer.render(FRAME);
     expect(clear).toHaveBeenCalledTimes(1);
 
-    listeners.get('restore')?.();
+    restore();
     renderer.render(FRAME);
-    expect(clear).toHaveBeenCalledTimes(2);
+    expect(clear).toHaveBeenCalledTimes(1);
   });
 });

@@ -185,10 +185,12 @@ beforeEach(() => {
   );
   // The canvas probes for WebGL before building anything and renders the
   // "unavailable" state instead when the probe fails — which in jsdom is always,
-  // since `getContext` returns null. The probe asks exactly two questions, so
-  // answering both is enough; regl itself is mocked above and never touches this.
+  // since `getContext` returns null. The probe asks three questions — a context,
+  // whether it is lost, and the extension — so answering those is enough; regl
+  // itself is mocked above and never touches this.
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
     getExtension: () => ({ loseContext: () => {} }),
+    isContextLost: () => false,
   } as unknown as RenderingContext);
   vi.spyOn(HTMLCanvasElement.prototype, 'getBoundingClientRect').mockReturnValue({
     ...VIEWPORT,

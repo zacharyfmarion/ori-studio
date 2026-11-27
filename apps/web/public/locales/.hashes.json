@@ -2450,7 +2450,7 @@
     "panels:creasePattern.rendererContextLost": "caa9c30a1a5b",
     "panels:creasePattern.rendererContextLostHint": "6602812ae1cb",
     "panels:creasePattern.rendererUnavailable": "7ab55ace332e",
-    "panels:creasePattern.rendererUnavailableHint": "1987c1b82e12",
+    "panels:creasePattern.rendererUnavailableHint": "37f1e069b148",
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:creasePattern.resizeAnnotation": "c3352ccfd0c4",
     "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
@@ -6808,7 +6808,9 @@
     "dialogs:diagram.titleBlockPatternTitle": "17616458b40f",
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
-    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18"
+    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:creasePattern.rendererRetry": "d8b8392e2c54",
+    "panels:creasePattern.rendererUnavailableHintDesktop": "935b32c96c27"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -9261,7 +9263,7 @@
     "panels:creasePattern.rendererContextLost": "caa9c30a1a5b",
     "panels:creasePattern.rendererContextLostHint": "6602812ae1cb",
     "panels:creasePattern.rendererUnavailable": "7ab55ace332e",
-    "panels:creasePattern.rendererUnavailableHint": "1987c1b82e12",
+    "panels:creasePattern.rendererUnavailableHint": "37f1e069b148",
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:creasePattern.resizeAnnotation": "c3352ccfd0c4",
     "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
@@ -13619,7 +13621,9 @@
     "dialogs:diagram.titleBlockPatternTitle": "17616458b40f",
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
-    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18"
+    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:creasePattern.rendererRetry": "d8b8392e2c54",
+    "panels:creasePattern.rendererUnavailableHintDesktop": "935b32c96c27"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -16072,7 +16076,7 @@
     "panels:creasePattern.rendererContextLost": "caa9c30a1a5b",
     "panels:creasePattern.rendererContextLostHint": "6602812ae1cb",
     "panels:creasePattern.rendererUnavailable": "7ab55ace332e",
-    "panels:creasePattern.rendererUnavailableHint": "1987c1b82e12",
+    "panels:creasePattern.rendererUnavailableHint": "37f1e069b148",
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:creasePattern.resizeAnnotation": "c3352ccfd0c4",
     "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
@@ -20432,7 +20436,9 @@
     "dialogs:diagram.titleBlockPatternTitle": "17616458b40f",
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
-    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18"
+    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:creasePattern.rendererRetry": "d8b8392e2c54",
+    "panels:creasePattern.rendererUnavailableHintDesktop": "935b32c96c27"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -22844,7 +22850,7 @@
     "panels:creasePattern.rendererContextLost": "caa9c30a1a5b",
     "panels:creasePattern.rendererContextLostHint": "6602812ae1cb",
     "panels:creasePattern.rendererUnavailable": "7ab55ace332e",
-    "panels:creasePattern.rendererUnavailableHint": "1987c1b82e12",
+    "panels:creasePattern.rendererUnavailableHint": "37f1e069b148",
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:creasePattern.resizeAnnotation": "c3352ccfd0c4",
     "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
@@ -26855,7 +26861,9 @@
     "dialogs:diagram.titleBlockPatternTitle": "17616458b40f",
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
-    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18"
+    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:creasePattern.rendererRetry": "d8b8392e2c54",
+    "panels:creasePattern.rendererUnavailableHintDesktop": "935b32c96c27"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -29267,7 +29275,7 @@
     "panels:creasePattern.rendererContextLost": "caa9c30a1a5b",
     "panels:creasePattern.rendererContextLostHint": "6602812ae1cb",
     "panels:creasePattern.rendererUnavailable": "7ab55ace332e",
-    "panels:creasePattern.rendererUnavailableHint": "1987c1b82e12",
+    "panels:creasePattern.rendererUnavailableHint": "37f1e069b148",
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:creasePattern.resizeAnnotation": "c3352ccfd0c4",
     "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
@@ -33278,7 +33286,9 @@
     "dialogs:diagram.titleBlockPatternTitle": "17616458b40f",
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
-    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18"
+    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:creasePattern.rendererRetry": "d8b8392e2c54",
+    "panels:creasePattern.rendererUnavailableHintDesktop": "935b32c96c27"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -35731,7 +35741,7 @@
     "panels:creasePattern.rendererContextLost": "caa9c30a1a5b",
     "panels:creasePattern.rendererContextLostHint": "6602812ae1cb",
     "panels:creasePattern.rendererUnavailable": "7ab55ace332e",
-    "panels:creasePattern.rendererUnavailableHint": "1987c1b82e12",
+    "panels:creasePattern.rendererUnavailableHint": "37f1e069b148",
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:creasePattern.resizeAnnotation": "c3352ccfd0c4",
     "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
@@ -40089,7 +40099,9 @@
     "dialogs:diagram.titleBlockPatternTitle": "17616458b40f",
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
-    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18"
+    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:creasePattern.rendererRetry": "d8b8392e2c54",
+    "panels:creasePattern.rendererUnavailableHintDesktop": "935b32c96c27"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -42542,7 +42554,7 @@
     "panels:creasePattern.rendererContextLost": "caa9c30a1a5b",
     "panels:creasePattern.rendererContextLostHint": "6602812ae1cb",
     "panels:creasePattern.rendererUnavailable": "7ab55ace332e",
-    "panels:creasePattern.rendererUnavailableHint": "1987c1b82e12",
+    "panels:creasePattern.rendererUnavailableHint": "37f1e069b148",
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:creasePattern.resizeAnnotation": "c3352ccfd0c4",
     "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
@@ -46900,7 +46912,9 @@
     "dialogs:diagram.titleBlockPatternTitle": "17616458b40f",
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
-    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18"
+    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:creasePattern.rendererRetry": "d8b8392e2c54",
+    "panels:creasePattern.rendererUnavailableHintDesktop": "935b32c96c27"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -49312,7 +49326,7 @@
     "panels:creasePattern.rendererContextLost": "caa9c30a1a5b",
     "panels:creasePattern.rendererContextLostHint": "6602812ae1cb",
     "panels:creasePattern.rendererUnavailable": "7ab55ace332e",
-    "panels:creasePattern.rendererUnavailableHint": "1987c1b82e12",
+    "panels:creasePattern.rendererUnavailableHint": "37f1e069b148",
     "panels:creasePattern.resetFoldedModelView": "1e51eb54e14e",
     "panels:creasePattern.resizeAnnotation": "c3352ccfd0c4",
     "panels:creasePattern.resizeFoldedForm": "5bcce0ba8e93",
@@ -53323,6 +53337,8 @@
     "dialogs:diagram.titleBlockPatternTitle": "17616458b40f",
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
-    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18"
+    "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:creasePattern.rendererRetry": "d8b8392e2c54",
+    "panels:creasePattern.rendererUnavailableHintDesktop": "935b32c96c27"
   }
 }

@@ -6,6 +6,7 @@ import { COARSE_POINTER_QUERY } from '../../platform/pointerSurface';
 import type { CpOverlayView } from '../CreasePatternWebglCanvas';
 import type { UserBounds } from '../renderer/camera';
 import type { ReglRendererOptions } from '../renderer/reglRenderer';
+import { CpWebglUnavailableError, describeCpWebglGap } from '../renderer/webglSupport';
 import {
   CP_LINE_HIT_MIN_CSS,
   CP_LINE_HIT_MIN_CSS_COARSE,
@@ -478,15 +479,37 @@ describe('useCpSurface renderer lifecycle', () => {
     });
     expect(surface().rendererStatus).toEqual({
       kind: 'unsupported',
+      gap: null,
       detail: 'shader did not compile',
     });
   });
 
+  // ORI-STUDIO-4: a canvas the browser gave no WebGL is this machine's graphics
+  // stack, not a bug. It is explained where the canvas would be, and counted in
+  // product analytics instead of reported.
+  it('explains a canvas with no WebGL without reporting it', () => {
+    stubWebgl();
+    regl.fail = new CpWebglUnavailableError('no-context');
+    mount();
+    expect(monitoring.reportError).not.toHaveBeenCalled();
+    expect(surface().rendererStatus).toEqual({
+      kind: 'unsupported',
+      gap: 'no-context',
+      detail: describeCpWebglGap('no-context'),
+    });
+
+    // "Try again" builds on the same canvas, and a context granted this time is drawn on.
+    regl.fail = null;
+    act(() => surface().retryRenderer());
+    expect(regl.built).toHaveLength(1);
+    expect(surface().rendererStatus).toBeNull();
+  });
+
   it('waits out a context lost at start without reporting it', () => {
     stubWebgl({ lost: true });
-    regl.fail = new Error('missing extension');
+    regl.fail = new CpWebglUnavailableError('context-lost-at-start');
     const canvas = mount();
-    expect(surface().rendererStatus).toEqual({ kind: 'context-lost' });
+    expect(surface().rendererStatus).toEqual({ kind: 'context-lost', gap: 'context-lost-at-start' });
     expect(monitoring.reportError).not.toHaveBeenCalled();
 
     regl.fail = null;

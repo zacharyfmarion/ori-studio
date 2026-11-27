@@ -13,7 +13,14 @@ import { createWedgeProgram } from './programs/wedgeProgram';
 import { createImageProgram, type ImageDrawItem } from './programs/imageProgram';
 import { createRegionProgram, type RegionDrawItem } from './programs/regionProgram';
 import { readCssVarColor } from './cssColor';
-import { CP_GL_ATTRIBUTES, CP_REQUIRED_EXTENSION } from './webglSupport';
+import {
+  acquireCpWebglContext,
+  CP_GL_ATTRIBUTES,
+  CP_REQUIRED_EXTENSION,
+  cpWebglBuildFailure,
+  cpWebglContextGap,
+  CpWebglUnavailableError,
+} from './webglSupport';
 
 // regl ships as a UMD module (`export = REGL`), so its instance type is reached
 // via the factory's return type rather than a named export.
@@ -41,16 +48,16 @@ export interface ReglRendererOptions {
    */
   onContextLost?: () => void;
   /**
-   * Invoked once the browser has handed the canvas a live context back and regl
-   * has re-created its own GL objects on it. The host rebuilds the renderer
-   * *here*, not at loss: until this fires, `getContext` returns the same dead
-   * context and every `getExtension` on it returns null, so a rebuild attempted
-   * at loss fails with the same error a machine with no WebGL at all produces —
-   * turning a recoverable blip into a permanent "canvas could not start".
+   * Invoked once the browser has handed the canvas a live context back. The host
+   * rebuilds the renderer *here*, not at loss: until this fires, `getContext`
+   * returns the same dead context and every `getExtension` on it returns null,
+   * so a rebuild attempted at loss fails with the same error a machine with no
+   * WebGL at all produces — turning a recoverable blip into a permanent "canvas
+   * could not start".
    *
-   * A rebuild rather than a redraw, because regl's restore is only partial: it
-   * re-uploads buffers from its own copies but re-creates textures empty, so the
-   * reference-image layer comes back blank unless the host re-uploads it.
+   * A rebuild rather than a redraw. Everything this renderer made on the old
+   * context went with it, and it never comes back to life; the replacement
+   * re-uploads every channel from the host's own state.
    */
   onContextRestored?: () => void;
 }
@@ -100,88 +107,159 @@ async function decodeImageBitmap(src: string): Promise<ImageBitmap | null> {
 }
 
 /**
+ * Every draw program on this surface, built together so that a failure partway
+ * leaves one regl instance to destroy rather than a renderer half made.
+ */
+function createPrograms(regl: Regl) {
+  return {
+    strokes: createStrokeProgram(regl),
+    gridStrokes: createStrokeProgram(regl),
+    // Reference-image layer: one textured quad per image, above the grid, below
+    // the creases.
+    images: createImageProgram(regl),
+    // Check-suppression regions: a translucent wash below the images, so a region
+    // backs both the creases it quiets and any image being traced over. No GPU
+    // resources beyond the program's shared quad.
+    regions: createRegionProgram(regl),
+    // The only two depth-ordered programs on this surface. A generated folded
+    // figure's fills and creases are one painter-ordered stream that these two
+    // draws split in half, so without a depth test a crease behind a face draws
+    // over it. Everything else here is genuinely 2D, and the imported forms below
+    // are translucent, which a depth test would order wrongly.
+    foldedFills: createFillProgram(regl, { depthOrdered: true }),
+    // Layer shadows sit in the same stream, between a figure's fills and its
+    // creases, and carry the same depth so they land there.
+    foldedShadows: createShadowProgram(regl),
+    foldedStrokes: createStrokeProgram(regl, { depthOrdered: true }),
+    // Imported .fold folded-form frames: reference figures in user space, like folded.
+    importedFills: createFillProgram(regl),
+    importedStrokes: createStrokeProgram(regl),
+    previewStrokes: createStrokeProgram(regl),
+    points: createPointProgram(regl),
+    overlayPoints: createPointProgram(regl),
+    // Diagnostic overlays (CAMV / check-fix markers + sector wedges + operation
+    // frame): sparse, on top of the crease pattern.
+    diagnosticFills: createFillProgram(regl),
+    sheetFill: createFillProgram(regl),
+    sheetMarks: createFillProgram(regl),
+    diagnosticMarkers: createMarkerProgram(regl),
+    // Big-little-big sector wedges: screen-scaled fills at a vertex.
+    diagnosticWedges: createWedgeProgram(regl),
+    // Operation-frame outline: a dashed, screen-constant closed loop above the CP.
+    overlayFrame: createStrokeProgram(regl),
+  };
+}
+
+/**
  * regl-backed {@link CpRenderer}. Owns the WebGL context for a single canvas and
  * composes the per-layer draw programs (currently strokes).
  *
- * @throws if a WebGL context or {@link CP_REQUIRED_EXTENSION} cannot be had.
- * There is no software path, so the caller's only recourse is to say why — see
- * `cpWebglSupport` for the probe that names the gap ahead of this throw.
+ * @throws {CpWebglUnavailableError} when this graphics stack cannot run it right
+ * now: no context, a context already lost, no {@link CP_REQUIRED_EXTENSION}, or a
+ * context that stopped answering while the programs were being built. There is
+ * no software path, so the caller's only recourse is to say why. Anything else
+ * thrown is regl's own error, for a failure that is not the machine's.
  */
 export function createReglRenderer(
   canvas: HTMLCanvasElement,
   options: ReglRendererOptions = {}
 ): CpRenderer {
-  const regl: Regl = createREGL({
-    canvas,
-    // Instanced strokes drive the whole renderer; require the extension up front
-    // so failures surface here rather than at first draw.
-    extensions: [CP_REQUIRED_EXTENSION],
-    attributes: { ...CP_GL_ATTRIBUTES, alpha: options?.alpha ?? CP_GL_ATTRIBUTES.alpha },
+  // Asked here, not left to regl: regl reports every one of these as "webgl not
+  // supported" or "extension is not supported", and the host has to tell a
+  // context that will come back from a machine that has none.
+  const gl = acquireCpWebglContext(canvas, {
+    ...CP_GL_ATTRIBUTES,
+    alpha: options?.alpha ?? CP_GL_ATTRIBUTES.alpha,
   });
+  const gap = cpWebglContextGap(gl);
+  if (gap !== null || gl === null) throw new CpWebglUnavailableError(gap ?? 'no-context');
 
-  // regl already owns the canvas's context-loss listeners: it preventDefault()s
-  // the loss — which is what keeps the context eligible for restoration rather
-  // than gone for good — and re-creates its GL objects before running the
-  // restore callbacks. Hooking regl rather than the canvas is what puts the
-  // host's rebuild after that work, on a context that is live again.
-  let contextLost = false;
-  regl.on('lost', () => {
-    contextLost = true;
+  // Handed the context rather than the canvas, regl installs no context-loss
+  // listeners of its own (regl.js:10095); the renderer owns them, below.
+  // Instanced strokes drive the whole renderer, so the extension stays required
+  // up front and a failure surfaces here rather than at first draw.
+  const regl: Regl = createREGL({ gl, extensions: [CP_REQUIRED_EXTENSION] });
+  let programs: ReturnType<typeof createPrograms>;
+  try {
+    programs = createPrograms(regl);
+  } catch (error) {
+    // Nothing of a half-built renderer may outlive the throw: the host will try
+    // again on this same canvas, and the programs already built hold GL objects.
+    try {
+      regl.destroy();
+    } catch {
+      // The build's own failure is the one worth reporting, not its cleanup's.
+    }
+    throw cpWebglBuildFailure(gl, error);
+  }
+  const {
+    strokes,
+    gridStrokes,
+    images,
+    regions,
+    foldedFills,
+    foldedShadows,
+    foldedStrokes,
+    importedFills,
+    importedStrokes,
+    previewStrokes,
+    points,
+    overlayPoints,
+    diagnosticFills,
+    sheetFill,
+    sheetMarks,
+    diagnosticMarkers,
+    diagnosticWedges,
+    overlayFrame,
+  } = programs;
+
+  let disposed = false;
+  // The canvas's context-loss events belong to the renderer, not to regl.
+  // regl's own restore relinks every program before it tells anyone the
+  // context is back, and a relink that fails raises from inside its listener —
+  // so the host was never told, and the canvas stayed on its "restoring"
+  // notice for good (ORI-STUDIO-1C). That work was wasted besides: the host
+  // rebuilds the renderer from nothing on restore.
+  let contextGone = false;
+  const onContextLost = (event: Event) => {
+    // What keeps the context eligible for restoration rather than gone for good.
+    event.preventDefault();
+    contextGone = true;
     options.onContextLost?.();
-  });
-  regl.on('restore', () => {
-    contextLost = false;
-    options.onContextRestored?.();
-  });
+  };
+  const onContextRestored = () => options.onContextRestored?.();
+  canvas.addEventListener('webglcontextlost', onContextLost);
+  canvas.addEventListener('webglcontextrestored', onContextRestored);
 
-  const strokes = createStrokeProgram(regl);
-  const gridStrokes = createStrokeProgram(regl);
-  // Reference-image layer: one textured quad per image, above the grid, below
-  // the creases. Textures are cached by `src` so transform-only updates never
+  /**
+   * Whether GL work may happen now.
+   *
+   * A lost context hands out null handles — `gl.createBuffer()` returns null —
+   * and regl takes a null handle for one destroyed already. So a channel
+   * uploaded while the context was lost left a buffer that neither the next
+   * upload nor the unmount could free, and both threw `(regl) buffer must not be
+   * deleted already` (ORI-STUDIO-1Q and -1R). The context is asked, not only the
+   * event, because the page hears of a loss a task after it has happened.
+   *
+   * Once lost, this renderer stays dead. Its GL objects went with the context,
+   * and the host replaces it on restore.
+   */
+  const live = () => !disposed && !contextGone && !gl.isContextLost();
+
+  // Reference-image textures are cached by `src` so transform-only updates never
   // re-upload, and evicted when no image references them.
-  const images = createImageProgram(regl);
   const imageTextures = new Map<string, Texture>();
   const imageLoading = new Set<string>();
   let currentImages: readonly CpImage[] = [];
   let hasImages = false;
-  // Check-suppression regions: a translucent wash below the images, so a region
-  // backs both the creases it quiets and any image being traced over. No GPU
-  // resources beyond the program's shared quad.
-  const regions = createRegionProgram(regl);
   let currentRegions: readonly CpSuppressionRegion[] = [];
   let hasRegions = false;
-  // The only two depth-ordered programs on this surface. A generated folded
-  // figure's fills and creases are one painter-ordered stream that these two
-  // draws split in half, so without a depth test a crease behind a face draws
-  // over it. Everything else here is genuinely 2D, and the imported forms below
-  // are translucent, which a depth test would order wrongly.
-  //
-  // Spread pictures go before them, each in its figure's band of the same
-  // depth range, one program per picture: kept by key, so a picture that did
-  // not change is not uploaded again when the channel is.
+  // Spread pictures go before the depth-ordered folded programs, each in its
+  // figure's band of the same depth range, one program per picture: kept by
+  // key, so a picture that did not change is not uploaded again when the
+  // channel is.
   const spreadPrograms = new Map<string, SpreadProgram>();
   let spreadLayers: readonly FoldedSpreadLayer[] = [];
-  const foldedFills = createFillProgram(regl, { depthOrdered: true });
-  // Layer shadows sit in the same stream, between a figure's fills and its
-  // creases, and carry the same depth so they land there.
-  const foldedShadows = createShadowProgram(regl);
-  const foldedStrokes = createStrokeProgram(regl, { depthOrdered: true });
-  // Imported .fold folded-form frames: reference figures in user space, like folded.
-  const importedFills = createFillProgram(regl);
-  const importedStrokes = createStrokeProgram(regl);
-  const previewStrokes = createStrokeProgram(regl);
-  const points = createPointProgram(regl);
-  const overlayPoints = createPointProgram(regl);
-  // Diagnostic overlays (CAMV / check-fix markers + sector wedges + operation
-  // frame): sparse, on top of the crease pattern.
-  const diagnosticFills = createFillProgram(regl);
-  const sheetFill = createFillProgram(regl);
-  const sheetMarks = createFillProgram(regl);
-  const diagnosticMarkers = createMarkerProgram(regl);
-  // Big-little-big sector wedges: screen-scaled fills at a vertex.
-  const diagnosticWedges = createWedgeProgram(regl);
-  // Operation-frame outline: a dashed, screen-constant closed loop above the CP.
-  const overlayFrame = createStrokeProgram(regl);
   let viewport: Viewport = { width: 0, height: 0, dpr: 1 };
   let hasGrid = false;
   let hasImportedForms = false;
@@ -193,7 +271,6 @@ export function createReglRenderer(
   let hasDiagnosticMarkers = false;
   let hasDiagnosticWedges = false;
   let hasOverlayFrame = false;
-  let disposed = false;
 
   // Operation-frame outline width: SVG `.cp-operation-frame` is 1.5px non-scaling.
   const FRAME_WIDTH_CSS = 1.5;
@@ -257,17 +334,17 @@ export function createReglRenderer(
     },
 
     setStrokes(next) {
-      if (disposed) return;
+      if (!live()) return;
       strokes.setData(next);
     },
 
     setPoints(next) {
-      if (disposed) return;
+      if (!live()) return;
       points.setData(next);
     },
 
     setFolded(folded) {
-      if (disposed) return;
+      if (!live()) return;
       spreadLayers = folded.spreads ?? [];
       const kept = new Set(spreadLayers.map((layer) => layer.key));
       for (const [key, program] of spreadPrograms) {
@@ -290,13 +367,13 @@ export function createReglRenderer(
     },
 
     setGrid(grid) {
-      if (disposed) return;
+      if (!live()) return;
       hasGrid = grid !== null && grid.count > 0;
       if (grid) gridStrokes.setData(grid);
     },
 
     setImages(next) {
-      if (disposed) return;
+      if (!live()) return;
       currentImages = next;
       hasImages = next.length > 0;
       const neededSrcs = new Set(next.map((image) => image.src));
@@ -313,7 +390,9 @@ export function createReglRenderer(
         imageLoading.add(src);
         void decodeImageBitmap(src).then((bitmap) => {
           imageLoading.delete(src);
-          if (disposed || !bitmap) return;
+          // A texture made on a lost context has the same null handle as a
+          // buffer; the replacement renderer uploads this image again.
+          if (!live() || !bitmap) return;
           // The image may have been removed while decoding.
           if (!currentImages.some((image) => image.src === src)) return;
           imageTextures.set(
@@ -337,13 +416,13 @@ export function createReglRenderer(
     },
 
     setRegions(next) {
-      if (disposed) return;
+      if (!live()) return;
       currentRegions = next;
       hasRegions = next.length > 0;
     },
 
     setImportedForms(folded) {
-      if (disposed) return;
+      if (!live()) return;
       hasImportedForms = folded !== null && (folded.fills.count > 0 || folded.strokes.count > 0);
       if (folded) {
         importedFills.setData(folded.fills);
@@ -352,49 +431,49 @@ export function createReglRenderer(
     },
 
     setPreview(preview) {
-      if (disposed) return;
+      if (!live()) return;
       hasPreview = preview !== null && preview.count > 0;
       if (preview) previewStrokes.setData(preview);
     },
 
     setOverlayPoints(next) {
-      if (disposed) return;
+      if (!live()) return;
       hasOverlayPoints = next !== null && next.count > 0;
       if (next) overlayPoints.setData(next);
     },
 
     setSheetFill(next) {
-      if (disposed) return;
+      if (!live()) return;
       hasSheetFill = next !== null && next.count > 0;
       if (next) sheetFill.setData(next);
     },
 
     setSheetMarks(next) {
-      if (disposed) return;
+      if (!live()) return;
       hasSheetMarks = next !== null && next.count > 0;
       if (next) sheetMarks.setData(next);
     },
 
     setDiagnosticFills(next) {
-      if (disposed) return;
+      if (!live()) return;
       hasDiagnosticFills = next !== null && next.count > 0;
       if (next) diagnosticFills.setData(next);
     },
 
     setDiagnosticMarkers(next) {
-      if (disposed) return;
+      if (!live()) return;
       hasDiagnosticMarkers = next !== null && next.count > 0;
       if (next) diagnosticMarkers.setData(next);
     },
 
     setDiagnosticWedges(next) {
-      if (disposed) return;
+      if (!live()) return;
       hasDiagnosticWedges = next !== null && next.count > 0;
       if (next) diagnosticWedges.setData(next);
     },
 
     setOverlayFrame(next) {
-      if (disposed) return;
+      if (!live()) return;
       hasOverlayFrame = next !== null && next.count > 0;
       if (next) overlayFrame.setData(next);
     },
@@ -402,7 +481,7 @@ export function createReglRenderer(
     render(frame: CpRenderFrame) {
       // A lost context accepts draw calls and discards them; skipping the work
       // also keeps the frame the host presents from claiming to be current.
-      if (disposed || contextLost) return;
+      if (!live()) return;
       // Nothing to draw into a zero-area buffer (e.g. a collapsed panel).
       if (viewport.width === 0 || viewport.height === 0) return;
       // We drive regl outside regl.frame(), so poll() to sync its cached GL
@@ -555,6 +634,12 @@ export function createReglRenderer(
     dispose() {
       if (disposed) return;
       disposed = true;
+      canvas.removeEventListener('webglcontextlost', onContextLost);
+      canvas.removeEventListener('webglcontextrestored', onContextRestored);
+      // A lost context took every GL object with it. Deleting them now is at
+      // best an error on the context that replaces it, which they do not
+      // belong to — and regl would refuse any it was handed while lost.
+      if (contextGone || gl.isContextLost()) return;
       strokes.dispose();
       gridStrokes.dispose();
       images.dispose();

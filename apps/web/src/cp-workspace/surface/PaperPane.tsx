@@ -236,8 +236,17 @@ export function PaperPane<Hit>(props: PaperPaneProps<Hit>) {
   } = props;
   const [view, setView] = useState<CpSurfaceView | null>(null);
 
-  const { canvasRef, rendererRef, rendererGeneration, rendererStatus, hovered, dragging, render, controls } =
-    useCpSurface<Hit>({
+  const {
+    canvasRef,
+    rendererRef,
+    rendererGeneration,
+    rendererStatus,
+    retryRenderer,
+    hovered,
+    dragging,
+    render,
+    controls,
+  } = useCpSurface<Hit>({
       modelToSvg,
       alpha: true,
       transparent: !!externalPaper,
@@ -355,7 +364,7 @@ export function PaperPane<Hit>(props: PaperPaneProps<Hit>) {
       />
       {view && layers?.(view)}
       {status}
-      {rendererStatus && <CpRendererUnavailable status={rendererStatus} />}
+      {rendererStatus && <CpRendererUnavailable status={rendererStatus} onRetry={retryRenderer} />}
     </div>
   );
 }

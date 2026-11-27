@@ -1,10 +1,15 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  acquireCpWebglContext,
   awaitContextRestore,
-  classifyCpWebglFailure,
+  contextCompilesShaders,
   CP_REQUIRED_EXTENSION,
+  cpRendererStartFailure,
+  cpWebglBuildFailure,
+  cpWebglContextGap,
   cpWebglSupport,
+  CpWebglUnavailableError,
   describeCpWebglGap,
   probeCpWebglSupport,
 } from './webglSupport';
@@ -107,62 +112,148 @@ describe('probeCpWebglSupport', () => {
     expect(probeCpWebglSupport()).toEqual({ supported: false, gap: 'no-instanced-arrays' });
   });
 
+  // WebKit answers a document short of contexts with one that is already lost,
+  // and every `getExtension` on it is null. Read as a missing extension, that
+  // told the user their machine could not do instanced drawing.
+  it('reports a probe context that came back lost as lost, not as a missing extension', () => {
+    stubContext({ context: true, extensions: [CP_REQUIRED_EXTENSION], lost: true });
+    expect(probeCpWebglSupport()).toEqual({ supported: false, gap: 'context-lost-at-start' });
+  });
+
   it('names each gap distinctly', () => {
-    const described = (['no-context', 'no-instanced-arrays', 'context-lost-at-start'] as const).map(
-      describeCpWebglGap
-    );
+    const described = (
+      ['no-context', 'no-instanced-arrays', 'context-lost-at-start', 'context-failed'] as const
+    ).map(describeCpWebglGap);
     expect(new Set(described).size).toBe(described.length);
     expect(describeCpWebglGap('no-instanced-arrays')).toContain(CP_REQUIRED_EXTENSION);
   });
 });
 
 /**
- * The classifier exists because the probe passing and regl throwing is a real
- * combination, and the user was being told the wrong thing when it happened
- * (ORI-STUDIO-4). What it must never do is agree with regl by default.
+ * Asked of the real canvas before regl is built, because the probe passing and
+ * the real canvas failing is a real combination, and the user was being told the
+ * wrong thing when it happened (ORI-STUDIO-4). What it must never do is agree
+ * with regl by default.
  */
-describe('classifyCpWebglFailure', () => {
-  const canvas = () => document.createElement('canvas');
+describe('cpWebglContextGap', () => {
+  const gapOf = () => cpWebglContextGap(acquireCpWebglContext(document.createElement('canvas')));
 
   it('separates an exhausted document from an incapable one', () => {
     stubContext({ context: true, extensions: [CP_REQUIRED_EXTENSION], lost: true });
-    expect(classifyCpWebglFailure(canvas())).toBe('context-lost-at-start');
+    expect(gapOf()).toBe('context-lost-at-start');
   });
 
   // The same observable symptom as above — every getExtension answers null — and
   // the only thing that distinguishes them is that this context is alive.
   it('reports no-instanced-arrays for a live context missing the extension', () => {
     stubContext({ context: true, extensions: [] });
-    expect(classifyCpWebglFailure(canvas())).toBe('no-instanced-arrays');
+    expect(gapOf()).toBe('no-instanced-arrays');
   });
 
   it('reports no-context when the canvas has none', () => {
     stubContext({ context: false });
-    expect(classifyCpWebglFailure(canvas())).toBe('no-context');
+    expect(gapOf()).toBe('no-context');
   });
 
-  // regl throws for things that are not capability gaps at all — a shader that
-  // will not compile, say. Naming a gap here would be the same wrong answer the
-  // classifier was added to stop, pointing the other way.
-  it('declines to name a gap on a healthy canvas, so the raw error survives', () => {
+  it('finds no gap on a healthy context', () => {
     stubContext({ context: true, extensions: [CP_REQUIRED_EXTENSION] });
-    expect(classifyCpWebglFailure(canvas())).toBeNull();
+    expect(gapOf()).toBeNull();
   });
 
-  // The `unclassified` tag on every recent ORI-STUDIO-4 event: regl could not get the
-  // extension, and the classifier — asking in a different case — found the canvas healthy
-  // and had nothing to say about it.
-  it('names the gap regl actually hit on a case-sensitive browser', () => {
+  // regl lowercases the name before it asks; asking any other way would find a
+  // healthy context where regl finds none.
+  it('names the gap regl would hit on a case-sensitive browser', () => {
     stubContext({ context: true, extensions: [CP_REQUIRED_EXTENSION], caseSensitive: true });
-    expect(classifyCpWebglFailure(canvas())).toBe('no-instanced-arrays');
+    expect(gapOf()).toBe('no-instanced-arrays');
   });
 
-  // The probe may throw this away; the real canvas may not. The caller is about
-  // to report on the context this just inspected.
+  // The probe may throw its context away; the real canvas may not. The renderer
+  // is about to draw with the context this just inspected.
   it('leaves the inspected context alive', () => {
     const { lose } = stubContext({ context: true, extensions: [CP_REQUIRED_EXTENSION] });
-    classifyCpWebglFailure(canvas());
+    gapOf();
     expect(lose).not.toHaveBeenCalled();
+  });
+});
+
+/** A context that compiles every shader, or none. */
+function shaderContext({ compiles, lost = false }: { compiles: boolean; lost?: boolean }) {
+  return {
+    VERTEX_SHADER: 0x8b31,
+    COMPILE_STATUS: 0x8b81,
+    isContextLost: () => lost,
+    createShader: () => (lost ? null : {}),
+    shaderSource: vi.fn(),
+    compileShader: vi.fn(),
+    getShaderParameter: () => (lost ? null : compiles),
+    deleteShader: vi.fn(),
+  } as unknown as WebGLRenderingContext;
+}
+
+/**
+ * ORI-STUDIO-1D: a fragment shader that "failed to compile" with an empty info
+ * log on a context that `isContextLost()` still called healthy. That is what a
+ * context lost mid-compile looks like from the inside, and it is a loss to wait
+ * out — but a shader a working driver rejects is a bug of ours, and the two must
+ * not be mistaken for each other in either direction.
+ */
+describe('cpWebglBuildFailure', () => {
+  const COMPILE_ERROR = new Error('(regl) Error compiling fragment shader, unknown');
+
+  it('names a context that can compile nothing at all', () => {
+    const failure = cpWebglBuildFailure(shaderContext({ compiles: false }), COMPILE_ERROR);
+    expect(failure).toBeInstanceOf(CpWebglUnavailableError);
+    expect((failure as CpWebglUnavailableError).gap).toBe('context-failed');
+    expect((failure as CpWebglUnavailableError).cause).toBe(COMPILE_ERROR);
+  });
+
+  it('names a context lost by the time it is asked', () => {
+    const failure = cpWebglBuildFailure(shaderContext({ compiles: true, lost: true }), COMPILE_ERROR);
+    expect((failure as CpWebglUnavailableError).gap).toBe('context-failed');
+  });
+
+  it('returns the error as thrown when the context compiles fine', () => {
+    expect(cpWebglBuildFailure(shaderContext({ compiles: true }), COMPILE_ERROR)).toBe(COMPILE_ERROR);
+  });
+
+  it('cleans up the shader it compiled to find out', () => {
+    const gl = shaderContext({ compiles: true });
+    expect(contextCompilesShaders(gl)).toBe(true);
+    expect(gl.deleteShader).toHaveBeenCalledOnce();
+  });
+});
+
+/**
+ * Which start-up failures are errors. ORI-STUDIO-4 (no WebGL on the canvas) and
+ * -1D (a context that stopped answering mid-build) are the machine's, not ours:
+ * the first is explained in place of the canvas, the second waited out like any
+ * lost context, and neither is reported. Only what nothing can name is.
+ */
+describe('cpRendererStartFailure', () => {
+  it('explains a missing capability without reporting it', () => {
+    expect(cpRendererStartFailure(new CpWebglUnavailableError('no-context'))).toEqual({
+      kind: 'unsupported',
+      status: { kind: 'unsupported', gap: 'no-context', detail: describeCpWebglGap('no-context') },
+    });
+    expect(cpRendererStartFailure(new CpWebglUnavailableError('no-instanced-arrays')).kind).toBe(
+      'unsupported'
+    );
+  });
+
+  it('waits out a context lost before or while the renderer started', () => {
+    for (const gap of ['context-lost-at-start', 'context-failed'] as const) {
+      expect(cpRendererStartFailure(new CpWebglUnavailableError(gap))).toEqual({
+        kind: 'wait',
+        status: { kind: 'context-lost', gap },
+      });
+    }
+  });
+
+  it('keeps anything else as unexpected, with its own message', () => {
+    expect(cpRendererStartFailure(new Error('(regl) something else'))).toEqual({
+      kind: 'unexpected',
+      status: { kind: 'unsupported', gap: null, detail: '(regl) something else' },
+    });
   });
 });
 
@@ -183,7 +274,7 @@ describe('awaitContextRestore', () => {
     expect(onRestored).toHaveBeenCalledTimes(1);
 
     // Disposed with the effect that armed it: a restore after that belongs to the
-    // renderer that replaced it, which has regl's own listeners.
+    // renderer that replaced it, which listens for itself.
     dispose();
     element.dispatchEvent(new Event('webglcontextrestored'));
     const later = new Event('webglcontextlost', { cancelable: true });

@@ -12,6 +12,7 @@ import type {
 } from './types';
 import type { CpRenderFrame } from './CpRenderer';
 import { createCpImage } from '../images/cpImage';
+import { liveWebglCanvas } from './webglCanvas.fixtures';
 
 /**
  * The order every mocked program drew in, for the frame under test.
@@ -164,7 +165,7 @@ function folded(prefix: string): FoldedGeometry {
 
 /** A renderer with every layer this file asserts on already uploaded. */
 function renderScene() {
-  const renderer = createReglRenderer(document.createElement('canvas'));
+  const renderer = createReglRenderer(liveWebglCanvas());
   renderer.resize({ width: 100, height: 100, dpr: 1 });
   renderer.setGrid(strokes('grid'));
   renderer.setRegions([
@@ -270,7 +271,7 @@ describe('reglRenderer layer order', () => {
     vi.stubGlobal('fetch', async () => ({ blob: async () => ({}) }));
     vi.stubGlobal('createImageBitmap', async () => ({}) as ImageBitmap);
 
-    const renderer = createReglRenderer(document.createElement('canvas'));
+    const renderer = createReglRenderer(liveWebglCanvas());
     renderer.resize({ width: 100, height: 100, dpr: 1 });
     renderer.setStrokes(strokes('creases'));
     renderer.setImages([

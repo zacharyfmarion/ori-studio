@@ -2197,6 +2197,19 @@ export const ANALYTICS_EVENTS = {
    */
   startFigureFallback: 'start figure fallback',
   /**
+   * A crease-pattern canvas could not draw, and said why in its place
+   * (`useCpCanvasUnavailableEvent`): `state` is what the user was shown —
+   * `restoring` for a context the browser took and will hand back, `unsupported`
+   * for a graphics stack that cannot run the canvas — and `cause` the reason, an
+   * enum. Once per state and cause per page load, because a document short of
+   * contexts can lose and regain one many times a second.
+   *
+   * These used to be Sentry errors. They are not bugs — nothing in Ori Studio is
+   * broken when a browser hands out no WebGL — so how often they happen is
+   * counted here instead.
+   */
+  cpCanvasUnavailable: 'cp canvas unavailable',
+  /**
    * Every completed update check, including the ones that find nothing.
    *
    * The heartbeat. Without it, "the endpoint has been unreachable for a month"

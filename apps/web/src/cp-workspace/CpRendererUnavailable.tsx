@@ -1,21 +1,21 @@
 import { useTranslation } from 'react-i18next';
+import { useCpCanvasUnavailableEvent } from '../analytics/useCpCanvasUnavailableEvent';
+import { Button } from '../components/ui/Button';
+import { isDesktopRuntime } from '../platform/runtime';
+import type { CpRendererStatus } from './renderer/webglSupport';
 
-/**
- * Why the crease-pattern viewport is not drawing.
- *
- * Two states, because they call for opposite things from the user. `unsupported`
- * is permanent — this graphics stack cannot run the surface, and nothing but a
- * different one will change that. `context-lost` is a blip on hardware that was
- * drawing a moment ago, and the only useful instruction is to wait.
- */
-export type CpRendererStatus =
-  /** No usable WebGL. `detail` is the probed gap, or the thrown error's message. */
-  | { kind: 'unsupported'; detail: string | null }
-  /** The context was taken away; a rebuild is waiting on `webglcontextrestored`. */
-  | { kind: 'context-lost' };
+export type { CpRendererStatus } from './renderer/webglSupport';
 
 type CpRendererUnavailableProps = {
   status: CpRendererStatus;
+  /**
+   * Build the renderer again on the same canvas. Offered only where it can
+   * help: a graphics stack that refused once can grant a context the next
+   * time — a GPU process that has recovered, a document no longer out of
+   * contexts — whereas a lost context comes back on the browser's schedule, and
+   * the host already rebuilds the moment it does.
+   */
+  onRetry?: () => void;
 };
 
 /**
@@ -32,8 +32,9 @@ type CpRendererUnavailableProps = {
  * Reuses the read-only `.cp-panel__unopened` styles: both are "the viewport is
  * here but you cannot edit in it" messages, and they should not look different.
  */
-export function CpRendererUnavailable({ status }: CpRendererUnavailableProps) {
+export function CpRendererUnavailable({ status, onRetry }: CpRendererUnavailableProps) {
   const { t } = useTranslation();
+  useCpCanvasUnavailableEvent(status);
 
   if (status.kind === 'context-lost') {
     return (
@@ -51,20 +52,33 @@ export function CpRendererUnavailable({ status }: CpRendererUnavailableProps) {
     );
   }
 
+  // The remedy is the one thing that differs: a browser has a setting that
+  // turns WebGL off, and the desktop app has no such switch — there the
+  // graphics driver is what decides.
   return (
     <div className="cp-panel__unopened" role="status">
       <span className="cp-panel__unopened-title">
         {t('panels:creasePattern.rendererUnavailable', 'The crease-pattern canvas could not start.')}
       </span>
       <span className="cp-panel__unopened-detail">
-        {t(
-          'panels:creasePattern.rendererUnavailableHint',
-          'Ori Studio draws crease patterns with WebGL and instanced rendering, which this system did not provide. Updating your graphics drivers usually resolves it.'
-        )}
+        {isDesktopRuntime()
+          ? t(
+              'panels:creasePattern.rendererUnavailableHintDesktop',
+              'Drawing crease patterns needs WebGL, which this computer’s graphics driver did not provide. Updating the graphics driver usually fixes it. Your crease pattern is safe.'
+            )
+          : t(
+              'panels:creasePattern.rendererUnavailableHint',
+              'Drawing crease patterns needs WebGL, which this browser did not provide. Turning on hardware acceleration in the browser’s settings usually fixes it. Your crease pattern is safe.'
+            )}
       </span>
       {/* The underlying gap. Without it this state is a dead end: the editor is
           blank, and nothing says which part of the graphics stack refused. */}
       {status.detail && <code className="cp-panel__unopened-reason">{status.detail}</code>}
+      {onRetry && (
+        <Button size="sm" variant="secondary" onClick={onRetry}>
+          {t('panels:creasePattern.rendererRetry', 'Try again')}
+        </Button>
+      )}
     </div>
   );
 }
