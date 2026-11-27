@@ -199,8 +199,9 @@ async fn fetch_once(
                 || status == StatusCode::REQUEST_TIMEOUT
                 || status == StatusCode::TOO_MANY_REQUESTS =>
         {
+            // The release host failing or shedding load, not a missing asset.
             return Err(AttemptError::Retry(DownloadError::new(
-                Kind::HttpStatus,
+                Kind::ServerError,
                 format!("download request failed with status {status}"),
             )));
         }
@@ -477,7 +478,8 @@ mod tests {
     #[test]
     fn gives_up_after_attempts_that_make_no_progress() {
         let (result, seen) = run(vec![Reply::Status(503); 3]);
-        assert_eq!(result.unwrap_err().kind, Kind::HttpStatus);
+        // The host's trouble, which passes: not a broken release.
+        assert_eq!(result.unwrap_err().kind, Kind::ServerError);
         assert_eq!(seen.len(), 3);
     }
 

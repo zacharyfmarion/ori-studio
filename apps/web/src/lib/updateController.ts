@@ -107,7 +107,10 @@ export function classifyUpdateError(error: unknown): UpdateFailureReason {
  * The reasons that say the *published release* is wrong rather than one
  * machine's network. Each is fleet-wide and none is routine, so each is worth
  * a crash report with the message attached. The transport classes are expected
- * — this app works offline — and stay out of Sentry.
+ * — this app works offline — and stay out of Sentry. So does `server_error`, the
+ * release host failing or shedding load: nobody here can act on it and it
+ * passes. Two GitHub incidents of exactly that were once filed as broken
+ * releases (ORI-STUDIO-1F).
  */
 const FLEET_WIDE_REASONS: ReadonlySet<UpdateFailureReason> = new Set<UpdateFailureReason>([
   'signature',
@@ -137,8 +140,18 @@ function reportFailure(
  * already in flight. It is distinct from `'none'` because only `'none'` licenses
  * saying "you're up to date"; reporting that after a check that did not happen
  * would be a claim about the world made from no evidence.
+ *
+ * `'server_unavailable'` is a failed check whose cause was the release host,
+ * told apart from `'failed'` so the caller does not ask someone to check a
+ * connection that works.
  */
-export type UpdateCheckOutcome = 'skipped' | 'none' | 'available' | 'unsupported' | 'failed';
+export type UpdateCheckOutcome =
+  | 'skipped'
+  | 'none'
+  | 'available'
+  | 'unsupported'
+  | 'failed'
+  | 'server_unavailable';
 
 /**
  * Run one update check, and start the download when policy allows.
@@ -224,14 +237,9 @@ export async function runUpdateCheck(trigger: UpdateTrigger): Promise<UpdateChec
   } catch (error) {
     useUpdateStore.getState().setCheckFailed(Date.now());
     track(ANALYTICS_EVENTS.appUpdateChecked, { result: 'error', trigger });
-    reportFailure(
-      'check',
-      classifyUpdateError(error),
-      error,
-      trigger,
-      environment?.installKind ?? null
-    );
-    return 'failed';
+    const reason = classifyUpdateError(error);
+    reportFailure('check', reason, error, trigger, environment?.installKind ?? null);
+    return reason === 'server_error' ? 'server_unavailable' : 'failed';
   }
 }
 

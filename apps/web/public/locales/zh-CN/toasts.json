@@ -150,6 +150,7 @@
     "available": "版本 {{version}} 可用",
     "checkFailed": "无法检查更新",
     "checkFailedHint": "Ori Studio 无法连接到更新服务器。请检查网络连接后重试。",
+    "serverUnavailableHint": "更新服务器暂时没有响应。请过几分钟再试。",
     "upToDate": "Ori Studio 已是最新版本"
   },
   "upright": {

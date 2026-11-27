@@ -6368,7 +6368,8 @@
     "common:workspaceRail.foldBeta": "4ca3f6c57efe",
     "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
     "panels:diagram.actions.importFromFile": "c5243d675700",
-    "panels:diagram.import.menuButton": "2cff9baabf56"
+    "panels:diagram.import.menuButton": "2cff9baabf56",
+    "toasts:update.serverUnavailableHint": "9f35bd0228bc"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -12739,7 +12740,8 @@
     "common:workspaceRail.foldBeta": "4ca3f6c57efe",
     "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
     "panels:diagram.actions.importFromFile": "c5243d675700",
-    "panels:diagram.import.menuButton": "2cff9baabf56"
+    "panels:diagram.import.menuButton": "2cff9baabf56",
+    "toasts:update.serverUnavailableHint": "9f35bd0228bc"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -19112,7 +19114,8 @@
     "common:workspaceRail.foldBeta": "4ca3f6c57efe",
     "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
     "panels:diagram.actions.importFromFile": "c5243d675700",
-    "panels:diagram.import.menuButton": "2cff9baabf56"
+    "panels:diagram.import.menuButton": "2cff9baabf56",
+    "toasts:update.serverUnavailableHint": "9f35bd0228bc"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -25138,7 +25141,8 @@
     "common:workspaceRail.foldBeta": "4ca3f6c57efe",
     "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
     "panels:diagram.actions.importFromFile": "c5243d675700",
-    "panels:diagram.import.menuButton": "2cff9baabf56"
+    "panels:diagram.import.menuButton": "2cff9baabf56",
+    "toasts:update.serverUnavailableHint": "9f35bd0228bc"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -31164,7 +31168,8 @@
     "common:workspaceRail.foldBeta": "4ca3f6c57efe",
     "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
     "panels:diagram.actions.importFromFile": "c5243d675700",
-    "panels:diagram.import.menuButton": "2cff9baabf56"
+    "panels:diagram.import.menuButton": "2cff9baabf56",
+    "toasts:update.serverUnavailableHint": "9f35bd0228bc"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -37535,7 +37540,8 @@
     "common:workspaceRail.foldBeta": "4ca3f6c57efe",
     "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
     "panels:diagram.actions.importFromFile": "c5243d675700",
-    "panels:diagram.import.menuButton": "2cff9baabf56"
+    "panels:diagram.import.menuButton": "2cff9baabf56",
+    "toasts:update.serverUnavailableHint": "9f35bd0228bc"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -43906,7 +43912,8 @@
     "common:workspaceRail.foldBeta": "4ca3f6c57efe",
     "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
     "panels:diagram.actions.importFromFile": "c5243d675700",
-    "panels:diagram.import.menuButton": "2cff9baabf56"
+    "panels:diagram.import.menuButton": "2cff9baabf56",
+    "toasts:update.serverUnavailableHint": "9f35bd0228bc"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -49932,6 +49939,7 @@
     "common:workspaceRail.foldBeta": "4ca3f6c57efe",
     "dialogs:paperExport.zipUnavailable": "ac5f8181da74",
     "panels:diagram.actions.importFromFile": "c5243d675700",
-    "panels:diagram.import.menuButton": "2cff9baabf56"
+    "panels:diagram.import.menuButton": "2cff9baabf56",
+    "toasts:update.serverUnavailableHint": "9f35bd0228bc"
   }
 }

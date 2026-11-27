@@ -209,6 +209,51 @@ describe('runUpdateCheck', () => {
     });
   });
 
+  it('keeps a failing release host out of Sentry and says so to whoever asked', async () => {
+    // ORI-STUDIO-1F: GitHub answered anonymous release downloads with 504 for
+    // hours, and every check that hit one was filed as a broken release. The
+    // shell now reads the status and names it `server_error`.
+    service.readUpdateEnvironment.mockResolvedValue({ installKind: 'nsis', selfUpdateSupported: true });
+    service.checkForUpdate.mockRejectedValue(
+      new UpdateCheckError(
+        'server_error',
+        'Could not fetch a valid release JSON from the remote; asked again, the endpoint answered 504 Gateway Timeout'
+      )
+    );
+
+    await expect(runUpdateCheck('automatic')).resolves.toBe('server_unavailable');
+
+    expect(analytics.track).toHaveBeenCalledWith('app update failed', {
+      stage: 'check',
+      reason: 'server_error',
+      install_kind: 'nsis',
+      trigger: 'automatic',
+    });
+    expect(monitoring.reportError).not.toHaveBeenCalled();
+    expect(useUpdateStore.getState().lastCheck).toMatchObject({ ok: false });
+
+    await expect(runUpdateCheck('manual')).resolves.toBe('server_unavailable');
+    expect(monitoring.reportError).not.toHaveBeenCalled();
+  });
+
+  it('still sends a missing manifest to Sentry', async () => {
+    // The fleet-wide case the status split keeps: an armed release whose
+    // `latest.json` is absent answers 404 on every install at once.
+    service.readUpdateEnvironment.mockResolvedValue({ installKind: 'nsis', selfUpdateSupported: true });
+    const failure = new UpdateCheckError(
+      'http_status',
+      'Could not fetch a valid release JSON from the remote; asked again, the endpoint answered 404 Not Found'
+    );
+    service.checkForUpdate.mockRejectedValue(failure);
+
+    await expect(runUpdateCheck('automatic')).resolves.toBe('failed');
+
+    expect(monitoring.reportError).toHaveBeenCalledWith(failure, {
+      surface: 'updater:check',
+      tags: { reason: 'http_status' },
+    });
+  });
+
   it('still reports when the environment itself could not be read', async () => {
     service.readUpdateEnvironment.mockRejectedValue(new Error('update_environment is not allowed'));
 
