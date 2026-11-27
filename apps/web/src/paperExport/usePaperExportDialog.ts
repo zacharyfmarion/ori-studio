@@ -63,7 +63,6 @@ import { paperExportedEvent, savePaperExport, savePaperExportZip } from './saveP
 import { usePaperExportScenes, type PaperExportStatus } from './usePaperExportScenes';
 import { saveObjExport } from './saveObjExport';
 import { usePaperObjSpread, type PaperObjSpreadBinding } from './usePaperObjSpread';
-import { ZipUnavailableError } from './zipPages';
 import type { PaperStyle } from '../lib/paper/paperStyle';
 
 export type { PaperExportStatus };
@@ -95,19 +94,8 @@ function sameOptions(a: PaperExportSettings, b: PaperExportSettings): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-/**
- * What went wrong, for the dialog's footer. The ZIP writer failing to load is
- * said in the reader's language, because its remedy is theirs to take: reload.
- * Pressing Export again never helps — the browser remembers a module that
- * failed. Anything else reads as it was thrown.
- */
-function saveErrorMessage(cause: unknown, t: ReturnType<typeof useTranslation>['t']): string {
-  if (cause instanceof ZipUnavailableError) {
-    return t(
-      'dialogs:paperExport.zipUnavailable',
-      'The ZIP writer could not be loaded. Reload Ori Studio and try again.'
-    );
-  }
+/** What went wrong, for the dialog's footer: as it was thrown. */
+function saveErrorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
 }
 
@@ -372,7 +360,7 @@ export function usePaperExportDialog(
         surface: 'paper-export',
         tags: { paper_surface: counted.surface, format: counted.format, scope },
       });
-      setSaveError(saveErrorMessage(cause, t));
+      setSaveError(saveErrorMessage(cause));
     } finally {
       setSaving(false);
       setProgress(null);

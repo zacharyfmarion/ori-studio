@@ -20,7 +20,10 @@
  *
  * Imported first from `main.tsx`, ahead of anything that could call these at module scope.
  * The workers do not import it: none of them use these built-ins, and each is its own global.
+ * It also installs the `modulepreload` polyfill (`lib/modulePreloadPolyfill.ts`), which ran
+ * first in the entry chunk while it was Vite's.
  */
+import { installModulePreloadPolyfill } from './lib/modulePreloadPolyfill';
 
 /**
  * `Array.prototype.at`, per spec: integer-truncated, negative from the end, `undefined`
@@ -105,3 +108,4 @@ export function installPolyfills(target: PolyfillTarget = globalThis): void {
 }
 
 installPolyfills();
+installModulePreloadPolyfill();

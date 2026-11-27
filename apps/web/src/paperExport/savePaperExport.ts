@@ -107,7 +107,7 @@ export async function savePaperExportZip({
     });
     onProgress?.(index + 1, pages.length);
   }
-  const bytes = await zipPages(entries);
+  const bytes = zipPages(entries);
   if (signal?.aborted) return null;
   const result = await fileService.saveBinaryFile({
     title: 'Export ZIP',
