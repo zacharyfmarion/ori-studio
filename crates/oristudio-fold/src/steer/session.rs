@@ -222,8 +222,9 @@ pub enum ConstraintFault {
 #[derive(Debug, Clone, PartialEq, Serialize, Error)]
 #[serde(tag = "code")]
 pub enum SessionRefusal {
-    /// The creases alone admit no order: their letters conflict, or some part
-    /// of the fold has none. Edit could not have folded them flat.
+    /// The creases alone admit no order: their letters conflict (two lines
+    /// joining one pair of faces with opposite letters among them), or some
+    /// part of the fold has none. Edit could not have folded them flat.
     #[serde(rename = "session_no_order")]
     #[error("the creases admit no layer order (faces {faces:?})")]
     NoOrder { faces: Vec<FaceId> },
@@ -1399,6 +1400,15 @@ fn open_refusal(refusal: CompletionRefusal) -> SessionRefusal {
     match refusal {
         CompletionRefusal::Conflict { traced, .. } => SessionRefusal::NoOrder {
             faces: sorted(traced),
+        },
+        // Two lines join the same two faces with opposite letters: a crease
+        // that is a mountain along part of the join and a valley along the
+        // rest, with no other crease meeting it where it changes (as when the
+        // one that does is left out of a selection). The letters conflict
+        // before any propagation, so no layer order has both: the creases'
+        // answer, not a defect.
+        CompletionRefusal::FixedContradictory { pair } => SessionRefusal::NoOrder {
+            faces: pair.faces().to_vec(),
         },
         CompletionRefusal::NoOrder { faces } => SessionRefusal::NoOrder {
             faces: sorted(faces),
