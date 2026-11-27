@@ -29,9 +29,10 @@ import { createReglRenderer } from '../renderer/reglRenderer';
 import type { ModelPoint, Rgba, Viewport, ViewTransform } from '../renderer/types';
 import {
   awaitContextRestore,
-  classifyCpWebglFailure,
+  cpRendererStartFailure,
   cpWebglSupport,
   describeCpWebglGap,
+  isTransientCpWebglGap,
 } from '../renderer/webglSupport';
 import {
   CP_LINE_HIT_MIN_CSS,
@@ -216,6 +217,8 @@ export interface CpSurface<Hit> {
   rendererGeneration: number;
   /** Why nothing is drawn, for `CpRendererUnavailable`; null while drawing. */
   rendererStatus: CpRendererStatus | null;
+  /** Build the renderer again, for `CpRendererUnavailable`'s "Try again". */
+  retryRenderer: () => void;
   /** What the pointer is over: on hover, or under a finger while it is still a tap. */
   hovered: Hit | null;
   /** A contact is down. */
@@ -289,6 +292,7 @@ export function useCpSurface<Hit>(options: UseCpSurfaceOptions<Hit>): CpSurface<
   const applySizeRef = useRef<() => void>(() => undefined);
   const [rendererStatus, setRendererStatus] = useState<CpRendererStatus | null>(null);
   const [rendererGeneration, setRendererGeneration] = useState(0);
+  const retryRenderer = useCallback(() => setRendererGeneration((generation) => generation + 1), []);
   // What the pointer is over, and whether it is dragging — what the cursor
   // and the hover mark need. Both are mirrored in refs the raw handlers read
   // and write, and only pushed into state when the answer changes, so a
@@ -319,8 +323,14 @@ export function useCpSurface<Hit>(options: UseCpSurfaceOptions<Hit>): CpSurface<
     if (!canvas) return;
 
     const support = cpWebglSupport();
-    if (!support.supported) {
-      setRendererStatus({ kind: 'unsupported', detail: describeCpWebglGap(support.gap) });
+    // A lost probe context is a document short of contexts, not a missing
+    // capability; the real canvas answers for itself. See the editor canvas.
+    if (!support.supported && !isTransientCpWebglGap(support.gap)) {
+      setRendererStatus({
+        kind: 'unsupported',
+        gap: support.gap,
+        detail: describeCpWebglGap(support.gap),
+      });
       return;
     }
 
@@ -335,28 +345,23 @@ export function useCpSurface<Hit>(options: UseCpSurfaceOptions<Hit>): CpSurface<
         onContextRestored: () => setRendererGeneration((generation) => generation + 1),
       });
     } catch (error) {
-      const gap = classifyCpWebglFailure(canvas);
-      // Already lost is a loss arriving early, not a gap — same handling as
-      // `onContextLost`, and like it not reported. See the editor canvas.
-      if (gap === 'context-lost-at-start') {
+      // A loss arriving early is waited out and a missing capability is shown;
+      // neither is an error. Only a failure nothing can name is reported. See
+      // the editor canvas.
+      const failure = cpRendererStartFailure(error);
+      setRendererStatus(failure.status);
+      if (failure.kind === 'wait') {
         preservedCameraRef.current = cameraRef.current;
-        setRendererStatus({ kind: 'context-lost' });
         return awaitContextRestore(canvas, () =>
           setRendererGeneration((generation) => generation + 1)
         );
       }
-      reportError(error, {
-        surface: liveRef.current.errorSurface,
-        tags: { webgl_gap: gap ?? 'unclassified' },
-      });
-      setRendererStatus({
-        kind: 'unsupported',
-        detail: gap
-          ? describeCpWebglGap(gap)
-          : error instanceof Error
-            ? error.message
-            : String(error),
-      });
+      if (failure.kind === 'unexpected') {
+        reportError(error, {
+          surface: liveRef.current.errorSurface,
+          tags: { webgl_gap: 'unclassified' },
+        });
+      }
       return;
     }
     setRendererStatus(null);
@@ -624,6 +629,7 @@ export function useCpSurface<Hit>(options: UseCpSurfaceOptions<Hit>): CpSurface<
     rendererRef,
     rendererGeneration,
     rendererStatus,
+    retryRenderer,
     hovered,
     dragging,
     render,

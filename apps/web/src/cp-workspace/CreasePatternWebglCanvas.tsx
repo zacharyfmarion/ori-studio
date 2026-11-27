@@ -3,9 +3,10 @@ import { createReglRenderer } from './renderer/reglRenderer';
 import { CpRendererUnavailable, type CpRendererStatus } from './CpRendererUnavailable';
 import {
   awaitContextRestore,
-  classifyCpWebglFailure,
+  cpRendererStartFailure,
   cpWebglSupport,
   describeCpWebglGap,
+  isTransientCpWebglGap,
 } from './renderer/webglSupport';
 import { reportError } from '../monitoring';
 import type { CpRenderer } from './renderer/CpRenderer';
@@ -1057,6 +1058,9 @@ export function CreasePatternWebglCanvas({
   // system took back. Replaces the (blank) canvas with an explanation of which
   // of the two it is. See `CpRendererUnavailable`.
   const [rendererStatus, setRendererStatus] = useState<CpRendererStatus | null>(null);
+  // "Try again" on a canvas that could not start: the same rebuild a restore
+  // triggers, which re-probes, since only a yes is remembered.
+  const retryRenderer = useCallback(() => setRendererGeneration((generation) => generation + 1), []);
   const preservedCameraRef = useRef<UserCamera | null>(null);
   // A saved camera armed by the framingKey effect, consumed by the first
   // `ensureCamera` after it. One-shot: once adopted, the user owns the camera,
@@ -1675,10 +1679,16 @@ export function CreasePatternWebglCanvas({
 
     // Asked before regl, so the unavailable state can name the missing
     // capability instead of relaying regl's "upgrade your browser or graphics
-    // drivers", which is not advice an iPad user can act on.
+    // drivers", which is not advice an iPad user can act on. A probe context
+    // that came back lost only says the document is short of contexts this
+    // moment; the real canvas answers for itself below.
     const support = cpWebglSupport();
-    if (!support.supported) {
-      setRendererStatus({ kind: 'unsupported', detail: describeCpWebglGap(support.gap) });
+    if (!support.supported && !isTransientCpWebglGap(support.gap)) {
+      setRendererStatus({
+        kind: 'unsupported',
+        gap: support.gap,
+        detail: describeCpWebglGap(support.gap),
+      });
       return;
     }
 
@@ -1700,48 +1710,39 @@ export function CreasePatternWebglCanvas({
         onContextRestored: () => setRendererGeneration((generation) => generation + 1),
       });
     } catch (error) {
-      // The probe just said this stack was fine, so something about *this*
-      // canvas is not — ask it which, rather than repeating regl. Left to regl
-      // the detail line reads "try upgrading your system or a different
-      // browser", which is both unactionable on a tablet and, when the real
-      // cause is a document out of GL contexts, simply untrue.
-      const gap = classifyCpWebglFailure(canvas);
-      // A context that was already lost is the `onContextLost` case arriving a
-      // moment early, not a capability gap: the stack has WebGL, the document
-      // just does not have this context right now (Safari, ORI-STUDIO-4). Same
-      // handling as a loss mid-session — say so, and rebuild on restore — and
-      // like that path it is not reported; the permanent gaps below still are.
-      if (gap === 'context-lost-at-start') {
+      // The renderer names what stopped it (`CpWebglUnavailableError`). Shown
+      // in place of the canvas rather than logged: a packaged desktop build has
+      // no console anyone reads, so the old console.error left this as a
+      // silently blank editor.
+      const failure = cpRendererStartFailure(error);
+      setRendererStatus(failure.status);
+      // A context lost before or while the renderer started is the
+      // `onContextLost` case arriving a moment early, not a capability gap:
+      // the stack has WebGL, the document just does not have this context
+      // right now. Same handling as a loss mid-session — say so, rebuild on
+      // restore — and like that path it is not an error.
+      if (failure.kind === 'wait') {
         preservedCameraRef.current = cameraRef.current;
-        setRendererStatus({ kind: 'context-lost' });
         return awaitContextRestore(canvas, () =>
           setRendererGeneration((generation) => generation + 1)
         );
       }
-      // Surfaced, not logged. A packaged desktop build has no console anyone
-      // reads, so the old console.error left this as a silently blank editor —
-      // which is exactly what WebKitGTK produces with no usable WebGL.
-      //
-      // The gap rides as a tag so the *next* one of these is diagnosable: the
-      // exception's own message is regl's either way, so two very different
-      // failures group into one Sentry issue without it.
-      reportError(error, {
-        surface: 'cp-workspace:webgl',
-        tags: { webgl_gap: gap ?? 'unclassified' },
-      });
-      setRendererStatus({
-        kind: 'unsupported',
-        detail: gap
-          ? describeCpWebglGap(gap)
-          : error instanceof Error
-            ? error.message
-            : String(error),
-      });
+      // No WebGL, or none with instanced drawing, is this machine's graphics
+      // stack and not a bug, so it is counted (`cp canvas unavailable`) rather
+      // than reported. What is left is a failure nothing here can name, which
+      // is ours to look at.
+      if (failure.kind === 'unexpected') {
+        reportError(error, { surface: 'cp-workspace:webgl', tags: { webgl_gap: 'unclassified' } });
+      }
       return;
     }
     // A rebuild after context loss succeeded, so clear any earlier failure.
     setRendererStatus(null);
     rendererRef.current = renderer;
+    // The render loop uploads the grid itself, and only when its key changes. A
+    // new renderer starts with no grid, so the key the old one was drawn with
+    // must not stand for it, or the grid stays off until the view next moves.
+    gridKeyRef.current = null;
 
     const viewportOf = (ratio: number): Viewport => ({
       width: canvas.width,
@@ -4341,12 +4342,23 @@ export function CreasePatternWebglCanvas({
       <canvas
         ref={canvasRef}
         className={className}
-        style={cursor ? { cursor } : undefined}
+        style={{
+          ...(cursor ? { cursor } : {}),
+          // While it cannot draw, the canvas steps aside rather than staying
+          // up. It has nothing current to show; it is stacked above the
+          // explanation below (`.cp-webgl-layer` sits at z-index 5, the notice
+          // at none); and every pointer event it took went to a renderer that
+          // could not use it. Hidden, not removed, so it keeps its size for the
+          // rebuild.
+          ...(rendererStatus !== null ? { visibility: 'hidden' as const } : {}),
+        }}
         aria-hidden="true"
       />
       {/* Absolutely positioned over `.cp-panel__viewport`, which is the
           positioning context and already hosts the other canvas overlays. */}
-      {rendererStatus !== null && <CpRendererUnavailable status={rendererStatus} />}
+      {rendererStatus !== null && (
+        <CpRendererUnavailable status={rendererStatus} onRetry={retryRenderer} />
+      )}
     </>
   );
 }

@@ -417,6 +417,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
       rendererRef,
       rendererGeneration,
       rendererStatus,
+      retryRenderer,
       hovered,
       dragging,
       render,
@@ -746,7 +747,7 @@ export const ReferencesCpView = forwardRef<ReferencesCpViewHandle, ReferencesCpV
           data-testid="references-cp-view"
           style={cursor ? { cursor } : undefined}
         />
-        {rendererStatus && <CpRendererUnavailable status={rendererStatus} />}
+        {rendererStatus && <CpRendererUnavailable status={rendererStatus} onRetry={retryRenderer} />}
       </div>
     );
   }

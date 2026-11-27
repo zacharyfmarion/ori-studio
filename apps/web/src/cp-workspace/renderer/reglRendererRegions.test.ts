@@ -5,6 +5,7 @@ import { createCpSuppressionRegion } from '../annotations/suppressionRegion';
 import type { RegionDrawProps } from './programs/regionProgram';
 import type { ViewTransform } from './types';
 import type { CpRenderFrame } from './CpRenderer';
+import { liveWebglCanvas } from './webglCanvas.fixtures';
 
 /**
  * What the renderer decides about the region layer, as opposed to what the
@@ -80,7 +81,7 @@ function renderRegions(
   regions: ReturnType<typeof region>[],
   dpr = 1
 ): RegionDrawProps | undefined {
-  const renderer = createReglRenderer(document.createElement('canvas'));
+  const renderer = createReglRenderer(liveWebglCanvas());
   renderer.resize({ width: 100, height: 100, dpr });
   renderer.setRegions(regions);
   renderer.render(FRAME);

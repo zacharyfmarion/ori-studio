@@ -5,6 +5,7 @@ import { cpSurfacePress } from './picking/cpSurfacePressRegistry';
 import { cpTransformPreviewStore } from './cpTransformPreviewStore';
 import type { ToolCommit } from './tools/types';
 import type { CreasePatternWebglCanvasProps } from './CreasePatternWebglCanvas';
+import type { ReglRendererOptions } from './renderer/reglRenderer';
 
 // Effects only flush inside `act` when React knows it is in a test environment,
 // and the registration under test happens in one.
@@ -33,11 +34,31 @@ import type { CreasePatternWebglCanvasProps } from './CreasePatternWebglCanvas';
  * Stubbing regl instead would mean standing up every draw program just to have
  * them draw nothing into a context jsdom does not have.
  */
+
+/** A stubbed renderer: what it was built with, and every call made on it. */
+interface BuiltRenderer {
+  options: ReglRendererOptions | undefined;
+  calls: [name: string, args: unknown[]][];
+}
+
+/** Every renderer the canvas has built, oldest first. Read by the restore test at the end. */
+const builtRenderers = vi.hoisted((): BuiltRenderer[] => []);
+
 vi.mock('./renderer/reglRenderer', () => ({
-  createReglRenderer: () =>
-    new Proxy({}, { get: () => () => {} }) as unknown as ReturnType<
-      typeof import('./renderer/reglRenderer').createReglRenderer
-    >,
+  createReglRenderer: (_canvas: HTMLCanvasElement, options?: ReglRendererOptions) => {
+    const built: BuiltRenderer = { options, calls: [] };
+    builtRenderers.push(built);
+    return new Proxy(
+      {},
+      {
+        get:
+          (_target, name) =>
+          (...args: unknown[]) => {
+            built.calls.push([String(name), args]);
+          },
+      }
+    ) as unknown as ReturnType<typeof import('./renderer/reglRenderer').createReglRenderer>;
+  },
 }));
 
 const { CreasePatternWebglCanvas } = await import('./CreasePatternWebglCanvas');
@@ -185,10 +206,12 @@ beforeEach(() => {
   );
   // The canvas probes for WebGL before building anything and renders the
   // "unavailable" state instead when the probe fails — which in jsdom is always,
-  // since `getContext` returns null. The probe asks exactly two questions, so
-  // answering both is enough; regl itself is mocked above and never touches this.
+  // since `getContext` returns null. The probe asks three questions — a context,
+  // whether it is lost, and the extension — so answering those is enough; regl
+  // itself is mocked above and never touches this.
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
     getExtension: () => ({ loseContext: () => {} }),
+    isContextLost: () => false,
   } as unknown as RenderingContext);
   vi.spyOn(HTMLCanvasElement.prototype, 'getBoundingClientRect').mockReturnValue({
     ...VIEWPORT,
@@ -654,5 +677,47 @@ describe('the Move Vertex tool', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+/**
+ * The grid is the one layer the render loop uploads by itself, and only when its
+ * key changes. A renderer built again after the graphics context comes back has
+ * nothing on it, so a key left from the renderer it replaced kept the grid off
+ * the new one until the view next moved.
+ */
+describe('a renderer built again after its graphics context comes back', () => {
+  const GRID = {
+    interval_grid_size: 4,
+    grid_size: 8,
+    grid_xa: 1,
+    grid_xb: 0,
+    grid_xc: 1,
+    grid_ya: 1,
+    grid_yb: 0,
+    grid_yc: 1,
+    grid_angle: 90,
+    base_state: 'WithinPaper',
+    vertical_scale_position: 0,
+    horizontal_scale_position: 0,
+    draw_diagonal_gridlines: false,
+  };
+
+  const drewGrid = (built: BuiltRenderer) =>
+    built.calls.some(([name, args]) => name === 'setGrid' && args[0] !== null);
+
+  it('draws the grid on its first frame', () => {
+    act(() => root?.render(<CreasePatternWebglCanvas {...props()} grid={GRID} gridVisible />));
+    const first = builtRenderers.at(-1)!;
+    expect(drewGrid(first)).toBe(true);
+
+    // Lost first, as it always is: that keeps the camera, so the new renderer
+    // sees the same view, and the grid's key, as the one it replaces.
+    act(() => first.options?.onContextLost?.());
+    act(() => first.options?.onContextRestored?.());
+
+    const second = builtRenderers.at(-1)!;
+    expect(second).not.toBe(first);
+    expect(drewGrid(second)).toBe(true);
   });
 });

@@ -7,6 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CpRenderFrame } from './CpRenderer';
 import type { FoldedGeometry, FoldedSpreadLayer, ViewTransform } from './types';
+import { liveWebglCanvas } from './webglCanvas.fixtures';
 
 const spread = vi.hoisted(() => ({
   programs: [] as Array<{ id: number; uploads: unknown[]; draws: ViewTransform[]; disposed: boolean }>,
@@ -86,7 +87,7 @@ const picture = () => ({ faces: [], visibility: { ranks: [], cyclic: false, abov
 const folded = (spreads: FoldedSpreadLayer[]): FoldedGeometry => ({ ...EMPTY, spreads });
 
 function renderer() {
-  const canvas = document.createElement('canvas');
+  const canvas = liveWebglCanvas();
   const made = createReglRenderer(canvas);
   made.resize({ width: 200, height: 100, dpr: 1 });
   return made;
