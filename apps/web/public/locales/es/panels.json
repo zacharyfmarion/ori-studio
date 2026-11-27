@@ -3524,6 +3524,7 @@
       "folds_many": "{{count}} pliegues",
       "folds_other": "{{count}} pliegues"
     },
+    "didNotLoad": "No se pudo cargar Referencias. Comprueba tu conexión y vuelve a intentarlo.",
     "direction": {
       "angle": "a {{deg}}°",
       "diagonalDown": "en la diagonal descendente",
@@ -3695,6 +3696,7 @@
     "stop": "Detener",
     "stopping": "Cancelando…",
     "targetGone": "El pliegue elegido ya no está en el patrón.",
+    "tryAgain": "Reintentar",
     "viewportControls": "Controles de la vista de referencias",
     "warning": {
       "degenerateBorderSegments": "{{n}} pliegue(s) del borde tienen extremos coincidentes y se ignoraron.",

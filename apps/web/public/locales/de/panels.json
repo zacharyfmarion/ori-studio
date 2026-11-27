@@ -3223,6 +3223,7 @@
       "folds_one": "{{count}} Faltung",
       "folds_other": "{{count}} Faltungen"
     },
+    "didNotLoad": "Referenzen konnten nicht geladen werden. Prüfe deine Verbindung und versuche es dann erneut.",
     "direction": {
       "angle": "bei {{deg}}°",
       "diagonalDown": "auf der fallenden Diagonale",
@@ -3389,6 +3390,7 @@
     "stop": "Stopp",
     "stopping": "Wird abgebrochen…",
     "targetGone": "Die gewählte Falte ist nicht mehr im Muster.",
+    "tryAgain": "Erneut versuchen",
     "viewportControls": "Ansichtssteuerung der Referenzen",
     "warning": {
       "degenerateBorderSegments": "{{n}} Randlinie(n) haben zusammenfallende Enden und wurden ignoriert.",

@@ -2926,6 +2926,7 @@
       "error": "오차 {{value}}",
       "folds_other": "{{count}}번 접기"
     },
+    "didNotLoad": "참조를 불러오지 못했습니다. 연결을 확인한 다음 다시 시도하세요.",
     "direction": {
       "angle": "{{deg}}° 방향으로",
       "diagonalDown": "오른쪽 아래로 향하는 대각선으로",
@@ -3087,6 +3088,7 @@
     "stop": "중지",
     "stopping": "취소 중…",
     "targetGone": "선택한 접는 선이 전개도에 더 이상 없습니다.",
+    "tryAgain": "다시 시도",
     "viewportControls": "참조 뷰포트 컨트롤",
     "warning": {
       "degenerateBorderSegments": "{{n}}개의 가장자리 선은 양 끝이 같아 무시했습니다.",

@@ -6810,7 +6810,9 @@
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
     "dialogs:cpDetectImport.didNotLoad": "db27a9005db6",
-    "dialogs:cpDetectImport.tryAgain": "d8b8392e2c54"
+    "dialogs:cpDetectImport.tryAgain": "d8b8392e2c54",
+    "panels:references.didNotLoad": "f87dfeae43fc",
+    "panels:references.tryAgain": "d8b8392e2c54"
   },
   "es": {
     "common:cancel": "19766ed6ccb2",
@@ -13623,7 +13625,9 @@
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
     "dialogs:cpDetectImport.didNotLoad": "db27a9005db6",
-    "dialogs:cpDetectImport.tryAgain": "d8b8392e2c54"
+    "dialogs:cpDetectImport.tryAgain": "d8b8392e2c54",
+    "panels:references.didNotLoad": "f87dfeae43fc",
+    "panels:references.tryAgain": "d8b8392e2c54"
   },
   "fr": {
     "common:cancel": "19766ed6ccb2",
@@ -20438,7 +20442,9 @@
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
     "dialogs:cpDetectImport.didNotLoad": "db27a9005db6",
-    "dialogs:cpDetectImport.tryAgain": "d8b8392e2c54"
+    "dialogs:cpDetectImport.tryAgain": "d8b8392e2c54",
+    "panels:references.didNotLoad": "f87dfeae43fc",
+    "panels:references.tryAgain": "d8b8392e2c54"
   },
   "ja": {
     "common:cancel": "19766ed6ccb2",
@@ -26863,7 +26869,9 @@
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
     "dialogs:cpDetectImport.didNotLoad": "db27a9005db6",
-    "dialogs:cpDetectImport.tryAgain": "d8b8392e2c54"
+    "dialogs:cpDetectImport.tryAgain": "d8b8392e2c54",
+    "panels:references.didNotLoad": "f87dfeae43fc",
+    "panels:references.tryAgain": "d8b8392e2c54"
   },
   "ko": {
     "common:cancel": "19766ed6ccb2",
@@ -33288,7 +33296,9 @@
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
     "dialogs:cpDetectImport.didNotLoad": "db27a9005db6",
-    "dialogs:cpDetectImport.tryAgain": "d8b8392e2c54"
+    "dialogs:cpDetectImport.tryAgain": "d8b8392e2c54",
+    "panels:references.didNotLoad": "f87dfeae43fc",
+    "panels:references.tryAgain": "d8b8392e2c54"
   },
   "pt-BR": {
     "common:cancel": "19766ed6ccb2",
@@ -40101,7 +40111,9 @@
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
     "dialogs:cpDetectImport.didNotLoad": "db27a9005db6",
-    "dialogs:cpDetectImport.tryAgain": "d8b8392e2c54"
+    "dialogs:cpDetectImport.tryAgain": "d8b8392e2c54",
+    "panels:references.didNotLoad": "f87dfeae43fc",
+    "panels:references.tryAgain": "d8b8392e2c54"
   },
   "ru": {
     "common:cancel": "19766ed6ccb2",
@@ -46914,7 +46926,9 @@
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
     "dialogs:cpDetectImport.didNotLoad": "db27a9005db6",
-    "dialogs:cpDetectImport.tryAgain": "d8b8392e2c54"
+    "dialogs:cpDetectImport.tryAgain": "d8b8392e2c54",
+    "panels:references.didNotLoad": "f87dfeae43fc",
+    "panels:references.tryAgain": "d8b8392e2c54"
   },
   "zh-CN": {
     "common:cancel": "19766ed6ccb2",
@@ -53339,6 +53353,8 @@
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
     "dialogs:cpDetectImport.didNotLoad": "db27a9005db6",
-    "dialogs:cpDetectImport.tryAgain": "d8b8392e2c54"
+    "dialogs:cpDetectImport.tryAgain": "d8b8392e2c54",
+    "panels:references.didNotLoad": "f87dfeae43fc",
+    "panels:references.tryAgain": "d8b8392e2c54"
   }
 }

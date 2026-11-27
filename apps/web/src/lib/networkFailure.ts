@@ -5,8 +5,9 @@
  * The one list of how browsers word it, for every surface that fetches what it
  * needs the first time it is needed and treats not getting it as an expected
  * condition, shown and counted, never reported to Sentry: the detector's
- * worker and wasm (`cp-workspace/images/cpDetectLoadFailure.ts`) and Layer
- * order's engine (`layer-order/engine/layerOrderLoadFailure.ts`). A
+ * worker and wasm (`cp-workspace/images/cpDetectLoadFailure.ts`), the precrease
+ * planner's wasm in References (`cp-workspace/references/referencesLoadFailure.ts`)
+ * and Layer order's engine (`layer-order/engine/layerOrderLoadFailure.ts`). A
  * lazy chunk that did not load has wordings of its own, `isChunkLoadError` in
  * `importOrReload.ts`.
  *

@@ -47,12 +47,36 @@ import type {
   PrecreaseSequence,
   PrecreaseStuckSummary,
 } from '../cp-workspace/references/precreaseSequence';
+import { PRECREASE_UNAVAILABLE } from '../cp-workspace/references/precreaseFailures';
 
 let ready: Promise<void> | null = null;
 
-async function ensureReady(): Promise<void> {
-  ready ??= init().then(() => undefined);
-  await ready;
+/**
+ * The bridge, started once. A start that failed — its `.wasm` did not arrive,
+ * or did not compile — is forgotten, so the next call starts it again: the
+ * References workspace keeps this worker for as long as it is open, and
+ * nothing replaces a worker that is alive (ORI-STUDIO-1B).
+ */
+function ensureReady(): Promise<void> {
+  if (ready) return ready;
+  const starting = init().then(() => undefined);
+  ready = starting;
+  starting.catch(() => {
+    if (ready === starting) ready = null;
+  });
+  return starting;
+}
+
+/**
+ * A start that failed, as a call answers it: the browser's words under the
+ * bridge's own code, so References can tell a planner that did not load from
+ * a planner that failed, and not a bare `TypeError` crossing comlink.
+ */
+function startFailure(error: unknown): WasmErrorEnvelope {
+  return {
+    code: PRECREASE_UNAVAILABLE,
+    message: error instanceof Error ? error.message : String(error),
+  };
 }
 
 function normalizeError(error: unknown): WasmErrorEnvelope {
@@ -76,7 +100,12 @@ function invalidInput(message: string): WasmErrorEnvelope {
 }
 
 async function call<T>(fn: () => T): Promise<T> {
-  await ensureReady();
+  try {
+    await ensureReady();
+  } catch (error) {
+    // Nothing ran, and the next call starts the bridge again.
+    throw startFailure(error);
+  }
   try {
     return fn();
   } catch (error) {
@@ -357,7 +386,9 @@ const api = {
 
   /** Free the planner and its point store. Idempotent. */
   async plannerDispose(): Promise<void> {
-    await ensureReady();
+    // Behind a start in flight, so a planner it goes on to create is the one
+    // freed. A start that failed made no planner to free.
+    await ensureReady().catch(() => undefined);
     disposePlanner();
   },
 

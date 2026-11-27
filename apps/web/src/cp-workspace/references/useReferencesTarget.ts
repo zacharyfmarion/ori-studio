@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ANALYTICS_EVENTS, bucketCount, DURATION_MS_BUCKETS, track } from '../../analytics';
 import type { CpGeometryTransport } from '../../engine/oristudioCpGeometry';
@@ -72,6 +72,7 @@ import {
 } from './sheetFrames';
 import type { ReferencesViewState } from './useReferencesView';
 import { ensureReferencesSheetDetail, referencesFramesOf } from './referencesFrames';
+import { handleReferencesFailure, isReferencesLoadFailure } from './referencesLoadFailure';
 
 /** The open pattern's frames for `revision`, or why there are none. */
 async function framesOf(revision: string): Promise<SheetAnalysis> {
@@ -113,6 +114,12 @@ export interface ReferencesTargetController {
    */
   picked: ReferencesTargetRecord | null;
   frames: SheetAnalysis | null;
+  /**
+   * Try again, when the sheets did not load because the planner did not (its
+   * wasm did not arrive): asks for them once more. Null at every other time,
+   * including after a pick has since loaded them.
+   */
+  retryFrames: (() => void) | null;
   /** The results were computed for an earlier revision of the pattern. */
   stale: boolean;
   activeCandidate: number;
@@ -383,6 +390,12 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
   // kernel returns a fresh transport object after every command, including the
   // selection-only ones that leave the creases byte-identical, and asking for
   // the frames again for those was a worker round trip per box-select.
+  //
+  // And on `framesAttempt`, which Try again bumps when they did not load
+  // because the planner did not (ORI-STUDIO-1B): nothing else asks again for a
+  // revision whose frames failed, and the sheet list is empty until they land.
+  const [framesAttempt, setFramesAttempt] = useState(0);
+  const [unloadedRevision, setUnloadedRevision] = useState<string | null>(null);
   useEffect(() => {
     if (!geometryRef.current) {
       setReferencesFrames(null);
@@ -392,6 +405,7 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
     framesOf(revision)
       .then((analysis) => {
         if (cancelled) return;
+        setUnloadedRevision(null);
         setReferencesFrames({ revision, analysis });
         const sheet = analysis.components.find((component) => component.rf_rect);
         if (sheet?.rf_rect) {
@@ -402,14 +416,19 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        reportError(error, { surface: 'references:frames' });
+        setUnloadedRevision(isReferencesLoadFailure(error) ? revision : null);
         setReferencesFrames(null);
-        setReferencesRun({ status: 'error', message: humanizeError(error, t) });
+        setReferencesRun({ status: 'error', message: handleReferencesFailure(error, 'frames', t) });
       });
     return () => {
       cancelled = true;
     };
-  }, [revision, setReferencesRun, t]);
+  }, [revision, framesAttempt, setReferencesRun, t]);
+
+  const retryFrames = useCallback(() => {
+    setReferencesRun({ status: 'idle' });
+    setFramesAttempt((attempt) => attempt + 1);
+  }, [setReferencesRun]);
 
   // Staleness: results for another revision are marked, never replaced.
   useEffect(() => {
@@ -599,8 +618,7 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
       } catch (error) {
         endReferencesRun(runId);
         if (superseded(forRevision, runId, generation)) return;
-        reportError(error, { surface: 'references:map' });
-        setReferencesRun({ status: 'error', message: humanizeError(error, t) });
+        setReferencesRun({ status: 'error', message: handleReferencesFailure(error, 'map', t) });
       }
     },
     [setReferencesCandidates, setReferencesRun, setReferencesView, superseded, t]
@@ -721,8 +739,8 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
         await runQuery(record, component, forRevision, generation);
       } catch (error) {
         if (abandoned()) return;
-        reportError(error, { surface: 'references:resolve' });
-        setReferencesRun({ status: 'error', message: humanizeError(error, t) });
+        // The frames too, when they had not loaded: `framesFor` asks again.
+        setReferencesRun({ status: 'error', message: handleReferencesFailure(error, 'resolve', t) });
       }
     },
     [framesFor, resolve, runQuery, setReferencesCandidates, setReferencesRun, setReferencesTarget, t]
@@ -847,6 +865,7 @@ export function useReferencesTarget(view: ReferencesViewState): ReferencesTarget
     results: current ? results : null,
     picked,
     frames,
+    retryFrames: unloadedRevision === revision && !frames ? retryFrames : null,
     stale,
     activeCandidate,
     activeStep,

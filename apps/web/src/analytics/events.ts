@@ -1281,6 +1281,13 @@ export type ReferenceRefusalReason =
  */
 export type ReferenceQueryOutcome = 'exact' | 'approximate' | 'none' | 'error';
 
+/**
+ * What References was doing when the precrease planner did not load
+ * (`references load failed`): listing the sheets, resolving or mapping a pick,
+ * planning a sheet, or analysing one. The Sentry surfaces these went to before.
+ */
+export type ReferencesLoadFailureSurface = 'frames' | 'resolve' | 'map' | 'plan' | 'analysis';
+
 /** Where an error was surfaced, for `app error` bucketing. */
 export type AnalyticsErrorDomain =
   | 'bootstrap'
@@ -1387,6 +1394,13 @@ export const ANALYTICS_EVENTS = {
    * plan or the sheet.
    */
   referencesPlanRestored: 'references plan restored',
+  /**
+   * The precrease planner's wasm did not arrive when References needed it
+   * (`surface`), with `offline`: the connection, not the planner. Said in the
+   * workspace, with Try again when the sheets did not load, and never reported
+   * to Sentry (ORI-STUDIO-1B).
+   */
+  referencesLoadFailed: 'references load failed',
   /**
    * A CP-wide analysis finished. `unreachable_bucket` is how many of the
    * pattern's distinct lines the closure could not reach and ReferenceFinder

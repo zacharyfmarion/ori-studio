@@ -2926,6 +2926,7 @@
       "error": "误差 {{value}}",
       "folds_other": "{{count}} 次折叠"
     },
+    "didNotLoad": "参考未能加载。请检查网络连接，然后重试。",
     "direction": {
       "angle": "在 {{deg}}° 方向",
       "diagonalDown": "沿下降对角线",
@@ -3087,6 +3088,7 @@
     "stop": "停止",
     "stopping": "正在取消…",
     "targetGone": "所选折痕已不在折痕图中。",
+    "tryAgain": "重试",
     "viewportControls": "参考视口控件",
     "warning": {
       "degenerateBorderSegments": "有 {{n}} 条边界折线两端重合，已忽略。",
