@@ -102,11 +102,12 @@ function spawn(): FoldSequenceClient {
     type: 'module',
   });
   worker = spawned;
+  // `dropWorker` reports a crash itself, as a `FoldEngineCrash`.
   detachDiagnostics = attachWorkerDiagnostics(spawned, 'fold-sequence', (failure) => {
     // Guarded on identity so a late event from a worker already replaced
     // cannot drop the replacement.
     if (worker === spawned) dropWorker('crashed', { cause: 'worker_error', message: failure.message });
-  });
+  }, { reportsCrashes: true });
   client = wrap<FoldSequenceWorkerApi>(spawned);
   return client;
 }

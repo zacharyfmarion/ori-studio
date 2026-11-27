@@ -172,6 +172,18 @@ The same boundary also fires PostHog's `app error`. That is deliberate, and not
 double-counting: PostHog answers *how often, and does it correlate with
 anything*; Sentry answers *where*.
 
+A worker's crash is the third path, and `lib/workerDiagnostics.ts` is its
+boundary. An exception a worker does not catch arrives as an `ErrorEvent` at
+the `Worker`, and the browser reports it again at `window` unless that event is
+cancelled. `attachWorkerDiagnostics` cancels it and reports it itself, once,
+as a `WorkerCrash` named for the worker (surface `worker:<name>`), with the
+same `app error` beside it. The page's copy only ever arrived as "Uncaught
+[object Event]" with no worker named (ORI-STUDIO-1S). An owner that files its
+own crash report (`FoldEngineCrash`, `LayerOrderEngineCrash`) says so, and no
+`WorkerCrash` goes beside it. A worker that never loaded is a plain `error`
+event, which the browser reports nowhere else, so it stays its owner's to
+report or not.
+
 **Every event carries** the `release` (`ori-studio@<version>+<commit>`, matching
 the "Copy details" build string in the error fallback) and the tags
 `runtime_surface`, `app_version`, `app_commit`, and `surface` (the boundary's
@@ -256,7 +268,7 @@ React mounts does not carry them.
 | Event | Properties | Fires when |
 | --- | --- | --- |
 | `app opened` | — | App launch |
-| `app error` | `error_domain`, `operation`, `source_component`, `handled`, `fingerprint` | An error boundary catches (`handled: true`), or an uncaught window error / unhandled rejection reaches `GlobalErrorReporter` (`handled: false`, `source_component` `global:error` / `global:unhandledrejection`). Deduped over 30s **per surface**. A cross-origin script's `Script error.` placeholder is dropped before it gets here — the browser has already stripped everything but that message, and the script is never ours — and so is anything Sentry is told to ignore (`isIgnoredErrorMessage`, one list for both): the browser's ResizeObserver loop notices, which were most of these events, and an Android in-app browser's injected script calling a bridge its host app had let go of |
+| `app error` | `error_domain`, `operation`, `source_component`, `handled`, `fingerprint` | An error boundary catches (`handled: true`), a worker throws (`handled: true`, `source_component` `worker:<name>`, from `attachWorkerDiagnostics`, which cancels the browser's second report of it), or an uncaught window error / unhandled rejection reaches `GlobalErrorReporter` (`handled: false`, `source_component` `global:error` / `global:unhandledrejection`). Deduped over 30s **per surface**. A cross-origin script's `Script error.` placeholder is dropped before it gets here — the browser has already stripped everything but that message, and the script is never ours — and so is anything Sentry is told to ignore (`isIgnoredErrorMessage`, one list for both): the browser's ResizeObserver loop notices, which were most of these events, and an Android in-app browser's injected script calling a bridge its host app had let go of |
 | `dom mutated outside react` | `blocked_method` (`removeChild`/`insertBefore`) | The translated-DOM guard blocked a call React would otherwise have thrown on (`lib/translatedDomGuard.ts`) — an in-page translator has rewrapped React's text nodes. Once per session. A count, not an error: the guard is the fix, and the session is fine |
 | `browser unsupported` | `capability` (`module_workers`) | The startup probe found the browser starts a classic worker where a module one was asked for, so no engine can run; the app is replaced with `UnsupportedBrowserNotice` |
 | `analytics preference changed` | `enabled` | The privacy toggle changes |
