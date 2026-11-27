@@ -3,7 +3,7 @@ use crate::{
     reach::{Reach, ordered_pairs},
 };
 use nalgebra::{Matrix3, Vector3};
-use oristudio_geometry::convex;
+use oristudio_geometry::{convex, tol::TOL};
 use std::collections::{BTreeMap, HashMap};
 
 pub type Row = Vec<(usize, f64)>;
@@ -58,6 +58,36 @@ struct Order {
 
 fn pair_key(a: usize, b: usize) -> (usize, usize) {
     (a.min(b), a.max(b))
+}
+
+/// How wide an overlap of two faces with no order may be and still be two
+/// faces lying side by side, in the input's coordinates.
+///
+/// The folding kernel orders two faces only where they overlap deeper than
+/// [`TOL`] of the sheet: shallower, they touch (`oristudio_layer_order`'s
+/// overlay, Fold's fold gate). The source then puts each vertex in one place,
+/// where the kernel lets the faces' images of it disagree by as much
+/// (`connectedSpreadSource`). Two faces it calls apart can so overlap here by
+/// three times that, and still have no order to keep.
+///
+/// The sheet is measured by its border, the face edges no other face shares,
+/// whose lengths folding keeps: a convex sheet's border passes its widest
+/// span twice, so half of it is at least the sheet's longer side.
+fn contact(faces: &[Vec<usize>], xy: &[[f64; 2]]) -> f64 {
+    let mut edges = HashMap::<(usize, usize), usize>::new();
+    for ring in faces {
+        for (k, &v) in ring.iter().enumerate() {
+            *edges
+                .entry(pair_key(v, ring[(k + 1) % ring.len()]))
+                .or_default() += 1;
+        }
+    }
+    let border: f64 = edges
+        .iter()
+        .filter(|&(_, &count)| count == 1)
+        .map(|(&(a, b), _)| (xy[a][0] - xy[b][0]).hypot(xy[a][1] - xy[b][1]))
+        .sum();
+    3. * TOL * border / 2.
 }
 
 impl Prepared {
@@ -148,6 +178,7 @@ impl Prepared {
                 return Err(invalid("contradictory face-pair order"));
             }
         }
+        let contact = contact(&input.faces, &xy);
         let mut prepared = Self {
             xy,
             inverse,
@@ -194,7 +225,7 @@ impl Prepared {
         }
         // A model with too many near pairs to solve keeps the layers that touch.
         Reach::widest(
-            |reach| prepared.penalize(input, &polygons, &relation, reach, max_regions),
+            |reach| prepared.penalize(input, &polygons, &relation, contact, reach, max_regions),
             |error| matches!(error, SpreadError::Limit(TOO_MANY_REGIONS)),
         )?;
         let penalized = prepared.crossings.iter().map(|s| s.weight).sum();
@@ -203,12 +234,14 @@ impl Prepared {
     }
 
     /// Crossing samples for the overlapping triangles of every pair of faces
-    /// that some cell stacks within `reach` of each other.
+    /// that some cell stacks within `reach` of each other. Faces with no
+    /// order may overlap only by [`contact`].
     fn penalize(
         &mut self,
         input: &Input,
         polygons: &[Vec<[f64; 2]>],
         relation: &HashMap<(usize, usize), Order>,
+        contact: f64,
         reach: Reach,
         max_regions: usize,
     ) -> Result<(), SpreadError> {
@@ -257,7 +290,9 @@ impl Prepared {
                             b
                         }
                     }
-                    None if area <= 2e-8 => continue, // Floating-point slivers are not invented material orders.
+                    // Floating-point slivers, and faces the kernel lays side
+                    // by side, are not invented material orders.
+                    None if area <= 2e-8 || convex::width(&polygon) <= contact => continue,
                     None => return Err(invalid("significant overlap missing layer order")),
                 };
                 let upper = if lower == a { b } else { a };
@@ -373,6 +408,73 @@ mod tests {
                 .copied()
                 .fold(f64::NEG_INFINITY, f64::max);
             assert!(lowest > highest, "face {upper} is not above the next");
+        }
+    }
+
+    /// Two squares side by side with no order between them, the right one
+    /// reaching `overlap` back over the left: two flaps the folding kernel
+    /// lays edge to edge, within its tolerance or not.
+    fn side_by_side(overlap: f64) -> Input {
+        Input {
+            xy: vec![
+                [-1., -0.5],
+                [0., -0.5],
+                [0., 0.5],
+                [-1., 0.5],
+                [-overlap, -0.5],
+                [1., -0.5],
+                [1., 0.5],
+                [-overlap, 0.5],
+            ],
+            faces: vec![vec![0, 1, 2, 3], vec![4, 5, 6, 7]],
+            triangles: vec![[0, 1, 2], [0, 2, 3], [4, 5, 6], [4, 6, 7]],
+            triangle_faces: vec![0, 0, 1, 1],
+            orders: Vec::new(),
+            plane_groups: None,
+            cells: vec![
+                Cell {
+                    faces: vec![0],
+                    point: [-0.5, 0.],
+                    area: 1.,
+                },
+                Cell {
+                    faces: vec![1],
+                    point: [0.5, 0.],
+                    area: 1.,
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn the_sheet_is_measured_by_the_edges_no_crease_shares() {
+        // A 2 by 1 sheet creased down the middle: six of border, the crease
+        // shared by both faces.
+        let xy = [[0., 0.], [1., 0.], [2., 0.], [2., 1.], [1., 1.], [0., 1.]];
+        let faces = [vec![0, 1, 4, 5], vec![1, 2, 3, 4]];
+        assert!((contact(&faces, &xy) - 3. * TOL * 3.).abs() < 1e-18);
+    }
+
+    #[test]
+    fn faces_side_by_side_within_the_kernel_tolerance_need_no_order() {
+        // Half the border is 4: the kernel lets these two touch by 1.2e-5.
+        // The sliver is 1 long, so its area is far over a rounding error's.
+        let input = side_by_side(5e-6);
+        let prepared = Prepared::new(&input).unwrap();
+        assert!(prepared.crossings.is_empty());
+        assert!(qp::solve(&input, &prepared).is_ok());
+    }
+
+    #[test]
+    fn faces_overlapping_past_the_kernel_tolerance_still_need_an_order() {
+        for overlap in [1e-4, 0.1] {
+            assert!(
+                matches!(
+                    Prepared::new(&side_by_side(overlap)),
+                    Err(SpreadError::Invalid(ref why)) if why == "significant overlap missing layer order"
+                ),
+                "{overlap}"
+            );
         }
     }
 
