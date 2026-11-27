@@ -13,7 +13,7 @@ import { EDGE_CODE } from '../src/edgeCodes.js';
 import { meshToPaperScene, type PaperLineItem } from '../src/paperScene.js';
 import { prepareFoldModel } from '../src/prepare.js';
 import { cameraUniforms } from '../src/webgl/camera.js';
-import { meshTopologyFor, virtualVertexTexels } from '../src/webgl/meshRenderer.js';
+import { meshTopologyFor, ribbonTopology, virtualVertexTexels } from '../src/webgl/meshRenderer.js';
 import type { FoldDocument } from '../src/types.js';
 
 /** A unit square with a valley along its diagonal (0,0)-(1,1): two triangles. */
@@ -262,6 +262,42 @@ describe('meshTopologyFor with drawn-on aux lines', () => {
     expect(topology.edgeIndices[meshEdges * 2]).toBeGreaterThanOrEqual(prepared.vertexCount);
     expect(Array.from(topology.edgeTriangles!.slice(0, meshEdges)).every((t) => t === -1)).toBe(true);
     expect(Array.from(topology.auxEnds!.slice(meshEdges))).toEqual(Array.from(prepared.auxOverlay!.ends));
+  });
+
+  it('names each end of a cut over its own triangle for the edge pass, and moves none', () => {
+    // The line crosses the diagonal fold, so its two cuts share their joint,
+    // named over whichever triangle placed it first.
+    const prepared = prepareFoldModel(square([[[0, 0.25], [1, 0.25]]]), { auxLines: true });
+    const topology = meshTopologyFor(prepared);
+    const ribbons = ribbonTopology(topology);
+    const meshEdges = prepared.edgesVertices.length;
+    const table = ribbons.virtual!;
+    const at = (positions: Float32Array, vertex: number) => Array.from(positions.subarray(vertex * 3, vertex * 3 + 3));
+    const before = withVirtualVertices(prepared.originalPositions, topology.virtual);
+    const after = withVirtualVertices(prepared.originalPositions, table);
+
+    expect(Array.from(ribbons.edgeIndices.slice(0, meshEdges * 2))).toEqual(
+      Array.from(topology.edgeIndices.slice(0, meshEdges * 2))
+    );
+    for (let edge = meshEdges; edge < topology.edgeAssignments.length; edge += 1) {
+      const triangle = topology.edgeTriangles![edge]!;
+      const corners = Array.from(topology.faceIndices.slice(triangle * 3, triangle * 3 + 3));
+      for (const end of [0, 1]) {
+        const vertex = ribbons.edgeIndices[edge * 2 + end]!;
+        const entry = vertex - table.start;
+        expect(Array.from(table.nodes.slice(entry * 3, entry * 3 + 3))).toEqual(corners);
+        const was = at(before, topology.edgeIndices[edge * 2 + end]!);
+        at(after, vertex).forEach((value, axis) => expect(value).toBeCloseTo(was[axis]!, 6));
+      }
+    }
+    // The joint is one end in the topology and one per cut here.
+    expect(topology.edgeIndices[meshEdges * 2 + 1]).toBe(topology.edgeIndices[meshEdges * 2 + 2]);
+    expect(ribbons.edgeIndices[meshEdges * 2 + 1]).not.toBe(ribbons.edgeIndices[meshEdges * 2 + 2]);
+  });
+
+  it('leaves a mesh with no drawn-on lines as it is for the edge pass', () => {
+    const topology = meshTopologyFor(prepareFoldModel(square()));
+    expect(ribbonTopology(topology)).toBe(topology);
   });
 
   it('packs the ends two texels each for the edge shader', () => {

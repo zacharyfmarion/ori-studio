@@ -359,6 +359,40 @@ export function projectViewPoint(
 }
 
 /**
+ * The view depth the face pass rasterizes at a point of a triangle: the
+ * corners' view `depths` mixed by the point's weights *on the screen*, given
+ * its `weights` in the triangle.
+ *
+ * Not the point's own depth, `Σ wᵢ·zᵢ`. The face pass leaves `gl_Position.w` at
+ * 1, so the rasterizer interpolates depth linearly across the screen, and under
+ * the perspective divide a corner covers less screen the farther it is from the
+ * eye: a point's screen weight is `wᵢ·Wᵢ` normalised, `Wᵢ = camDist − zᵢ` being
+ * that corner's distance from the eye along the view axis, clamped as
+ * {@link projectViewPoint} clamps it. What the rasterizer draws is therefore the
+ * point's own depth less `Var_w(z) / (camDist − Σ wᵢ·zᵢ)`: the same at a
+ * corner, and behind the point everywhere else. The edge shader's `faceDepth` is the same sum, which a
+ * line drawn on the paper takes so that it lies on the surface the depth test
+ * sees rather than in front of it. Orthographic (`perspective` false) the two
+ * are one.
+ */
+export function rasterizedDepth(
+  depths: readonly [number, number, number],
+  weights: readonly [number, number, number],
+  camDist: number,
+  perspective = true
+): number {
+  let total = 0;
+  let sum = 0;
+  for (let corner = 0; corner < 3; corner += 1) {
+    const depth = depths[corner];
+    const screen = weights[corner] * (perspective ? Math.max(camDist - depth, 0.001) : 1);
+    total += screen;
+    sum += screen * depth;
+  }
+  return total > 0 ? sum / total : weights[0] * depths[0] + weights[1] * depths[1] + weights[2] * depths[2];
+}
+
+/**
  * The line of sight through a pixel, in world space: every point on it projects
  * back to that pixel. The inverse of {@link projectViewPoint} with the depth left
  * free — through the eye in perspective, along the view axis in the canvas-2D

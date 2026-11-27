@@ -780,6 +780,51 @@ describe('a crease under the layers of its own plane', () => {
   });
 });
 
+describe('an aux line drawn on a layer another one covers', () => {
+  /**
+   * Two parallel layers seen steeply: the far one (vertices 0-2) spans most of
+   * the depth range, and the near one (3-5) lies 0.1 in front of it, far more
+   * than a crease's nudge. An aux line drawn on the far layer, on ends of its
+   * own inside the triangle (`virtual`), is buried under the near one. At its
+   * own depth an end inside a slanted triangle sits in front of the surface the
+   * GPU rasterizes there — by more than the 0.1 here — and the line was drawn
+   * over the layer that covers it.
+   */
+  const GAP = 0.1;
+  const STEEP = new Float32Array([
+    -1, -1.5, -1, 1, -1.5, -1, 0, 1.5, 1,
+    -1, -1.5 + GAP, -1, 1, -1.5 + GAP, -1, 0, 1.5 + GAP, 1,
+  ]);
+  const DRAWN_ON: SvgMeshTopology = {
+    faceIndices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+    edgeIndices: new Uint32Array([6, 7]),
+    edgeAssignments: new Uint8Array([EDGE_CODE.aux]),
+    edgeTriangles: new Int32Array([0]),
+    virtual: {
+      start: 6,
+      nodes: new Uint32Array([0, 1, 2, 0, 1, 2]),
+      weights: new Float32Array([0.3, 0.3, 0.4, 0.2, 0.2, 0.6]),
+    },
+  };
+
+  it('draws it under the near layer, which hides it', () => {
+    const result = scene({ faceGroups: new Uint32Array([0, 1]) }, STEEP, DRAWN_ON, OVERHEAD);
+    expect(result.items.map((item) => (item.kind === 'face' ? `face ${item.face}` : 'line'))).toEqual([
+      'face 0',
+      'line',
+      'face 1',
+    ]);
+    expect(lines(result).map((line) => line.hidden)).toEqual([true]);
+  });
+
+  it('still draws it over the layer it is on when nothing covers it', () => {
+    const alone = { ...DRAWN_ON, faceIndices: new Uint32Array([0, 1, 2]) };
+    const result = scene({}, STEEP, alone, OVERHEAD);
+    expect(result.items.map((item) => item.kind)).toEqual(['face', 'line']);
+    expect(lines(result).map((line) => line.hidden)).toEqual([false]);
+  });
+});
+
 describe('which endpoints lie on a boundary', () => {
   /**
    * A flat square fanned from its centre (vertex 5), with a vertex (4) on the
