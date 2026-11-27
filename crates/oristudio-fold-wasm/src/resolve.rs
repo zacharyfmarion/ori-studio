@@ -128,6 +128,13 @@ pub fn resolve(parent: &State, op: &Op, choices: &Choices) -> Result<Resolved, R
         Op::AdjustOrder(reorder) => crate::io::reorder::land(parent, reorder)
             .map(Resolved::View)
             .map_err(Rejection::from),
+        // Collapse: the parent's own creases, some letters changed, landed
+        // with the stored order. Held beside its parent as Adjust order is,
+        // so its summary is the diff from the parent: what it folded,
+        // unfolded and reversed.
+        Op::Collapse(collapse) => crate::io::collapse::land(parent, collapse)
+            .map(Resolved::View)
+            .map_err(Rejection::from),
         // Compound folds (`crate::compound`), one arm per family.
         Op::InsideReverse(r) => compound(crate::ops_reverse::resolve_reverse(
             parent,

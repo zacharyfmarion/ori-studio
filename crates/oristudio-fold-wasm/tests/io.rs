@@ -473,7 +473,9 @@ fn every_sample_imports_to_its_one_order() {
             sample: true,
         };
         let (bridge, landed, opened) = import_file(sample, text, StartSide::Front);
-        let JumpOp::CpJump(op) = &landed.op;
+        let JumpOp::CpJump(op) = &landed.op else {
+            panic!("an import lands a cp-jump")
+        };
         assert_eq!(op.origin, CpOrigin::Sample, "{name}");
         // Their letters decide one order (the spike's bases have 18 without).
         assert_eq!(
@@ -683,7 +685,9 @@ fn assert_offers_itself(
             Ok(Outcome::Ok(picked)) => picked,
             other => panic!("pick {choice:?}: {other:?}"),
         };
-        let JumpOp::CpJump(op) = &picked.op;
+        let JumpOp::CpJump(op) = &picked.op else {
+            panic!("an import lands a cp-jump")
+        };
         assert_eq!(op.origin, CpOrigin::Fold);
         assert_eq!(
             picked.summary.step,
@@ -1001,7 +1005,9 @@ fn a_stored_import_whose_witnesses_no_longer_resolve_is_broken() {
     let Ok(Outcome::Ok(picked)) = imports.pick(&mut bridge, opened.import, &choice) else {
         panic!("pick");
     };
-    let JumpOp::CpJump(stored) = picked.op;
+    let JumpOp::CpJump(stored) = picked.op else {
+        panic!("an import lands a cp-jump")
+    };
     let op = |cp_json: &str, order_json: &str| json!({ "kind": "cp-jump", "cpJson": cp_json, "orderJson": order_json, "origin": "fold" });
     landed(apply(
         &mut bridge,
@@ -1129,7 +1135,9 @@ fn edits_folded_figure_imports_as_the_state_it_was_folded_from() {
                 Ok(Outcome::Ok(landed)) => landed,
                 other => panic!("{name} {pass:?}: {other:?}"),
             };
-            let JumpOp::CpJump(op) = &landed.op;
+            let JumpOp::CpJump(op) = &landed.op else {
+                panic!("an import lands a cp-jump")
+            };
             assert_eq!(op.origin, CpOrigin::EditFoldedFigure);
             let got = held_keys(&bridge, landed.state);
             assert_eq!(

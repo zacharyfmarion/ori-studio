@@ -45,7 +45,9 @@
 //!   of a closed point and the unsink back; and the [`StepMotion`] a
 //!   compound step's animation draws (plan D15).
 //! - [`import`]: Import CP — a crease pattern's sheet, faces and isometries,
-//!   its order completed from its letters, and Edit's folded figure.
+//!   its order completed from its letters, and Edit's folded figure;
+//!   [`collapse`], Import CP of the state's own creases with some of their
+//!   letters changed.
 //! - [`witness`]: stored choices with faces named by sheet points, and their
 //!   replay.
 //! - The axioms on flat and folded forms (plan Phase 3): [`anchor`]s, the
@@ -73,6 +75,7 @@
 pub mod anchor;
 pub mod anchored;
 pub mod axioms;
+pub mod collapse;
 pub mod complete;
 pub mod compound;
 pub mod crease_marks;
@@ -114,6 +117,9 @@ pub use kernel::{KernelFrame, fold_cp_to_model};
 pub use anchor::SheetSegment;
 pub use anchored::{AnchoredFold, AnchoredRefused, FoldLine, LineRefusal, Resolved};
 pub use axioms::{Axiom, AxiomCandidate, AxiomReplay};
+pub use collapse::{
+    CollapseCrease, CollapseError, CollapseRefusal, CollapseTo, Collapsing, VertexRule, collapse,
+};
 pub use complete::{
     Check, CheckLimits, CheckStage, ChoiceCount, CompletionLimits, CompletionRefusal,
     CompletionSession, Completions, ComponentChoices, FixedKind, FixedPair,

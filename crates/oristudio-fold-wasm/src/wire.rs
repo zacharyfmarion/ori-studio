@@ -96,6 +96,9 @@ pub enum Op {
     /// Adjust order: the parent's paper as it is, with a stored order
     /// (`io::reorder`).
     AdjustOrder(crate::io::AdjustOrder),
+    /// Collapse: the parent's own creases with some letters changed, and a
+    /// stored order (`io::collapse`).
+    Collapse(crate::io::Collapse),
     // --- Compound folds (`crate::compound`), one block per family -----------
     /// A reverse fold (plan Phase 9): the tip on the moving side of the
     /// line, pushed inside its flaps or wrapped round them (`ops_reverse`).
@@ -128,6 +131,7 @@ impl Op {
             Op::Rotate { .. } => "rotate",
             Op::CpJump(_) => "cp-jump",
             Op::AdjustOrder(_) => "adjust-order",
+            Op::Collapse(_) => "collapse",
             Op::InsideReverse(_) => "inside-reverse",
             Op::OutsideReverse(_) => "outside-reverse",
             Op::Crimp(_) => "crimp",
@@ -185,7 +189,8 @@ impl Op {
             | Op::Turn { .. }
             | Op::Rotate { .. }
             | Op::CpJump(_)
-            | Op::AdjustOrder(_) => Takes::default(),
+            | Op::AdjustOrder(_)
+            | Op::Collapse(_) => Takes::default(),
             Op::InsideReverse(r) | Op::OutsideReverse(r) => Takes {
                 opening: true,
                 ..compound(Some(&r.line))

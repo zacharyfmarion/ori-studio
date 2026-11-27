@@ -169,6 +169,20 @@ impl Unordered {
         self.parts.view = self.parts.view.rotated(angle);
     }
 
+    /// Set the step each crease was made at, by its sheet ends and kind.
+    /// Nothing is derived from it: no face, letter or constraint moves
+    /// (Collapse keeps the parent's dates for the creases it leaves alone).
+    pub(crate) fn retime(&mut self, made_at: impl Fn(Point, Point, CreaseKind) -> u32) {
+        let vertices = &self.parts.vertices;
+        for crease in &mut self.parts.creases {
+            if crease.kind == CreaseKind::Border {
+                continue;
+            }
+            let [a, b] = crease.vertices.map(|v| vertices[v.index()]);
+            crease.made_at = made_at(a, b, crease.kind);
+        }
+    }
+
     /// The folded creases whose letter the order decides.
     pub fn unknown_letters(&self) -> &BTreeSet<EdgeId> {
         &self.unknown

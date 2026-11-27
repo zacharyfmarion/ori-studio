@@ -51,6 +51,16 @@
 //!   adjust_order_pick(state: number, digest: string, relations: Uint32Array):
 //!     Outcome<{ state: number; summary: StateSummary;
 //!       op: { kind: 'adjust-order'; orderJson: string } }>;
+//!   /** Collapse: the held state's own crease pattern with these stretches
+//!    *  changed, imported after it and held as an import is. */
+//!   collapse_open(state: number,
+//!     creases: { a: [number, number]; b: [number, number];
+//!       to: 'mountain' | 'valley' | 'open' }[],
+//!     limits?: ImportLimits): Outcome<ImportOpened>;
+//!   /** Collapse: the `collapse` op one listed order per component lands,
+//!    *  as its step stores it; nothing lands. */
+//!   collapse_op(import: number, choice: Uint32Array):
+//!     Outcome<{ op: { kind: 'collapse'; creases: …; orderJson: string } }>;
 //!   /** Let imports go; how many were held. */
 //!   release_imports(imports: Uint32Array): number;
 //!   live_imports(): number;
@@ -71,7 +81,8 @@ use super::export::{export_fold, send_to_edit};
 use super::figure::import_figure;
 use super::imports::starting_sheet;
 use super::reorder;
-use super::wire::{CheckWireLimits, CpFile, IoCallError, Limits, Target};
+use super::wire::{CheckWireLimits, CollapseStep, CpFile, IoCallError, JumpOp, Limits, Target};
+use crate::wire::Outcome;
 use crate::{FoldEngine, js_error, parse, to_js_value};
 
 #[wasm_bindgen]
@@ -234,6 +245,38 @@ impl FoldEngine {
     ) -> Result<JsValue, JsValue> {
         let landed = reorder::pick(&mut self.inner, state, digest, relations).map_err(thrown)?;
         to_js_value(&landed)
+    }
+
+    /// Collapse: the held state's own crease pattern with `creases` changed
+    /// (`[{ a, b, to: 'mountain' | 'valley' | 'open' }]`, sheet points),
+    /// imported after it and its order completed within `limits`, which may
+    /// be `undefined` or `null`; held under an import's handle.
+    pub fn collapse_open(
+        &mut self,
+        state: u32,
+        creases: JsValue,
+        limits: JsValue,
+    ) -> Result<JsValue, JsValue> {
+        let creases: Vec<oristudio_fold::CollapseCrease> = parse("creases", creases)?;
+        let limits: Limits = optional("limits", limits)?;
+        let opened = self
+            .imports
+            .open_collapse(&self.inner, state, &creases, &limits)
+            .map_err(thrown)?;
+        to_js_value(&opened)
+    }
+
+    /// Collapse: the `collapse` op the order `choice` picks of a held
+    /// Collapse lands, one listed order per component. Nothing lands.
+    pub fn collapse_op(&self, import: u32, choice: &[u32]) -> Result<JsValue, JsValue> {
+        let choice: Vec<usize> = choice.iter().map(|&k| k as usize).collect();
+        let op = match self.imports.collapse_op(import, &choice).map_err(thrown)? {
+            Outcome::Ok(collapse) => Outcome::Ok(CollapseStep {
+                op: JumpOp::Collapse(collapse),
+            }),
+            Outcome::Refused(refusal) => Outcome::Refused(refusal),
+        };
+        to_js_value(&op)
     }
 
     /// Let imports go; how many were held.

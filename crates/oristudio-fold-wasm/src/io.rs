@@ -27,6 +27,11 @@
 //!   across its flat creases, and the `adjust-order` step Apply lands — the
 //!   state's paper as it is, with the order chosen — replayed as it is
 //!   stored (`implementation-plans/fold-adjust-order.md`).
+//! - **Collapse** ([`collapse`]): a held state's own crease pattern with some
+//!   of its creases' letters changed, imported after it and held as an
+//!   import is, so its ‹ n of m › is an import's; the `collapse` step stores
+//!   the stretches it changed and the order, and is derived from its parent
+//!   again on every replay (`implementation-plans/fold-collapse-existing-creases.md`).
 //! - **Send to Edit and the FOLD export** ([`export`]): `fold_cp_to_model`
 //!   through the kernel's FOLD writer, as Edit opens it; and a path's states
 //!   as one FOLD file (`oristudio_fold::fold_file`).
@@ -57,6 +62,7 @@
 //! only a caller's mistake, or a defect, throws ([`IoCallError`]).
 
 pub mod bindings;
+pub mod collapse;
 pub mod export;
 pub mod figure;
 pub mod imports;
@@ -70,7 +76,7 @@ pub use figure::{EditFigure, import_figure, read_figure};
 pub use imports::{Imports, starting_sheet};
 pub use jump::land;
 pub use wire::{
-    AdjustOrder, AdoptedPaper, ComponentCount, CpFile, CpFormat, CpJump, CpOrigin, Exported,
-    FigureGap, IoCallError, IoRefusal, JumpOp, Landed, LayerOpening, Limits, Opened, ReorderOp,
-    Reordered, SheetFound, StoredField, Target,
+    AdjustOrder, AdoptedPaper, Collapse, ComponentCount, CpFile, CpFormat, CpJump, CpOrigin,
+    Exported, FigureGap, IoCallError, IoRefusal, JumpOp, Landed, LayerOpening, Limits, Opened,
+    ReorderOp, Reordered, SheetFound, StoredField, Target,
 };

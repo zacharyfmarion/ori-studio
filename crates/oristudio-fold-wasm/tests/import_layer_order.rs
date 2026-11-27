@@ -135,7 +135,9 @@ impl Imported {
 
     /// The `cpJson` the import stores, from a landed step.
     fn cp_json(landed: &Landed) -> String {
-        let JumpOp::CpJump(jump) = &landed.op;
+        let JumpOp::CpJump(jump) = &landed.op else {
+            panic!("an import lands a cp-jump")
+        };
         jump.cp_json.clone()
     }
 }
@@ -417,7 +419,9 @@ fn a_turned_import_lands_turned_and_its_look_reads_the_turn_back() {
                     Outcome::Refused(refusal) => panic!("{relative}: {refusal:?}"),
                 },
             ] {
-                let JumpOp::CpJump(jump) = &landed.op;
+                let JumpOp::CpJump(jump) = &landed.op else {
+                    panic!("an import lands a cp-jump")
+                };
                 assert!(
                     (jump.turn_deg - 45.0).abs() < 1e-9,
                     "{relative} {start:?}: {}",
@@ -446,7 +450,9 @@ fn a_turned_import_lands_turned_and_its_look_reads_the_turn_back() {
                 .imports
                 .turn(handle, opening.look.turn_deg)
                 .expect("turned back");
-            let JumpOp::CpJump(jump) = imported.pick(&imported.first_choice()).op;
+            let JumpOp::CpJump(jump) = imported.pick(&imported.first_choice()).op else {
+                panic!("an import lands a cp-jump")
+            };
             assert_eq!(jump.turn_deg, 0.0, "{relative} {start:?}");
         }
     }
