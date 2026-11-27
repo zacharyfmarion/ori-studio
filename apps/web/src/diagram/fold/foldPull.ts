@@ -21,7 +21,9 @@
 import type { TFunction } from 'i18next';
 import { isLockedStep, turnKindOf, type FoldSequenceDocument } from '../../fold/document/foldSequenceDocument';
 import { foldStateSpread } from '../../fold/document/foldStepSpread';
+import { foldedLineOf } from '../../fold/engine/foldEngineCompoundWire';
 import { foldCardHandleKey } from '../../fold/sequence/foldCardPictureSource';
+import { foldNodeSentenceStep } from '../../fold/sequence/foldSentenceStep';
 import type { FoldSequenceView } from '../../fold/sequence/useFoldSequenceView';
 import type { FoldSession } from '../../fold/session/foldSession';
 import type { TurnKind } from '../../lib/steps/turn';
@@ -40,7 +42,8 @@ import {
 } from '../document/diagramDocument';
 import { storedFoldStepSource } from '../document/diagramFile';
 import type { PullCard } from '../references/referencesBrowserSelection';
-import { foldDiagramMergedSentence, foldDiagramSentence } from './foldDiagramSentence';
+import { diagramFoldConstruction } from './foldCreaseConstruction';
+import { diagramCreaseWords, foldDiagramMergedSentence, foldDiagramSentence } from './foldDiagramSentence';
 import type { FoldJoinOffer, FoldMergeKind } from './foldMergeLayout';
 import { captureFoldStep, type FoldStepCaptureResult } from './foldStepCapture';
 import type { FoldMergedRun } from './foldStepMerge';
@@ -178,14 +181,22 @@ function landed(entry: FoldSequenceView['entries'][number]): boolean {
  */
 export function foldBrowserCards(
   t: TFunction,
-  { document, entries, words, failed }: Pick<FoldSequenceView, 'document' | 'entries' | 'words' | 'failed'>,
+  { document, entries, words, frames, failed }: Pick<FoldSequenceView, 'document' | 'entries' | 'words' | 'frames' | 'failed'>,
   merges: readonly FoldMergedRun[] = [],
   offers: ReadonlyMap<string, FoldJoinOffer> = NO_OFFERS
 ): FoldBrowserCard[] {
   const cards: FoldBrowserCard[] = [];
   const mergeAt = new Map(merges.map((merge) => [merge.steps[0], merge]));
   // The words each card's step will take: the Diagram's (`foldDiagramSentence`), not the strip's lettered ones.
-  const wordsAt = (index: number) => words[index] ?? { op: 'unknown' as const };
+  const wordsAt = (index: number) => {
+    const entry = entries[index]!;
+    const parent = frames[index - 1] ?? null, child = frames[index] ?? null;
+    if (entry.node) {
+      const constructed = diagramFoldConstruction(document.steps, entry.node, parent, child);
+      if (constructed !== entry.node) return foldNodeSentenceStep(constructed, { parent, child, report: foldedLineOf(entry.session) });
+    }
+    return diagramCreaseWords(words[index] ?? { op: 'unknown' }, parent, child);
+  };
   const joinAfter = (id: string) => {
     const join = offers.get(id);
     return join ? { join } : {};

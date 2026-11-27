@@ -1216,6 +1216,7 @@
         "mountainAllPlaces_many": "Складка-гора во всех {{count}} местах.",
         "mountainAllPlaces_other": "Складка-гора во всех {{count}} местах.",
         "mountainBothSides": "Складка-гора с обеих сторон.",
+        "mountainPointsOntoLines": "Сделайте складку-гору, совместив точки с двумя указанными линиями.",
         "mountainPrecrease": "Сложите горой и разогните.",
         "mountainPrecreaseAllPlaces_one": "Сложите горой и разогните в {{count}} месте.",
         "mountainPrecreaseAllPlaces_few": "Сложите горой и разогните во всех {{count}} местах.",
@@ -1266,11 +1267,12 @@
         "unfoldToStep": "Разверните до шага {{number}}.",
         "unsink": "Отмена утапливания.",
         "valley": "Складка-долина.",
-        "valleyAllPlaces_one": "Складка-долина в {{count}} месте.",
         "valleyAllPlaces_few": "Складка-долина во всех {{count}} местах.",
         "valleyAllPlaces_many": "Складка-долина во всех {{count}} местах.",
+        "valleyAllPlaces_one": "Складка-долина в {{count}} месте.",
         "valleyAllPlaces_other": "Складка-долина во всех {{count}} местах.",
-        "valleyBothSides": "Складка-долина с обеих сторон."
+        "valleyBothSides": "Складка-долина с обеих сторон.",
+        "valleyPointsOntoLines": "Сделайте складку-долину, совместив точки с двумя указанными линиями."
       },
       "join": "Соединить шаг {{first}} и шаг {{next}}",
       "joinMirror": "Соединить шаги {{first}} и {{next}} в один шаг: они зеркальны друг другу.",

@@ -1090,6 +1090,7 @@
         "mountain": "山折り。",
         "mountainAllPlaces_other": "{{count}} か所すべてで山折り。",
         "mountainBothSides": "両側で山折り。",
+        "mountainPointsOntoLines": "2つの点がそれぞれ図の線に重なるように山折りする。",
         "mountainPrecrease": "山折りで折りすじをつける。",
         "mountainPrecreaseAllPlaces_other": "{{count}} か所すべてに山折りで折りすじをつける。",
         "mountainPrecreaseBothSides": "両側に山折りで折りすじをつける。",
@@ -1126,7 +1127,8 @@
         "unsink": "沈め折りを戻す。",
         "valley": "谷折り。",
         "valleyAllPlaces_other": "{{count}} か所すべてで谷折り。",
-        "valleyBothSides": "両側で谷折り。"
+        "valleyBothSides": "両側で谷折り。",
+        "valleyPointsOntoLines": "2つの点がそれぞれ図の線に重なるように谷折りする。"
       },
       "join": "ステップ {{first}} とステップ {{next}} をつなげる",
       "joinMirror": "ステップ {{first}} と {{next}} を 1 つのステップにつなげます。互いに鏡像です。",

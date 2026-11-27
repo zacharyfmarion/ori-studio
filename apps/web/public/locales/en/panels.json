@@ -1132,6 +1132,7 @@
         "mountainAllPlaces_one": "Mountain fold in {{count}} place.",
         "mountainAllPlaces_other": "Mountain fold in all {{count}} places.",
         "mountainBothSides": "Mountain fold on both sides.",
+        "mountainPointsOntoLines": "Mountain fold the points onto the two indicated lines.",
         "mountainPrecrease": "Mountain fold and unfold.",
         "mountainPrecreaseAllPlaces_one": "Mountain fold and unfold in {{count}} place.",
         "mountainPrecreaseAllPlaces_other": "Mountain fold and unfold in all {{count}} places.",
@@ -1174,7 +1175,8 @@
         "valley": "Valley fold.",
         "valleyAllPlaces_one": "Valley fold in {{count}} place.",
         "valleyAllPlaces_other": "Valley fold in all {{count}} places.",
-        "valleyBothSides": "Valley fold on both sides."
+        "valleyBothSides": "Valley fold on both sides.",
+        "valleyPointsOntoLines": "Valley fold the points onto the two indicated lines."
       },
       "join": "Join step {{first}} and step {{next}}",
       "joinMirror": "Join steps {{first}} and {{next}} into one step: they mirror each other.",
