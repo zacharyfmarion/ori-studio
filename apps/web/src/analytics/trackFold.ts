@@ -1,5 +1,6 @@
 import type { LayerSpreadOptions } from '../cp-workspace/folded/foldedLayerSpread';
 import type { FoldCpOrigin } from '../fold/document/foldSequenceDocument';
+import type { SpreadRefusalReason } from '../layer-spread/spreadRefusal';
 import { ANALYTICS_EVENTS, bucketCount, COUNT_BUCKETS, FOLD_CHOICE_COUNT_BUCKETS } from './events';
 import type {
   DiagramStyleChoiceName,
@@ -160,6 +161,15 @@ export function trackFoldSpreadChanged(
     via,
     ...(spread ? spreadProperties(spreadTracking(spread)) : {}),
   });
+}
+
+/**
+ * A step card's Default spread was refused by design, so the card shows its
+ * state unspread: why (`reason`), and nothing of the model. The card strip
+ * sends it once per reason in a session.
+ */
+export function trackFoldSpreadRefused(reason: SpreadRefusalReason): void {
+  track(ANALYTICS_EVENTS.foldSpreadRefused, { reason });
 }
 
 /**

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { halfFoldOnSheetKernelScene } from '../../diagram/capture/capture.fixtures';
 import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
 import type { Point } from '../../lib/geometry';
+import { spreadRefusalOf } from '../../layer-spread/spreadRefusal';
 import { connectedSpreadSource, scenePoint, sourcePoint } from './connectedSpreadSource';
 
 function placed(scene: OristudioCpFoldedPaperScene, map: (p: Point) => Point, back = false) {
@@ -66,5 +67,17 @@ describe('canonical connected-spread source', () => {
     const scene = halfFoldOnSheetKernelScene();
     scene.faces[1]!.outline = scene.faces[1]!.outline.map((p, i) => ({ ...p, x: p.x + (i === 2 ? 2 : 0) }));
     expect(() => connectedSpreadSource(scene)).toThrow('Disconnected material crease');
+  });
+  it('refuses, by design, a model past its preparation budget', () => {
+    const scene = halfFoldOnSheetKernelScene();
+    const large = { ...scene, faces: Array.from({ length: 10_001 }, () => scene.faces[0]!) };
+    let thrown: unknown = null;
+    try {
+      connectedSpreadSource(large);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(spreadRefusalOf(thrown)).toBe('preparation_budget');
+    expect(thrown).toMatchObject({ message: 'Layer spread model exceeds its preparation budget' });
   });
 });

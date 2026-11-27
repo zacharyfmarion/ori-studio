@@ -1876,6 +1876,13 @@ export const ANALYTICS_EVENTS = {
    * value itself. A slider's drag is one event, at its end.
    */
   foldSpreadChanged: 'fold spread changed',
+  /**
+   * A Fold step card's Default spread refused by design (`SpreadRefusal`):
+   * the model past the solve's resource limits, a time budget or the
+   * preparation budget, so the card shows the state unspread. Once per
+   * reason in a session; never the model, its size or which step.
+   */
+  foldSpreadRefused: 'fold spread refused',
   spatialSpreadChanged: 'spatial spread changed',
   foldFreeLineSnapChanged: 'fold free line snapping changed',
   /**

@@ -1,5 +1,6 @@
 import type { Point as Pair, SpreadInput, Triangle } from '@oristudio/layer-spread';
 import type { OristudioCpFoldedPaperScene } from '../../engine/oristudioCpTypes';
+import { SpreadRefusal } from '../../layer-spread/spreadRefusal';
 import type { Point } from '../../lib/geometry';
 import { foldedDisplayLayers, namedFaces } from './foldedDisplayLayers';
 import { triangulateSpreadFace } from './triangulateSpreadFace';
@@ -19,7 +20,7 @@ export interface ConnectedSpreadSource {
  */
 export function connectedSpreadSource(scene: OristudioCpFoldedPaperScene, yUp = false): ConnectedSpreadSource {
   if (scene.faces.length > 10_000 || scene.subfaces.length > 200_000)
-    throw new Error('Layer spread model exceeds its preparation budget');
+    throw new SpreadRefusal('preparation_budget', 'Layer spread model exceeds its preparation budget');
   if (!scene.faces.length || !namedFaces(scene).every(Boolean))
     throw new Error('Layer spread requires named material faces');
   const first = scene.faces[0]!;

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useStore } from 'zustand';
 import { createStore } from 'zustand/vanilla';
-import type { LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
+import { trackFoldSpreadRefused } from '../../analytics';
+import type { ConnectedSpread, LayerSpreadOptions } from '../../cp-workspace/folded/foldedLayerSpread';
+import { spreadRefusalOf, type SpreadRefusalReason } from '../../layer-spread/spreadRefusal';
 import { useFoldPaperStyle } from './useFoldPaperStyle';
 import type { PaperStyle } from '../../lib/paper/paperStyle';
 import { reportError } from '../../monitoring';
@@ -83,6 +85,8 @@ let scheduled = false;
 const wanted = new Map<string, number>();
 /** The keys a card has wanted: one no card wants any more is not painted, and gives way to a newer spread. */
 const carded = new Set<string>();
+/** The reasons a refused spread has been counted for this session: every card of a large model meets the same one. */
+const refusalsCounted = new Set<SpreadRefusalReason>();
 
 /**
  * A picture's key: the state, the look, then the spread — so the pictures of
@@ -166,6 +170,26 @@ function keep(painted: readonly { key: string; url: string | null }[]): void {
   pictures.setState({ byKey: next, failed: painted.some(({ key }) => failed.has(key)) ? without(failed, [...fresh]) : failed });
 }
 
+/**
+ * A card's picture spread by Default; for a state the spread refuses by
+ * design (`SpreadRefusal`: a model past its resource limits, a time budget,
+ * the preparation budget), the state unspread, as the folded pane shows it —
+ * counted, never reported. Anything else the spread throws is thrown on.
+ */
+async function connectedPictureUrl(job: PaintJob, spread: ConnectedSpread, signal: AbortSignal): Promise<string | null> {
+  try {
+    return await connectedFoldStatePictureUrl(job.scene, job.style, job.display, spread, signal);
+  } catch (error) {
+    const refused = spreadRefusalOf(error);
+    if (refused === null) throw error;
+    if (!refusalsCounted.has(refused)) {
+      refusalsCounted.add(refused);
+      trackFoldSpreadRefused(refused);
+    }
+    return foldStatePictureUrl(job.scene, job.style, job.display, null);
+  }
+}
+
 async function drain(): Promise<void> {
   const start = performance.now();
   const painted: { key: string; url: string | null }[] = [];
@@ -182,7 +206,7 @@ async function drain(): Promise<void> {
       let url: string | null;
       if (job.spread?.kind === 'connected') {
         const controller = new AbortController(); captures.set(job.key, controller);
-        url = await connectedFoldStatePictureUrl(job.scene, job.style, job.display, job.spread, controller.signal);
+        url = await connectedPictureUrl(job, job.spread, controller.signal);
         if (job.look !== currentLook || unwanted(job.key)) continue;
       } else url = foldStatePictureUrl(job.scene, job.style, job.display, job.spread);
       painted.push({ key: job.key, url });
@@ -268,6 +292,7 @@ export function clearFoldCardPictures(): void {
   currentLook = '';
   wanted.clear();
   carded.clear();
+  refusalsCounted.clear();
   pictures.setState({ byKey: new Map(), failed: new Set() });
 }
 

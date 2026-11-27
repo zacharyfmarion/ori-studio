@@ -20,7 +20,7 @@ for(const filename of fs.readdirSync(path.join(sweep,'bottlenecks/results'))) {
     const errors=old.heights?.map((z,v)=>z/old.diagnostics.opening_scale-result.heights[v]/result.diagnostics.opening_scale);
     const row={model:filename,ms,...result.diagnostics,raw_rms:errors?Math.sqrt(errors.reduce((s,x)=>s+x*x,0)/errors.length):null};
     rows.push(row);console.log(JSON.stringify(row));
-  } catch(error){const row={model:filename,ms:performance.now()-start,error:String(error)};rows.push(row);console.log(JSON.stringify(row));}
+  } catch(error){const row={model:filename,ms:performance.now()-start,error:error?.message??String(error)};rows.push(row);console.log(JSON.stringify(row));}
 }
 const times=rows.filter(r=>!r.error).map(r=>r.ms).sort((a,b)=>a-b);
 const summary={wasm_bytes:wasm.length,count:rows.length,failed:rows.filter(r=>r.error).length,p50:times[Math.floor(times.length*.5)],p95:times[Math.floor(times.length*.95)],worst:times.at(-1)};

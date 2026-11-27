@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SpreadInput, SpreadSolution } from '@oristudio/layer-spread';
 import { SpreadService, type SpreadWorker } from './spreadService';
 import type { SpreadRequest } from './protocol';
+import { spreadRefusalOf } from './spreadRefusal';
 
 const input: SpreadInput = {
   xy: [
@@ -237,6 +238,42 @@ describe('recycled spread workers', () => {
       workers[1]!.reply();
       expect(await b.promise).toBe(solution);
       expect(workers[1]!.terminated).toBe(true);
+    } finally {
+      service.dispose();
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('a solve the spread refuses by design', () => {
+  const failure = (promise: Promise<unknown>) => promise.then(() => null, (error: unknown) => error);
+  const answer = (worker: WorkerMock, data: object) =>
+    worker.onmessage?.({ data: { generation: worker.requests.at(-1)!.generation, ...data } } as never);
+
+  it('rejects with a refusal by its reason when the worker says so, and with an error otherwise', async () => {
+    const worker = new WorkerMock();
+    const service = new SpreadService(() => worker);
+    const limited = failure(service.acquire(input).promise);
+    answer(worker, { kind: 'unavailable', message: 'Spread resource limit exceeded: overlap regions', refusal: 'resource_limit' });
+    const refused = await limited;
+    expect(spreadRefusalOf(refused)).toBe('resource_limit');
+    expect(refused).toMatchObject({ message: 'Spread resource limit exceeded: overlap regions' });
+
+    const inconsistent = failure(service.acquire({ ...input, xy: [[0, 0], [2, 0], [0, 1]] }).promise);
+    answer(worker, { kind: 'unavailable', message: 'Invalid spread geometry: significant overlap missing layer order' });
+    const failed = await inconsistent;
+    expect(failed).toBeInstanceOf(Error);
+    expect(spreadRefusalOf(failed)).toBeNull();
+    service.dispose();
+  });
+
+  it('refuses a solve past its time budget', async () => {
+    vi.useFakeTimers();
+    const service = new SpreadService(() => new WorkerMock());
+    try {
+      const timedOut = failure(service.acquire(input).promise);
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(spreadRefusalOf(await timedOut)).toBe('time_budget');
     } finally {
       service.dispose();
       vi.useRealTimers();

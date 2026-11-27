@@ -1,9 +1,10 @@
 import type { SpreadInput, SpreadSolution } from '@oristudio/layer-spread';
+import type { SpreadUnavailable } from './spreadRefusal';
 
 export type SpreadRequest = { generation: number; input: SpreadInput };
 export type SpreadResponse =
   | { generation: number; kind: 'ready'; solution: SpreadSolution }
-  | { generation: number; kind: 'unavailable'; message: string };
+  | ({ generation: number; kind: 'unavailable' } & SpreadUnavailable);
 
 /** Reject corrupt/stale bridge output before any renderer can consume it. */
 export function validSolution(value: SpreadSolution, input: SpreadInput): boolean {

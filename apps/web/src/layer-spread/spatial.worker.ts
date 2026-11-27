@@ -7,6 +7,7 @@ import type {
   SpatialSpreadSolution,
 } from '../cp-workspace/folded/folded3dMaterial';
 import { validSpatialSolution } from './spatialProtocol';
+import { spreadUnavailable } from './spreadRefusal';
 const ready = init();
 self.onmessage = async ({
   data,
@@ -21,7 +22,7 @@ self.onmessage = async ({
     self.postMessage({
       generation: data.generation,
       kind: 'unavailable',
-      message: error instanceof Error ? error.message : String(error),
+      ...spreadUnavailable(error),
     });
   }
 };
