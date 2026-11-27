@@ -323,14 +323,19 @@
     "title": "Exportar secuencia de plegado"
   },
   "foldImport": {
+    "batch": {
+      "stopped": "Detenido en {{name}}, archivo {{number}} de {{total}}."
+    },
     "browse": "o haz clic para buscar",
     "browseTouch": "o toca para buscar",
     "collapseTitle": "Colapsar desde CP",
     "drop": "Suelta un archivo .cp, .fold, .ori u .orh",
+    "dropFiles": "Suelta archivos .cp, .fold, .ori u .orh",
     "editFigure": "Figura plegada de Editar",
     "editFigureNote": "El patrón de pliegues que plegó Editar, con el orden de capas que encontró",
     "fix": {
-      "searchLonger": "Buscar más tiempo"
+      "searchLonger": "Buscar más tiempo",
+      "skipFile": "Omitir este archivo"
     },
     "fromEdit": "Desde Editar",
     "pickTitle": "Importar patrón de pliegues",
@@ -366,6 +371,10 @@
       "figureIncomplete": {
         "text": "La figura plegada de Editar no indica cómo queda cada capa. Vuelve a plegarla en Editar y empieza desde ella.",
         "title": "La figura plegada está incompleta"
+      },
+      "fileTooLarge": {
+        "text": "{{name}} supera los 64 MiB y es demasiado grande para importarlo.",
+        "title": "Archivo demasiado grande"
       },
       "foldedForm": {
         "text": "Este archivo FOLD describe papel ya plegado. Importa en su lugar el patrón de pliegues plano.",
@@ -456,6 +465,7 @@
     "title": "Importar patrón de pliegues",
     "updateTitle": "Actualizar desde CP",
     "working": {
+      "batch": "Importando {{name}} ({{number}} de {{total}})…",
       "figure": "Importando la figura plegada de Editar…",
       "file": "Importando {{name}}…",
       "projectCp": "Resolviendo el patrón de pliegues del proyecto…",

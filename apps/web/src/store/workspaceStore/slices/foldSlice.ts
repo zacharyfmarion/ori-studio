@@ -112,16 +112,23 @@ export const createFoldSlice: WorkspaceSliceCreator<FoldSlice> = (set, get) => {
     installFoldSequences: (sequences, reader) =>
       documentHistory.install({ foldSequences: sequences, foldReader: settledFoldReader(reader, sequences) }),
 
-    commitFoldStep: (draft, { loadId } = {}) => {
+    commitFoldStep: (draft, { loadId, batch } = {}) => {
       if (outlived(loadId)) return null;
       let stepId: string | null = null;
-      const next = commitShown(STEP_LABELS[draft.op.kind], (document) => {
-        const appended = foldEdits.appendFoldStep(document, draft);
-        stepId = appended?.id ?? null;
-        return appended?.document ?? document;
-      });
+      // A batch's steps are one undo step, as a slider's drag is (`setFoldStepSpread`).
+      const { extend, remember } = documentHistory.session('step-batch', batch);
+      const next = commitShown(
+        STEP_LABELS[draft.op.kind],
+        (document) => {
+          const appended = foldEdits.appendFoldStep(document, draft);
+          stepId = appended?.id ?? null;
+          return appended?.document ?? document;
+        },
+        extend
+      );
       const shown = next?.[0];
       if (!shown || stepId === null) return null;
+      remember();
       // The step just folded is the one on screen, and the active path runs through it.
       const reader = get().foldReader;
       if (reader) set({ foldReader: withFoldCursor(reader, shown.document, stepId) });

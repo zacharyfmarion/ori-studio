@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useState, type DragEvent as ReactDragEvent } from 'react';
+import { useEffect, useState, type DragEvent as ReactDragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { dragCarriesFiles } from '../../../lib/fileDrop';
+import { pickedFileFromFile, type PickedFile } from '../../../platform/fileService';
 import { useLayoutStore } from '../../../store/layoutStore';
 import { useFoldSessionState } from '../../../fold/session/useFoldSession';
 import type { FoldSessionSnapshot } from '../../../fold/session/foldSessionState';
 import type { FoldImportFlowState, FoldImportRequest } from '../../../fold/io/foldImportFlow';
-import { foldImportFileSource, foldImportFormatOf } from '../../../fold/io/foldImportFiles';
+import { foldImportFileOrder, foldImportFileRequest } from '../../../fold/io/foldImportFiles';
+import type { FoldImportQueueState, FoldImportVia } from '../../../fold/io/foldImportQueue';
 import { foldImportNotice, type FoldImportNoticeModel } from '../../../fold/io/foldImportRefusal';
 import { foldStepIsNumbered } from '../../../fold/io/foldStepPages';
 import { useFoldImportUiStore, type FoldImportOpening } from '../../../fold/io/foldImportUiStore';
@@ -32,17 +34,6 @@ export function FoldImportModal() {
   ) : (
     <FoldImportDialog key={opening.id} opening={opening} />
   );
-}
-
-/** A file read off a pick or a drop, as the flow imports it. */
-async function fileRequest(file: File): Promise<FoldImportRequest> {
-  if (foldImportFormatOf(file.name) === null) return { kind: 'file', name: file.name, source: null };
-  try {
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    return { kind: 'file', name: file.name, source: foldImportFileSource(file.name, bytes) };
-  } catch {
-    return { kind: 'file', name: file.name, source: null, unreadable: true };
-  }
 }
 
 /** Where the step goes, said under the choices (the design's footnote). */
@@ -81,6 +72,31 @@ function placement(t: TFunction, snapshot: Pick<FoldSessionSnapshot, 'sequence' 
   )}`;
 }
 
+/**
+ * The line under the picker: the file under way and, for several, how far
+ * the batch has come; or, paused on a refusal, which file it stopped at.
+ */
+function importStatus(t: TFunction, state: FoldImportFlowState, progress: FoldImportQueueState): string | null {
+  if (progress.status === 'running') {
+    return progress.total > 1
+      ? t('dialogs:foldImport.working.batch', 'Importing {{name}} ({{number}} of {{total}})…', {
+          name: progress.name,
+          number: progress.index + 1,
+          total: progress.total,
+        })
+      : t('dialogs:foldImport.working.file', 'Importing {{name}}…', { name: progress.name });
+  }
+  if (state.phase === 'working') return workingLabel(t, state);
+  if (progress.status === 'paused' && progress.total > 1) {
+    return t('dialogs:foldImport.batch.stopped', 'Stopped at {{name}}, file {{number}} of {{total}}.', {
+      name: progress.name,
+      number: progress.index + 1,
+      total: progress.total,
+    });
+  }
+  return null;
+}
+
 function workingLabel(t: TFunction, state: FoldImportFlowState): string {
   if (state.phase !== 'working') return '';
   const { request } = state;
@@ -97,25 +113,29 @@ function workingLabel(t: TFunction, state: FoldImportFlowState): string {
 }
 
 /**
- * The dialog: what to import — a file, by the picker or a drop anywhere on
- * the dialog, a linked Edit pattern, or Edit's folded figure. When the
- * pattern's creases leave several layer orders, it steps aside while the
- * Layer order dialog (or, without one, the canvas's chooser) picks. A shortcut barrier
- * (`ModalFrame`): Escape, the close button and a press on the backdrop
- * close it, and closing lets go of whatever the engine holds for it. It
- * closes itself once the step is committed.
+ * The dialog: what to import — files, by the picker or a drop anywhere on
+ * the dialog, a step each in the order of the numbers in their names
+ * (`foldImportQueue`); a linked Edit pattern; or Edit's folded figure. When
+ * a pattern's creases leave several layer orders, it steps aside while the
+ * Layer order dialog (or, without one, the canvas's chooser) picks. A
+ * refusal among several files pauses them, and Skip goes on with the rest.
+ * A shortcut barrier (`ModalFrame`): Escape, the close button and a press on
+ * the backdrop close it, and closing lets go of whatever the engine holds
+ * for it, the files not yet imported included. It closes itself once the
+ * step is committed: the last file's, when there are several.
  */
 function FoldImportDialog({ opening }: { opening: FoldImportOpening }) {
   const { t } = useTranslation();
   const close = useFoldImportUiStore((store) => store.close);
-  const { flow, state } = useFoldImportFlow(opening.request);
+  const { flow, state, queue, progress } = useFoldImportFlow(opening.request, opening.files);
   const sequence = useFoldSessionState((snapshot) => snapshot.sequence);
   const cursor = useFoldSessionState((snapshot) => snapshot.cursor);
   const activePath = useFoldSessionState((snapshot) => snapshot.activePath);
 
+  // A step committed between two files of a batch leaves the queue running: the next opens.
   useEffect(() => {
-    if (state.phase === 'done') close();
-  }, [state.phase, close]);
+    if (state.phase === 'done' && progress.status !== 'running') close();
+  }, [state.phase, progress.status, close]);
 
   const request = state.phase === 'idle' ? opening.request : state.request;
   const projectCp = request?.kind === 'project-cp';
@@ -125,17 +145,31 @@ function FoldImportDialog({ opening }: { opening: FoldImportOpening }) {
     : projectCp ? t('dialogs:foldImport.collapseTitle', 'Collapse from CP')
       : t('dialogs:foldImport.title', 'Import crease pattern');
   const verbs = { searchLonger: () => void flow?.searchLonger() };
+  // A file under way makes the last one's refusal old news, while it is read and before the flow opens it.
   const notice =
-    state.phase === 'refused'
-      ? foldImportNotice(t, state.refusal, verbs)
-      : state.phase === 'failed'
-        ? // A failure is no refusal the user can act on: said plainly, reported by the flow's hook.
-          foldImportNotice(t, { kind: 'engine', refused: { refusal: { code: 'import_internal' } } }, verbs)
-        : null;
+    progress.status === 'running'
+      ? null
+      : state.phase === 'refused'
+        ? foldImportNotice(t, state.refusal, verbs)
+        : state.phase === 'failed'
+          ? // A failure is no refusal the user can act on: said plainly, reported by the flow's hook.
+            foldImportNotice(t, { kind: 'engine', refused: { refusal: { code: 'import_internal' } } }, verbs)
+          : null;
 
-  const shownNotice = notice && state.phase === 'refused' && state.searchLimited
+  const searchable = notice && state.phase === 'refused' && state.searchLimited
     ? { ...notice, actions: notice.actions.filter((action) => action.id !== 'search-longer') }
     : notice;
+  // Paused on a file with more after it: Skip leaves it out and goes on with them.
+  const shownNotice =
+    searchable && progress.status === 'paused' && progress.index < progress.total - 1
+      ? {
+          ...searchable,
+          actions: [
+            ...searchable.actions,
+            { id: 'skip-file', label: t('dialogs:foldImport.fix.skipFile', 'Skip this file'), run: () => queue?.skip() },
+          ],
+        }
+      : searchable;
   // The order is chosen elsewhere: on the canvas, or in the Layer order dialog.
   if (state.phase === 'choosing' || state.phase === 'ordering') return null;
 
@@ -145,9 +179,11 @@ function FoldImportDialog({ opening }: { opening: FoldImportOpening }) {
       opening={opening}
       onClose={close}
       onRequest={(next) => void flow?.open(next)}
-      busy={state.phase === 'working'}
+      onFiles={(files, via) => queue?.start(files, via)}
+      multiple
+      busy={state.phase === 'working' || progress.status === 'running'}
       offerFigure
-      status={state.phase === 'working' ? workingLabel(t, state) : null}
+      status={importStatus(t, state, progress)}
       notice={shownNotice}
       footer={
         state.phase !== 'idle' && state.request.kind === 'project-cp' && state.request.stepId
@@ -162,7 +198,8 @@ function FoldImportDialog({ opening }: { opening: FoldImportOpening }) {
  * Import starting sheet, the dialog in its sheet mode (`foldStartingSheet`):
  * a file or a linked Edit pattern, of which only the outline is taken, as
  * the sheet the sequence starts from — starting it over, which the foot says
- * beforehand. Edit's folded figure is no sheet and is not offered. It closes
+ * beforehand. One file: of several dropped, the first crease pattern by
+ * name. Edit's folded figure is no sheet and is not offered. It closes
  * itself once the sheet is the sequence's.
  */
 function FoldStartingSheetDialog({ opening }: { opening: FoldImportOpening }) {
@@ -196,12 +233,19 @@ function FoldStartingSheetDialog({ opening }: { opening: FoldImportOpening }) {
         })}`
       : '';
 
+  const openFile = async (files: readonly PickedFile[]) => {
+    const [file] = foldImportFileOrder(files);
+    if (file) void flow?.open(await foldImportFileRequest(file));
+  };
+
   return (
     <ImportDialogFrame
       title={title}
       opening={opening}
       onClose={close}
       onRequest={(next) => void flow?.open(next)}
+      onFiles={(files) => void openFile(files)}
+      multiple={false}
       busy={state.phase === 'working'}
       offerFigure={false}
       status={state.phase === 'working' ? t('dialogs:foldImport.working.sheet', 'Reading the sheet…') : null}
@@ -214,7 +258,7 @@ function FoldStartingSheetDialog({ opening }: { opening: FoldImportOpening }) {
 /**
  * The dialog's content, both modes', in the app's modal frame (`ModalFrame`):
  * the picker, the status and a refusal's notice, and a foot that says what
- * the import does. A file dropped anywhere on it is imported. Escape, the
+ * the import does. Files dropped anywhere on it are imported. Escape, the
  * close button and a press on the backdrop close it.
  */
 function ImportDialogFrame({
@@ -222,6 +266,8 @@ function ImportDialogFrame({
   opening,
   onClose,
   onRequest,
+  onFiles,
+  multiple,
   busy,
   offerFigure,
   status,
@@ -232,6 +278,10 @@ function ImportDialogFrame({
   opening: FoldImportOpening;
   onClose: () => void;
   onRequest: (request: FoldImportRequest) => void;
+  /** Files dropped on the dialog or picked in it, in the order the platform gave them. */
+  onFiles: (files: readonly PickedFile[], via: FoldImportVia) => void;
+  /** Pick several files at once, a step each; a starting sheet takes one. */
+  multiple: boolean;
   busy: boolean;
   /** Offer Edit's folded figure: a step can start from it, a sheet cannot. */
   offerFigure: boolean;
@@ -241,14 +291,7 @@ function ImportDialogFrame({
 }) {
   const [dragging, setDragging] = useState(false);
 
-  const importFile = useCallback(
-    async (file: File) => {
-      onRequest(await fileRequest(file));
-    },
-    [onRequest]
-  );
-
-  // A file dropped anywhere on the dialog is imported: the dialog covers the
+  // Files dropped anywhere on the dialog are imported: the dialog covers the
   // workspace, whose own target would otherwise never see the drag, and the
   // browser would open the file in place of the app.
   const onDragOver = (event: ReactDragEvent<HTMLElement>) => {
@@ -264,11 +307,11 @@ function ImportDialogFrame({
   };
   const onDrop = (event: ReactDragEvent<HTMLElement>) => {
     setDragging(false);
-    const [file] = Array.from(event.dataTransfer.files);
-    if (!file) return;
+    const files = Array.from(event.dataTransfer.files);
+    if (files.length === 0) return;
     event.preventDefault();
     event.stopPropagation();
-    void importFile(file);
+    onFiles(files.map(pickedFileFromFile), 'drop');
   };
 
   return (
@@ -281,7 +324,14 @@ function ImportDialogFrame({
       onDrop={onDrop}
       footer={<p className={styles.placement}>{footer}</p>}
     >
-      <FoldImportPicker dragging={dragging} busy={busy} offerFigure={offerFigure} onRequest={onRequest} />
+      <FoldImportPicker
+        dragging={dragging}
+        busy={busy}
+        multiple={multiple}
+        offerFigure={offerFigure}
+        onRequest={onRequest}
+        onFiles={(files) => onFiles(files, 'pick')}
+      />
       <div className={styles.status} role="status">
         {status}
       </div>

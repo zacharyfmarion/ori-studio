@@ -323,14 +323,19 @@
     "title": "Exportar sequência de dobras"
   },
   "foldImport": {
+    "batch": {
+      "stopped": "Parou em {{name}}, arquivo {{number}} de {{total}}."
+    },
     "browse": "ou clique para procurar",
     "browseTouch": "ou toque para procurar",
     "collapseTitle": "Colapsar a partir do CP",
     "drop": "Solte um arquivo .cp, .fold, .ori ou .orh",
+    "dropFiles": "Solte arquivos .cp, .fold, .ori ou .orh",
     "editFigure": "Modelo dobrado da Edição",
     "editFigureNote": "O padrão de vincos que a Edição dobrou, com a ordem de camadas que encontrou",
     "fix": {
-      "searchLonger": "Procurar por mais tempo"
+      "searchLonger": "Procurar por mais tempo",
+      "skipFile": "Pular este arquivo"
     },
     "fromEdit": "Da Edição",
     "pickTitle": "Importar padrão de vincos",
@@ -366,6 +371,10 @@
       "figureIncomplete": {
         "text": "O modelo dobrado da Edição não diz como fica cada camada. Dobre-o de novo na Edição e depois comece a partir dele.",
         "title": "O modelo dobrado está incompleto"
+      },
+      "fileTooLarge": {
+        "text": "{{name}} tem mais de 64 MiB, grande demais para importar.",
+        "title": "Arquivo grande demais"
       },
       "foldedForm": {
         "text": "Este arquivo FOLD descreve papel já dobrado. Importe o padrão de vincos plano em vez dele.",
@@ -456,6 +465,7 @@
     "title": "Importar padrão de vincos",
     "updateTitle": "Atualizar a partir do CP",
     "working": {
+      "batch": "Importando {{name}} ({{number}} de {{total}})…",
       "figure": "Importando o modelo dobrado da Edição…",
       "file": "Importando {{name}}…",
       "projectCp": "Resolvendo o padrão de dobras do projeto…",

@@ -307,14 +307,19 @@
     "title": "접기 시퀀스 내보내기"
   },
   "foldImport": {
+    "batch": {
+      "stopped": "{{name}}에서 중단됨 ({{total}}개 중 {{number}}번째 파일)."
+    },
     "browse": "또는 클릭하여 찾아보기",
     "browseTouch": "또는 탭하여 찾아보기",
     "collapseTitle": "전개도에서 접기",
     "drop": ".cp, .fold, .ori, .orh 파일을 끌어다 놓으세요",
+    "dropFiles": ".cp, .fold, .ori, .orh 파일을 끌어다 놓으세요 (여러 개 가능)",
     "editFigure": "편집의 접힌 모델",
     "editFigureNote": "편집에서 접은 전개도와 찾아낸 층 순서",
     "fix": {
-      "searchLonger": "더 오래 찾기"
+      "searchLonger": "더 오래 찾기",
+      "skipFile": "이 파일 건너뛰기"
     },
     "fromEdit": "편집에서",
     "pickTitle": "전개도 가져오기",
@@ -348,6 +353,10 @@
       "figureIncomplete": {
         "text": "편집의 접힌 모델에 모든 층이 어떻게 놓이는지가 담겨 있지 않습니다. 편집에서 다시 접은 뒤 그것에서 시작하세요.",
         "title": "접힌 모델이 불완전합니다"
+      },
+      "fileTooLarge": {
+        "text": "{{name}}은(는) 64MiB를 넘어 가져올 수 없습니다.",
+        "title": "파일이 너무 큽니다"
       },
       "foldedForm": {
         "text": "이 FOLD 파일은 이미 접힌 종이를 나타냅니다. 대신 평평한 전개도를 가져오세요.",
@@ -436,6 +445,7 @@
     "title": "전개도 가져오기",
     "updateTitle": "전개도에서 업데이트",
     "working": {
+      "batch": "{{name}} 가져오는 중 ({{number}}/{{total}})…",
       "figure": "편집의 접힌 모델을 가져오는 중…",
       "file": "{{name}} 가져오는 중…",
       "projectCp": "프로젝트 전개도 계산 중…",

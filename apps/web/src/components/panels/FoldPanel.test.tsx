@@ -265,13 +265,13 @@ describe('the Fold panel', () => {
       act(() => {
         target?.dispatchEvent(drag('dragenter', [cp]));
       });
-      expect(overlay()).toBe('Drop a crease pattern to import it');
+      expect(overlay()).toBe('Drop crease patterns to import them');
       await act(async () => {
         target?.dispatchEvent(drag('drop', [cp]));
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
       expect(overlay()).toBeNull();
-      expect(useFoldImportUiStore.getState().opening?.request).toMatchObject({ kind: 'file', name: 'crane.cp' });
+      expect(useFoldImportUiStore.getState().opening?.files.map((file) => file.name)).toEqual(['crane.cp']);
       act(() => useFoldImportUiStore.getState().close());
     };
 

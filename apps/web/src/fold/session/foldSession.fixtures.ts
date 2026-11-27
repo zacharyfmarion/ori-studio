@@ -446,6 +446,8 @@ export interface MemoryFoldDocument extends FoldSessionDocumentSource {
   set(next: Partial<FoldSessionDocument>): void;
   /** Every draft committed, in order. */
   readonly commits: FoldStepDraft[];
+  /** The undo batch each of {@link commits} was committed under, if any. */
+  readonly batches: (number | undefined)[];
 }
 
 /**
@@ -460,6 +462,7 @@ export function memoryFoldDocument(
   let value: FoldSessionDocument = { loadId: 1, held: null, reader: null, ...initial };
   const listeners = new Set<() => void>();
   const commits: FoldStepDraft[] = [];
+  const batches: (number | undefined)[] = [];
   const set = (next: Partial<FoldSessionDocument>) => {
     value = { ...value, ...next };
     for (const listener of [...listeners]) listener();
@@ -474,12 +477,14 @@ export function memoryFoldDocument(
     },
     set,
     commits,
-    commit: (draft, loadId) => {
+    batches,
+    commit: (draft, loadId, batch) => {
       if (loadId !== value.loadId || value.held?.readOnlyRaw) return null;
       const document = value.held?.document ?? createFoldSequence(SQUARE_PAPER, '', newId);
       const appended = appendFoldStep(document, draft, newId);
       if (!appended) return null;
       commits.push(draft);
+      batches.push(batch);
       const reader = value.reader?.sequenceId === document.id ? value.reader : initialFoldReaderState(document.id);
       set({
         held: { document: appended.document, readOnlyRaw: null },

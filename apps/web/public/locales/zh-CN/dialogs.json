@@ -307,14 +307,19 @@
     "title": "导出折叠序列"
   },
   "foldImport": {
+    "batch": {
+      "stopped": "已在 {{name}} 处停止（第 {{number}} 个文件，共 {{total}} 个）。"
+    },
     "browse": "或点击浏览",
     "browseTouch": "或轻点浏览",
     "collapseTitle": "从展开图收拢",
     "drop": "拖放 .cp、.fold、.ori 或 .orh 文件",
+    "dropFiles": "拖放 .cp、.fold、.ori 或 .orh 文件（可多选）",
     "editFigure": "编辑中的折叠模型",
     "editFigureNote": "编辑折出的折痕图，以及它找到的层序",
     "fix": {
-      "searchLonger": "继续搜索"
+      "searchLonger": "继续搜索",
+      "skipFile": "跳过此文件"
     },
     "fromEdit": "来自编辑",
     "pickTitle": "导入折痕图",
@@ -348,6 +353,10 @@
       "figureIncomplete": {
         "text": "编辑中的折叠模型没有说明每一层如何放置。请在编辑中重新折叠，然后从它开始。",
         "title": "折叠模型不完整"
+      },
+      "fileTooLarge": {
+        "text": "{{name}} 超过 64 MiB，太大，无法导入。",
+        "title": "文件过大"
       },
       "foldedForm": {
         "text": "此 FOLD 文件描述的是已经折好的纸。请改为导入平整的折痕图。",
@@ -436,6 +445,7 @@
     "title": "导入折痕图",
     "updateTitle": "从展开图更新",
     "working": {
+      "batch": "正在导入 {{name}}（第 {{number}} 个，共 {{total}} 个）…",
       "figure": "正在导入编辑中的折叠模型…",
       "file": "正在导入 {{name}}…",
       "projectCp": "正在求解项目展开图…",

@@ -6,9 +6,9 @@ import { useCpPatternSheets } from '../../../cp-workspace/sheets/useCpPatternShe
 import { type FoldSampleId } from '../../../fold/engine/foldEngineIoSamples';
 import { foldFaceCapNote, foldOverFaceCap } from '../../../fold/foldFaceCap';
 import { foldStartingFigure } from '../../../fold/io/foldEditFigure';
-import { FOLD_IMPORT_EXTENSIONS, foldImportFileSource } from '../../../fold/io/foldImportFiles';
+import { FOLD_IMPORT_EXTENSIONS } from '../../../fold/io/foldImportFiles';
 import type { FoldImportRequest } from '../../../fold/io/foldImportFlow';
-import { getFileService } from '../../../platform/fileService';
+import { getFileService, type PickedFile } from '../../../platform/fileService';
 import { useIsCoarsePointerSurface } from '../../../platform/pointerSurface';
 import { useWorkspaceStore } from '../../../store/workspaceStore';
 import { PatternThumbnail } from '../../ui/PatternThumbnail';
@@ -27,25 +27,32 @@ export function foldSampleName(t: TFunction, id: FoldSampleId): string {
 }
 
 /**
- * What Import CP can bring in (plan D16): a crease-pattern file, by the
- * platform's picker or a drop on the dialog; a linked pattern from Edit;
- * or, when Edit has a flat folded figure, that figure with the layer order
- * Edit found — said to have too many faces, and not offered, when it has
- * more than Fold folds. Each is one press; the dialog runs the import.
+ * What Import CP can bring in (plan D16): crease-pattern files, by the
+ * platform's picker or a drop on the dialog — several at once, a step each,
+ * unless the dialog takes one (a starting sheet); a linked pattern from
+ * Edit; or, when Edit has a flat folded figure, that figure with the layer
+ * order Edit found — said to have too many faces, and not offered, when it
+ * has more than Fold folds. Each is one press; the dialog runs the import.
  */
 export function FoldImportPicker({
   dragging,
   busy,
+  multiple = false,
   offerFigure = true,
   onRequest,
+  onFiles,
 }: {
   /** A file is being dragged over the dialog. */
   dragging: boolean;
   /** An import is under way: nothing new starts until it settles. */
   busy: boolean;
+  /** Take several files at once, a step each; one file otherwise. */
+  multiple?: boolean;
   /** Offer Edit's folded figure: a step can start from it, a starting sheet cannot. */
   offerFigure?: boolean;
   onRequest: (request: FoldImportRequest) => void;
+  /** The files picked, in the order the platform gave them; each is read when the dialog imports it. */
+  onFiles: (files: readonly PickedFile[]) => void;
 }) {
   const { t } = useTranslation();
   // A finger taps, as the tool window's touch instructions say.
@@ -58,7 +65,7 @@ export function FoldImportPicker({
 
   // Inside the press: a browser allows a picker only from a gesture.
   const pick = async () => {
-    const file = await getFileService().openBinaryFile({
+    const files = await getFileService().openBinaryFiles({
       title: t('dialogs:foldImport.pickTitle', 'Import Crease Pattern'),
       extensions: [...FOLD_IMPORT_EXTENSIONS],
       // As every document open offers it (`inputAccept`): none of these formats
@@ -66,9 +73,9 @@ export function FoldImportPicker({
       // import reads the format from the name, and refuses one it cannot.
       mimeTypes: ['application/octet-stream'],
       filterName: 'Ori Studio',
+      multiple,
     });
-    if (!file) return;
-    onRequest({ kind: 'file', name: file.name, source: foldImportFileSource(file.name, file.bytes) });
+    if (files) onFiles(files);
   };
 
   return (
@@ -82,7 +89,9 @@ export function FoldImportPicker({
       >
         <FileUp size={20} aria-hidden="true" />
         <span className={styles.dropTitle}>
-          {t('dialogs:foldImport.drop', 'Drop a .cp, .fold, .ori or .orh file')}
+          {multiple
+            ? t('dialogs:foldImport.dropFiles', 'Drop .cp, .fold, .ori or .orh files')
+            : t('dialogs:foldImport.drop', 'Drop a .cp, .fold, .ori or .orh file')}
         </span>
         <span className={styles.dropHint}>
           {coarse

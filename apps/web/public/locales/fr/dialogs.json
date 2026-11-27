@@ -323,14 +323,19 @@
     "title": "Exporter la séquence de pliage"
   },
   "foldImport": {
+    "batch": {
+      "stopped": "Arrêté à {{name}}, fichier {{number}} sur {{total}}."
+    },
     "browse": "ou cliquez pour parcourir",
     "browseTouch": "ou touchez pour parcourir",
     "collapseTitle": "Mettre en forme depuis le CP",
     "drop": "Déposez un fichier .cp, .fold, .ori ou .orh",
+    "dropFiles": "Déposez des fichiers .cp, .fold, .ori ou .orh",
     "editFigure": "Modèle plié d’Édition",
     "editFigureNote": "Le patron de plis qu’Édition a plié, avec l’ordre des couches trouvé",
     "fix": {
-      "searchLonger": "Chercher plus longtemps"
+      "searchLonger": "Chercher plus longtemps",
+      "skipFile": "Ignorer ce fichier"
     },
     "fromEdit": "Depuis Édition",
     "pickTitle": "Importer un patron de plis",
@@ -366,6 +371,10 @@
       "figureIncomplete": {
         "text": "Le modèle plié d’Édition n’indique pas comment se place chaque couche. Repliez-le dans Édition, puis partez-en.",
         "title": "Le modèle plié est incomplet"
+      },
+      "fileTooLarge": {
+        "text": "{{name}} dépasse 64 Mio, trop volumineux pour être importé.",
+        "title": "Fichier trop volumineux"
       },
       "foldedForm": {
         "text": "Ce fichier FOLD décrit du papier déjà plié. Importez plutôt le patron de plis à plat.",
@@ -456,6 +465,7 @@
     "title": "Importer un patron de plis",
     "updateTitle": "Mettre à jour depuis le CP",
     "working": {
+      "batch": "Import de {{name}} ({{number}} sur {{total}})…",
       "figure": "Import du modèle plié d’Édition…",
       "file": "Import de {{name}}…",
       "projectCp": "Résolution du canevas de plis du projet…",

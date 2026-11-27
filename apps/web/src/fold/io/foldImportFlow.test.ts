@@ -38,6 +38,8 @@ import {
   type FoldProjectCpImport,
 } from './foldImportFlow';
 import { foldImportNotice } from './foldImportRefusal';
+import { createFoldImportQueue } from './foldImportQueue';
+import type { PickedFile } from '../../platform/fileService';
 
 /** Import CP's calls over the fake engine: each import lists `orders` per component. */
 interface FakeIo {
@@ -728,4 +730,88 @@ it('requires explicit acceptance even when a bounded CP search lists only one or
   expect(source.commits).toHaveLength(0);
   await flow.accept(0);
   expect(source.commits).toHaveLength(1);
+});
+
+describe('Import CP of several files, through the flow (foldImportQueue)', () => {
+  /** A dropped crease pattern. */
+  const cp = (name: string): PickedFile => ({
+    name,
+    type: '',
+    size: 9,
+    read: async () => new TextEncoder().encode('1 0 0 1 1'),
+  });
+  /** Each committed step's parent, in commit order. */
+  const parents = (source: { commits: { parent: string | null }[] }) => source.commits.map((draft) => draft.parent);
+
+  it('commits a step in the batch it was opened in, and one opened alone in none', async () => {
+    const { flow, source } = setup(sequenceOf([step('a', null)]), 'a');
+    await flow.open(FILE, { batch: 5 });
+    await settle();
+    await flow.open(SAMPLE);
+    await settle();
+    expect(source.batches).toEqual([5, undefined]);
+  });
+
+  it('imports each file as a step after the one before, all in one batch, the cursor on the last', async () => {
+    const { flow, source, session } = setup(sequenceOf([step('a', null)]), 'a');
+    const queue = createFoldImportQueue({ flow });
+    queue.start(['2.cp', '10.cp', '1.cp'].map(cp), 'drop');
+    await settle(30);
+
+    expect(queue.store.getState()).toEqual({ status: 'finished', total: 3, imported: 3 });
+    expect(parents(source)).toEqual(['a', 'fstep-1', 'fstep-2']);
+    expect(source.batches).toEqual([source.batches[0], source.batches[0], source.batches[0]]);
+    expect(source.batches[0]).toEqual(expect.any(Number));
+    expect(session.store.getState().cursor).toBe('fstep-3');
+    queue.dispose();
+  });
+
+  it('starts an empty sequence on the first file’s sheet and adds the rest after it', async () => {
+    const { flow, source } = setup(null, null);
+    const queue = createFoldImportQueue({ flow });
+    queue.start(['1.cp', '2.cp'].map(cp), 'pick');
+    await settle(30);
+
+    const first = source.read().held?.document.steps[0]?.id;
+    expect(parents(source)).toEqual([null, first]);
+    expect(source.commits[0]).toHaveProperty('adopt');
+    expect(source.commits[1]).not.toHaveProperty('adopt');
+    queue.dispose();
+  });
+
+  it('waits for each file’s order in the Layer order dialog before opening the next', async () => {
+    const asked: FoldImportLayerOrderAsk[] = [];
+    const choose = async (ask: FoldImportLayerOrderAsk): Promise<FoldImportLayerOrderAnswer> => {
+      asked.push(ask);
+      return { kind: 'unchanged' };
+    };
+    const { flow, source } = setup(sequenceOf([step('a', null)]), 'a', { orders: [2] }, undefined, undefined, choose);
+    const queue = createFoldImportQueue({ flow });
+    queue.start(['1.cp', '2.cp'].map(cp), 'drop');
+    await settle(40);
+
+    expect(asked.map((ask) => (ask.request.kind === 'file' ? ask.request.name : null))).toEqual(['1.cp', '2.cp']);
+    expect(parents(source)).toEqual(['a', 'fstep-1']);
+    expect(source.batches[1]).toBe(source.batches[0]);
+    queue.dispose();
+  });
+
+  it('waits for each file’s order on the canvas chooser, and goes on once it is accepted', async () => {
+    const { flow, source } = setup(sequenceOf([step('a', null)]), 'a', { orders: [2] });
+    const queue = createFoldImportQueue({ flow });
+    queue.start(['1.cp', '2.cp'].map(cp), 'drop');
+    await settle(20);
+    expect(flow.store.getState()).toMatchObject({ phase: 'choosing', request: { name: '1.cp' } });
+    expect(source.commits).toHaveLength(0);
+
+    await flow.accept(0);
+    await settle(20);
+    expect(flow.store.getState()).toMatchObject({ phase: 'choosing', request: { name: '2.cp' } });
+    await flow.accept(0);
+    await settle(10);
+
+    expect(parents(source)).toEqual(['a', 'fstep-1']);
+    expect(queue.store.getState()).toEqual({ status: 'finished', total: 2, imported: 2 });
+    queue.dispose();
+  });
 });

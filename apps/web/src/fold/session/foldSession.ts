@@ -123,9 +123,10 @@ export interface FoldSessionDocumentSource {
    * Commit a step under `draft.parent` of the shown sequence — creating it
    * for the first — and put the cursor on it: the slice's `commitFoldStep`.
    * Its id, or null when the parent is gone or locked, the sequence is a
-   * newer build's, or `loadId` is no longer the current one.
+   * newer build's, or `loadId` is no longer the current one. Steps of one
+   * `batch` are one undo step (`FoldLandedStep.batch`).
    */
-  commit(draft: FoldStepDraft, loadId: number): string | null;
+  commit(draft: FoldStepDraft, loadId: number, batch?: number): string | null;
 }
 
 /** A latest-request-wins stream to the engine (`createFoldPreviewChannel`). */
@@ -249,6 +250,11 @@ export interface FoldLandedStep {
   readonly compound?: FoldCompoundReport;
   /** The sheet an empty sequence takes with it (`FoldStepDraft.adopt`). */
   readonly adopt?: FoldPaperShape;
+  /**
+   * Steps landed one after another as one action share it (Import CP's
+   * several files): they are one undo step, the first's.
+   */
+  readonly batch?: number;
 }
 
 /** A query on a state: its answer, or word that the state is not held (a re-replay brings a new handle). */
@@ -1270,7 +1276,7 @@ export function createFoldSession({
       engine?.release(landed.state);
       return { status: 'stale' };
     }
-    const { op, choices, fingerprint, summary, compound, adopt } = landed;
+    const { op, choices, fingerprint, summary, compound, adopt, batch } = landed;
     const details = foldStateDetailsOf({ summary, report: null, compound });
     const withdraw = engine.adopt(parent, requestOf(op, choices), { state: landed.state, fingerprint, details }, runTicket);
     const draft: FoldStepDraft = {
@@ -1282,7 +1288,7 @@ export function createFoldSession({
     };
     // An import that brings a new sheet is shown once the replay lands it again: no
     // progress for the old sheet holds anything of the new paper's.
-    return committed(() => source.commit(draft, loadId), landed.state, fingerprint, withdraw);
+    return committed(() => source.commit(draft, loadId, batch), landed.state, fingerprint, withdraw);
   };
 
   // A query is answered while the engine is kept, so a surface coming back

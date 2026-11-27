@@ -30,6 +30,9 @@
  *   opens, the flow is reset, or it is disposed.
  * - **Latest wins.** A new request, a reset or a dispose drops whatever an
  *   earlier one was still waiting for.
+ * - **One request at a time.** Several files are imported one after another
+ *   by `foldImportQueue`, which opens each in turn with the batch they share:
+ *   their steps are one undo step.
  *
  * Pure: no React, no store, no wasm. The session and Edit's figure are
  * handed in.
@@ -55,7 +58,7 @@ import type { FoldEngineOutcome, FoldScene } from '../engine/foldEngineWire';
 import type { FoldSession, FoldSessionWorker } from '../session/foldSession';
 import { foldImportFaceCapRefusal, foldOverFaceCap } from '../foldFaceCap';
 import { foldSample, foldSampleSource } from './foldImportFiles';
-import type { FoldImportLocalCode, FoldImportRefusal } from './foldImportRefusal';
+import { unreadFileCode, type FoldImportLocalCode, type FoldImportRefusal } from './foldImportRefusal';
 import { sameFoldState, selectFoldCursorNode } from '../session/foldSessionState';
 import { foldCursorReady, type FoldCursorReady } from './foldSessionWaits';
 
@@ -69,6 +72,8 @@ export type FoldImportRequest =
       readonly source: FoldImportSource | null;
       /** The platform could not read the file. */
       readonly unreadable?: boolean;
+      /** The file is past what Import CP reads (`FOLD_IMPORT_MAX_BYTES`), so it was never read. */
+      readonly tooLarge?: boolean;
     }
   | { readonly kind: 'sample'; readonly sample: FoldSampleId }
   | { readonly kind: 'edit-folded-figure' }
@@ -166,10 +171,16 @@ export interface FoldImportFlowOptions {
   prefetchLayerOrder?: () => void;
 }
 
+/** How a request is opened: on its own, or as one file of a batch. */
+export interface FoldImportOpenOptions {
+  /** The batch it belongs to: steps of one batch are one undo step (`FoldLandedStep.batch`). */
+  readonly batch?: number;
+}
+
 export interface FoldImportFlow {
   readonly store: StoreApi<FoldImportFlowState>;
   /** Import `request`, after the step on screen. */
-  open(request: FoldImportRequest): Promise<void>;
+  open(request: FoldImportRequest, options?: FoldImportOpenOptions): Promise<void>;
   /** Pick order `order` of component `component` (the chooser's cards). */
   choose(component: number, order: number): void;
   /** Land the chosen orders as a step and commit it. */
@@ -241,12 +252,13 @@ function errorEnvelope(error: unknown): WasmErrorEnvelope {
   return { code: 'fold_import', message: error instanceof Error ? error.message : String(error) };
 }
 
-/** An import the engine holds, and where it was opened. */
+/** An import the engine holds, where it was opened, and the batch it was opened in. */
 interface Held {
   readonly handle: number;
   readonly where: FoldCursorReady;
   readonly opened: FoldImportOpened;
   readonly project?: FoldProjectCpImport;
+  readonly batch?: number;
 }
 
 const IDLE: FoldImportFlowState = { phase: 'idle' };
@@ -275,6 +287,8 @@ export function createFoldImportFlow({
   let previewRunning = false;
   /** The limits the last request was opened with, for "Search longer". */
   let lastLimits: FoldImportLimits | undefined;
+  /** The batch the last request was opened in, kept by "Search longer". */
+  let lastBatch: number | undefined;
   let context: { cursor: string | null; state: FoldEngineStateHandle | null } | null = null;
   /** The Layer order dialog's ask while it is open (`ordering`): aborted, it closes the dialog. */
   let asking: AbortController | null = null;
@@ -331,7 +345,8 @@ export function createFoldImportFlow({
     landed: FoldImportFingerprinted,
     adopt: FoldPaperShape | null,
     mine: number,
-    project?: FoldProjectCpImport
+    project?: FoldProjectCpImport,
+    batch?: number
   ): Promise<void> => {
     const over = where.empty ? sidesOverCap(adopt) : null;
     if (over !== null) {
@@ -364,6 +379,7 @@ export function createFoldImportFlow({
       fingerprint: landed.fingerprint,
       summary: landed.summary,
       ...(where.empty && adopt ? { adopt } : {}),
+      ...(batch === undefined ? {} : { batch }),
     });
     if (mine !== ticket) return;
     switch (outcome.status) {
@@ -415,7 +431,7 @@ export function createFoldImportFlow({
       store.setState({ phase: 'refused', request, refusal }, true);
       return;
     }
-    await commitLandedStep(request, import_.where, picked, import_.opened.paper, mine, import_.project);
+    await commitLandedStep(request, import_.where, picked, import_.opened.paper, mine, import_.project, import_.batch);
   };
 
   /**
@@ -531,15 +547,16 @@ export function createFoldImportFlow({
     store.setState({ ...now, previews, ...(preview.status === 'ready' && key === foldOrderChoiceKey(now.choice) ? { displayed: preview.scene } : {}) }, true);
   };
 
-  const open = async (request: FoldImportRequest, limits?: FoldImportLimits): Promise<void> => {
+  const open = async (request: FoldImportRequest, limits?: FoldImportLimits, batch?: number): Promise<void> => {
     if (disposed) return;
     const mine = ++ticket;
     withdraw();
     letGo();
     lastLimits = limits;
+    lastBatch = batch;
     store.setState({ phase: 'working', request }, true);
     if (request.kind === 'file' && request.source === null) {
-      store.setState(local(request, request.unreadable ? 'unreadable_file' : 'unsupported_file'), true);
+      store.setState(local(request, unreadFileCode(request)), true);
       return;
     }
     try {
@@ -585,7 +602,7 @@ export function createFoldImportFlow({
           store.setState({ phase: 'refused', request, refusal: { kind: 'engine', refused: landed } }, true);
           return;
         }
-        await commitLandedStep(request, where, landed, foldShapeOfOutline(landed.summary.sheet), mine);
+        await commitLandedStep(request, where, landed, foldShapeOfOutline(landed.summary.sheet), mine, undefined, batch);
         return;
       }
 
@@ -618,7 +635,13 @@ export function createFoldImportFlow({
         store.setState(local(request, 'sheet_sides', over), true);
         return;
       }
-      const import_: Held = { handle: opened.import, where, opened, ...(project ? { project } : {}) };
+      const import_: Held = {
+        handle: opened.import,
+        where,
+        opened,
+        ...(project ? { project } : {}),
+        ...(batch === undefined ? {} : { batch }),
+      };
       held = import_;
       const choice = opened.components.map(() => 0);
       if (foldOrderChoices(opened) === 0 && opened.count.exact) {
@@ -640,7 +663,7 @@ export function createFoldImportFlow({
 
   return {
     store,
-    open: (request) => open(request),
+    open: (request, options) => open(request, undefined, options?.batch),
 
     choose(component, order) {
       const now = store.getState();
@@ -716,7 +739,7 @@ export function createFoldImportFlow({
       if (refusal.code !== 'import_budget_exceeded') return;
       const spent = (refusal as Readonly<Record<string, unknown>>).nodes;
       const nodes = typeof spent === 'number' && spent > 0 ? spent : 1;
-      await open(now.request, { ...lastLimits, maxNodes: Math.min(12_800_000, Math.ceil(Math.max(nodes, lastLimits?.maxNodes ?? 0) * SEARCH_LONGER_FACTOR)) });
+      await open(now.request, { ...lastLimits, maxNodes: Math.min(12_800_000, Math.ceil(Math.max(nodes, lastLimits?.maxNodes ?? 0) * SEARCH_LONGER_FACTOR)) }, lastBatch);
     },
 
     reset() {

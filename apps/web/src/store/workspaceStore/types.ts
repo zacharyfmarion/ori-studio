@@ -2904,7 +2904,12 @@ export interface FoldSliceActions {
   updateFoldRepeat: (stepId: string,
     expected: import('../../fold/document/foldSequenceDocument').FoldRepeatOp,
     op: import('../../fold/document/foldSequenceDocument').FoldRepeatOp, expect: string, loadId: number) => boolean;
-  commitFoldStep: (draft: FoldStepDraft, options?: { loadId?: number }) => string | null;
+  /**
+   * `batch` names steps committed one after another as one action (a drop of
+   * several crease patterns): each extends the undo step the first opened,
+   * unless another edit, an undo or a redo came between.
+   */
+  commitFoldStep: (draft: FoldStepDraft, options?: { loadId?: number; batch?: number }) => string | null;
   /**
    * "Delete this step and what follows" (D6): the step and its subtree,
    * locked or not, as one undo step. Whether it changed.

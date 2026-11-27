@@ -315,14 +315,19 @@
     "title": "Export Fold Sequence"
   },
   "foldImport": {
+    "batch": {
+      "stopped": "Stopped at {{name}}, file {{number}} of {{total}}."
+    },
     "browse": "or click to browse",
     "browseTouch": "or tap to browse",
     "collapseTitle": "Collapse from CP",
     "drop": "Drop a .cp, .fold, .ori or .orh file",
+    "dropFiles": "Drop .cp, .fold, .ori or .orh files",
     "editFigure": "Edit’s folded figure",
     "editFigureNote": "The crease pattern Edit folded, with the layer order it found",
     "fix": {
-      "searchLonger": "Search longer"
+      "searchLonger": "Search longer",
+      "skipFile": "Skip this file"
     },
     "fromEdit": "From Edit",
     "pickTitle": "Import Crease Pattern",
@@ -357,6 +362,10 @@
       "figureIncomplete": {
         "text": "Edit’s folded figure does not say how every layer lies. Fold it again in Edit, then start from it.",
         "title": "The folded figure is incomplete"
+      },
+      "fileTooLarge": {
+        "text": "{{name}} is over 64 MiB, too large to import.",
+        "title": "File too large"
       },
       "foldedForm": {
         "text": "This FOLD file describes paper already folded. Import the flat crease pattern instead.",
@@ -446,6 +455,7 @@
     "title": "Import crease pattern",
     "updateTitle": "Update from CP",
     "working": {
+      "batch": "Importing {{name}} ({{number}} of {{total}})…",
       "figure": "Importing Edit’s folded figure…",
       "file": "Importing {{name}}…",
       "projectCp": "Resolving the project crease pattern…",

@@ -2021,6 +2021,15 @@ export const ANALYTICS_EVENTS = {
    */
   foldCpImported: 'fold cp imported',
   /**
+   * Import CP of several files at once ended (a drop or a pick of many):
+   * how many files the batch held and how many became steps, bucketed,
+   * whether it reached its last file, and whether the files were dropped or
+   * picked. Each step is also `fold cp imported`. Whether multi-file import
+   * is used, how large batches run, and how often one stops part way. Never
+   * a file name.
+   */
+  foldCpBatchEnded: 'fold cp batch ended',
+  /**
    * A Fold sequence's crease pattern reached the Edit canvas, its precreases
    * as auxiliary lines. No property: there is one Send to Edit. Counted where
    * Edit took it, since a send can be refused after the menu chokepoint

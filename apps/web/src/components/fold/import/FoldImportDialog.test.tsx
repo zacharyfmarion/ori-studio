@@ -4,16 +4,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { FoldImportOpened } from '../../../fold/engine/foldEngineIoWire';
 import type { FoldImportFlow, FoldImportFlowState } from '../../../fold/io/foldImportFlow';
+import type { FoldImportQueue, FoldImportQueueState } from '../../../fold/io/foldImportQueue';
 
-/** The flow the dialog drives: its state set by the test, its verbs spied on. */
+/** The flow and the queue the dialog drives: their states set by the test, their verbs spied on. */
 const harness = vi.hoisted(() => ({
   flow: null as unknown as FoldImportFlow,
   store: null as unknown as StoreApi<FoldImportFlowState>,
+  queue: null as unknown as FoldImportQueue,
+  progress: null as unknown as StoreApi<FoldImportQueueState>,
 }));
 vi.mock('../../../fold/io/useFoldImport', async () => {
   const { useStore } = await import('zustand');
   return {
-    useFoldImportFlow: () => ({ flow: harness.flow, state: useStore(harness.store) }),
+    useFoldImportFlow: () => ({
+      flow: harness.flow,
+      state: useStore(harness.store),
+      queue: harness.queue,
+      progress: useStore(harness.progress),
+    }),
   };
 });
 
@@ -58,6 +66,8 @@ beforeEach(() => {
     reset: vi.fn(),
     dispose: vi.fn(),
   };
+  harness.progress = createStore<FoldImportQueueState>(() => ({ status: 'idle' }));
+  harness.queue = { store: harness.progress, start: vi.fn(), skip: vi.fn(), dispose: vi.fn() };
   useLayoutStore.setState({ ...initialLayout, activeWorkspace: 'fold' }, true);
   host = document.createElement('div');
   document.body.append(host);
@@ -100,7 +110,7 @@ describe('Import CP’s dialog', () => {
     expect(dialog()).toBeNull();
     act(() => useLayoutStore.setState({ activeWorkspace: 'fold' }));
     expect(dialog()?.getAttribute('aria-label')).toBe('Import crease pattern');
-    expect(button('Drop a .cp, .fold, .ori or .orh file')).toBeDefined();
+    expect(button('Drop .cp, .fold, .ori or .orh files')).toBeDefined();
     expect(button('Pattern 1')).toBeDefined();
     expect(button('Pattern 2')).toBeDefined();
     expect(button('Waterbomb base')).toBeUndefined();
@@ -159,6 +169,77 @@ describe('Import CP’s dialog', () => {
     );
     expect(dialog()).not.toBeNull();
     expect(document.querySelector('[role="alert"]')).not.toBeNull();
+  });
+
+  it('hands the files dropped on it to the queue, as they were dropped', () => {
+    open();
+    const files = ['10.cp', '9.cp', 'notes.txt'].map((name) => new File(['1 0 0 1 1'], name));
+    const drop = new Event('drop', { bubbles: true, cancelable: true });
+    Object.defineProperty(drop, 'dataTransfer', { value: { types: ['Files'], items: [], files } });
+    act(() => {
+      dialog()?.dispatchEvent(drop);
+    });
+    expect(harness.queue.start).toHaveBeenCalledOnce();
+    const [picked, via] = vi.mocked(harness.queue.start).mock.calls[0]!;
+    expect(picked.map((file) => file.name)).toEqual(['10.cp', '9.cp', 'notes.txt']);
+    expect(via).toBe('drop');
+    expect(harness.flow.open).not.toHaveBeenCalled();
+  });
+
+  it('says which of several files is importing, and takes nothing new meanwhile', () => {
+    open();
+    act(() => harness.progress.setState({ status: 'running', index: 1, total: 19, name: '8.cp', imported: 1 }, true));
+    expect(document.querySelector('[role="status"]')?.textContent).toBe('Importing 8.cp (2 of 19)…');
+    expect(button('Drop .cp, .fold, .ori or .orh files')?.disabled).toBe(true);
+  });
+
+  it('says where several files stopped, and Skip goes on with the rest', () => {
+    open();
+    const request = { kind: 'file' as const, name: '5.cp', source: { format: 'cp' as const, text: '' } };
+    act(() => {
+      harness.store.setState(
+        { phase: 'refused', request, refusal: { kind: 'engine', refused: { refusal: { code: 'import_no_order' } } } },
+        true
+      );
+      harness.progress.setState({ status: 'paused', index: 4, total: 19, name: '5.cp', imported: 4 }, true);
+    });
+    expect(document.querySelector('[role="status"]')?.textContent).toBe('Stopped at 5.cp, file 5 of 19.');
+    expect(document.querySelector('[role="alert"]')).not.toBeNull();
+    click(button('Skip this file'));
+    expect(harness.queue.skip).toHaveBeenCalledOnce();
+
+    // The last file has nothing after it to go on with.
+    act(() => harness.progress.setState({ status: 'paused', index: 18, total: 19, name: '25.cp', imported: 18 }, true));
+    expect(button('Skip this file')).toBeUndefined();
+  });
+
+  it('lets a skipped file’s refusal go as soon as the next file is under way', () => {
+    open();
+    const request = { kind: 'file' as const, name: '5.cp', source: { format: 'cp' as const, text: '' } };
+    act(() => {
+      harness.store.setState(
+        { phase: 'refused', request, refusal: { kind: 'engine', refused: { refusal: { code: 'import_no_order' } } } },
+        true
+      );
+      harness.progress.setState({ status: 'paused', index: 4, total: 19, name: '5.cp', imported: 4 }, true);
+    });
+    expect(document.querySelector('[role="alert"]')).not.toBeNull();
+    // Skip: the next file is read before the flow opens it, the flow still on the refusal.
+    act(() => harness.progress.setState({ status: 'running', index: 5, total: 19, name: '6.cp', imported: 4 }, true));
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+    expect(document.querySelector('[role="status"]')?.textContent).toBe('Importing 6.cp (6 of 19)…');
+  });
+
+  it('stays open between the files of a batch, and closes once the last is committed', () => {
+    open();
+    const request = { kind: 'file' as const, name: '7.cp', source: { format: 'cp' as const, text: '' } };
+    act(() => {
+      harness.progress.setState({ status: 'running', index: 1, total: 2, name: '8.cp', imported: 1 }, true);
+      harness.store.setState({ phase: 'done', request, stepId: 'fstep-1', origin: 'cp' }, true);
+    });
+    expect(useFoldImportUiStore.getState().opening).not.toBeNull();
+    act(() => harness.progress.setState({ status: 'finished', total: 2, imported: 2 }, true));
+    expect(useFoldImportUiStore.getState().opening).toBeNull();
   });
 
   it('closes itself once the step is committed', () => {

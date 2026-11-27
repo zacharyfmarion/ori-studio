@@ -307,14 +307,19 @@
     "title": "折りシーケンスをエクスポート"
   },
   "foldImport": {
+    "batch": {
+      "stopped": "{{name}}（{{total}} 件中 {{number}} 件目）で停止しました。"
+    },
     "browse": "またはクリックして選択",
     "browseTouch": "またはタップして選択",
     "collapseTitle": "展開図から折りたたむ",
     "drop": ".cp、.fold、.ori、.orh ファイルをドロップ",
+    "dropFiles": ".cp、.fold、.ori、.orh ファイルをドロップ（複数可）",
     "editFigure": "編集の折り図",
     "editFigureNote": "編集で折った展開図と、見つかった重なり順",
     "fix": {
-      "searchLonger": "さらに探索する"
+      "searchLonger": "さらに探索する",
+      "skipFile": "このファイルをスキップ"
     },
     "fromEdit": "編集から",
     "pickTitle": "展開図をインポート",
@@ -348,6 +353,10 @@
       "figureIncomplete": {
         "text": "編集の折り図には、すべての層の重なり方が含まれていません。編集でもう一度折ってから始めてください。",
         "title": "折り図が不完全です"
+      },
+      "fileTooLarge": {
+        "text": "{{name}} は 64 MiB を超えているため、インポートできません。",
+        "title": "ファイルが大きすぎます"
       },
       "foldedForm": {
         "text": "この FOLD ファイルは折り終えた紙を表しています。代わりに平らな展開図をインポートしてください。",
@@ -436,6 +445,7 @@
     "title": "展開図をインポート",
     "updateTitle": "展開図から更新",
     "working": {
+      "batch": "{{name}} をインポート中（{{number}} / {{total}}）…",
       "figure": "編集の折り図をインポート中…",
       "file": "{{name}} をインポート中…",
       "projectCp": "プロジェクトの展開図を解析中…",

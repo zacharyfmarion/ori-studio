@@ -34,7 +34,7 @@ import type { FoldFoundSheet, FoldSheetFound } from '../engine/foldEngineIoWire'
 import type { FoldEngineOutcome } from '../engine/foldEngineWire';
 import type { FoldSession } from '../session/foldSession';
 import type { FoldImportRequest, FoldProjectCpImport } from './foldImportFlow';
-import type { FoldImportLocalCode, FoldImportRefusal } from './foldImportRefusal';
+import { unreadFileCode, type FoldImportLocalCode, type FoldImportRefusal } from './foldImportRefusal';
 import { foldCursorReady } from './foldSessionWaits';
 
 export type FoldStartingSheetState =
@@ -136,7 +136,7 @@ export function createFoldStartingSheetFlow({
     const mine = ++ticket;
     store.setState({ phase: 'working', request }, true);
     if (request.kind === 'file' && request.source === null) {
-      store.setState(local(request, request.unreadable ? 'unreadable_file' : 'unsupported_file'), true);
+      store.setState(local(request, unreadFileCode(request)), true);
       return;
     }
     if (request.kind !== 'file' && request.kind !== 'project-cp') {

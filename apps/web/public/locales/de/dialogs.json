@@ -315,14 +315,19 @@
     "title": "Faltfolge exportieren"
   },
   "foldImport": {
+    "batch": {
+      "stopped": "Angehalten bei {{name}}, Datei {{number}} von {{total}}."
+    },
     "browse": "oder zum Durchsuchen klicken",
     "browseTouch": "oder zum Durchsuchen tippen",
     "collapseTitle": "Aus CP zusammenfalten",
     "drop": "Eine .cp-, .fold-, .ori- oder .orh-Datei hier ablegen",
+    "dropFiles": ".cp-, .fold-, .ori- oder .orh-Dateien hier ablegen",
     "editFigure": "Gefaltetes Modell aus Bearbeiten",
     "editFigureNote": "Das Faltmuster, das Bearbeiten gefaltet hat, mit der gefundenen Lagenfolge",
     "fix": {
-      "searchLonger": "Länger suchen"
+      "searchLonger": "Länger suchen",
+      "skipFile": "Diese Datei überspringen"
     },
     "fromEdit": "Aus Bearbeiten",
     "pickTitle": "Faltmuster importieren",
@@ -357,6 +362,10 @@
       "figureIncomplete": {
         "text": "Das gefaltete Modell aus Bearbeiten sagt nicht, wie jede Lage liegt. Falte es in Bearbeiten erneut und gehe dann davon aus.",
         "title": "Das gefaltete Modell ist unvollständig"
+      },
+      "fileTooLarge": {
+        "text": "{{name}} ist größer als 64 MiB und zu groß zum Importieren.",
+        "title": "Datei zu groß"
       },
       "foldedForm": {
         "text": "Diese FOLD-Datei beschreibt bereits gefaltetes Papier. Importiere stattdessen das flache Faltmuster.",
@@ -446,6 +455,7 @@
     "title": "Faltmuster importieren",
     "updateTitle": "Aus CP aktualisieren",
     "working": {
+      "batch": "{{name}} wird importiert ({{number}} von {{total}})…",
       "figure": "Gefaltetes Modell aus Bearbeiten wird importiert…",
       "file": "{{name}} wird importiert…",
       "projectCp": "Faltmuster des Projekts wird gelöst…",
