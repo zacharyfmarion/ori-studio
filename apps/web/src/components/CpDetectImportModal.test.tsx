@@ -91,6 +91,7 @@ const detectClient = {
 vi.mock('../store/workspaceStore/cpDetectRuntime', () => ({
   getCpDetectClient: async () => detectClient,
   whileCpDetectClientAlive: <T,>(pending: Promise<T>) => pending,
+  runOnCpDetectClient: <T,>(call: (client: typeof detectClient) => Promise<T>) => call(detectClient),
   cpDetectError: (error: unknown) => ({
     code: 'cp_detect',
     message: error instanceof Error ? error.message : String(error),

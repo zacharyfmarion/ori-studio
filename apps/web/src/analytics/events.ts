@@ -1538,6 +1538,14 @@ export const ANALYTICS_EVENTS = {
   cpDetectRightsAnswered: 'cp detect rights answered',
   cpDetectStarted: 'cp detect started',
   cpDetectCompleted: 'cp detect completed',
+  /**
+   * The detector's runtime could not start its threads on this device, so the
+   * run went again on one thread (`runOnCpDetectClient`). Once per session at
+   * most, and no properties: the platform is already on every event. Says how
+   * often threaded detection is out of reach, which `cp detect completed`
+   * cannot: after the retry it reads like any one-thread run.
+   */
+  cpDetectThreadsUnavailable: 'cp detect threads unavailable',
   cpDetectImported: 'cp detect imported',
   cpDetectDismissed: 'cp detect dismissed',
   /**

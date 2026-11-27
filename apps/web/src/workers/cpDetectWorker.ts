@@ -63,6 +63,7 @@ import {
   type CpDetectModelVersion,
 } from '../lib/cpDetectModels';
 import { isCpDetectBuildEnabled } from '../platform/features';
+import { isOrtThreadStartFailure, watchOrtThreadStart } from '../lib/ortThreadStart';
 import {
   detectedJunctionSource,
   recognizeContractError,
@@ -80,6 +81,10 @@ let sessionKey: string | null = null;
 let modelStore: CpDetectModelStore | null = null;
 let ortPromise: Promise<OrtModule> | null = null;
 let ortWasmThreads = 1;
+/** The most threads the runtime may start: four, or one once the page has seen them fail (`limitWasmThreads`). */
+let maxWasmThreads = 4;
+/** Rejects the first time one of the runtime's threads cannot load; see `lib/ortThreadStart.ts`. */
+const ortThreadStartFailure = watchOrtThreadStart(self);
 // ORT WebGPU is not reliable when sessions compile or dispatch concurrently in one worker.
 let ortOperationQueue: Promise<void> = Promise.resolve();
 
@@ -239,8 +244,13 @@ async function createSessionRuntime(
   for (const provider of providerCandidates(requestedProvider, webgpuAvailable)) {
     const startedAt = performance.now();
     try {
+      // Raced, because the runtime's first load waits for every thread it
+      // starts, and one that cannot load would leave this pending forever.
       const session = await enqueueOrtOperation(() =>
-        ortModule.InferenceSession.create(modelBytes, sessionOptions(provider))
+        Promise.race([
+          ortModule.InferenceSession.create(modelBytes, sessionOptions(provider)),
+          ortThreadStartFailure,
+        ])
       );
       return {
         session,
@@ -254,7 +264,9 @@ async function createSessionRuntime(
         },
       };
     } catch (error) {
-      if (requestedProvider !== 'auto' || provider !== 'webgpu') {
+      // No other provider helps when the threads did not start: the runtime is
+      // shared, and its load is the part that is stuck.
+      if (requestedProvider !== 'auto' || provider !== 'webgpu' || isOrtThreadStartFailure(error)) {
         throw error;
       }
       fallbackReason = error instanceof Error ? error.message : String(error);
@@ -266,7 +278,7 @@ async function createSessionRuntime(
 function chooseWasmThreadCount(): number {
   if (!self.crossOriginIsolated) return 1;
   const hardwareConcurrency = navigator.hardwareConcurrency || 1;
-  return Math.max(1, Math.min(4, Math.ceil(hardwareConcurrency / 2)));
+  return Math.max(1, Math.min(maxWasmThreads, Math.ceil(hardwareConcurrency / 2)));
 }
 
 function hasWebGpu(): boolean {
@@ -332,6 +344,14 @@ async function call<T>(fn: () => Promise<T> | T): Promise<T> {
 const api = {
   async packageInfo(): Promise<unknown> {
     return call(() => cp_detect_package_info());
+  },
+  /**
+   * Hold the runtime to `max` threads. One starts none, which is what the page
+   * asks of a worker replacing one whose threads could not load. Only before the
+   * runtime has loaded, so the page sends it first.
+   */
+  async limitWasmThreads(max: number): Promise<void> {
+    maxWasmThreads = Math.max(1, Math.floor(max));
   },
   async loadModel(
     options: CpDetectWorkerRunOptions = {},

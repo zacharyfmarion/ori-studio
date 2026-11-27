@@ -24,8 +24,17 @@ import { wrap, type Remote } from 'comlink';
 import type { WasmErrorEnvelope } from '../../engine/types';
 import type { CpDetectWorkerApi } from '../../workers/cpDetectWorker';
 import { attachWorkerDiagnostics, type WorkerFailure } from '../../lib/workerDiagnostics';
+import { isOrtThreadStartFailure } from '../../lib/ortThreadStart';
+import { ANALYTICS_EVENTS, track } from '../../analytics';
 
 export type CpDetectClient = Remote<CpDetectWorkerApi>;
+
+/**
+ * Whether the detect worker's runtime may start threads. Cleared for the rest
+ * of the session the first time they could not load (ORI-STUDIO-1S): every
+ * worker after that is held to one thread, which starts none.
+ */
+let wasmThreadsAllowed = true;
 
 interface LiveCpDetectClient {
   worker: Worker;
@@ -86,6 +95,27 @@ export function whileCpDetectClientAlive<T>(pending: Promise<T>): Promise<T> {
   return Promise.race([pending, lost]).finally(() => unsubscribe?.());
 }
 
+/**
+ * Run `call` on the detect client, raced against the worker's loss like
+ * {@link whileCpDetectClientAlive}.
+ *
+ * When the runtime's threads could not load, the worker that tried is wedged:
+ * its runtime waits for them forever. So it is released, and `call` runs once
+ * more on a fresh worker held to one thread. The user gets a slower detection
+ * rather than an error they cannot get past by trying again.
+ */
+export async function runOnCpDetectClient<T>(call: (client: CpDetectClient) => Promise<T>): Promise<T> {
+  try {
+    return await whileCpDetectClientAlive(call(await getCpDetectClient()));
+  } catch (error) {
+    if (!wasmThreadsAllowed || !isOrtThreadStartFailure(error)) throw error;
+    wasmThreadsAllowed = false;
+    track(ANALYTICS_EVENTS.cpDetectThreadsUnavailable);
+    loseClient();
+    return whileCpDetectClientAlive(call(await getCpDetectClient()));
+  }
+}
+
 function announceLoss(loss: CpDetectClientLoss): void {
   for (const listener of [...lossListeners]) {
     try {
@@ -144,6 +174,10 @@ export async function getCpDetectClient(): Promise<CpDetectClient> {
     loseClient(failure);
   });
   const client = wrap<CpDetectWorkerApi>(worker);
+  // Sent before any other call, so it lands before the runtime loads: comlink
+  // delivers calls in order. A worker that fails to answer it is lost through
+  // the diagnostics above like any other, so its rejection carries nothing new.
+  if (!wasmThreadsAllowed) void client.limitWasmThreads(1).catch(() => {});
   // Desktop keeps the worker for rectification and runs the model and the
   // solve natively; the client's surface is the same either way.
   live = {

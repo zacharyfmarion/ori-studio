@@ -10,6 +10,12 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const { track } = vi.hoisted(() => ({ track: vi.fn() }));
+vi.mock('../../analytics', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../analytics')>()),
+  track,
+}));
+
 // The module holds process-wide state, so each case gets a fresh copy.
 async function freshRuntime() {
   vi.resetModules();
@@ -19,6 +25,8 @@ async function freshRuntime() {
 class FakeWorker extends EventTarget {
   static instances: FakeWorker[] = [];
   terminated = false;
+  /** What comlink posted, so a test can tell which methods were called. */
+  messages: unknown[] = [];
   constructor() {
     super();
     FakeWorker.instances.push(this);
@@ -26,11 +34,19 @@ class FakeWorker extends EventTarget {
   terminate() {
     this.terminated = true;
   }
-  postMessage() {}
+  postMessage(message: unknown) {
+    this.messages.push(message);
+  }
+}
+
+/** The worker methods called through comlink, in order. */
+function calledOn(worker: FakeWorker): string[] {
+  return worker.messages.map((message) => ((message as { path?: string[] }).path ?? []).join('.'));
 }
 
 beforeEach(() => {
   FakeWorker.instances = [];
+  track.mockClear();
   vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker);
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -163,6 +179,56 @@ describe('cp-detect worker lifetime', () => {
     runtime.releaseCpDetectClient();
 
     expect(lost).not.toHaveBeenCalled();
+  });
+
+  describe('a runtime whose threads cannot start', () => {
+    // What the worker answers when one of ONNX Runtime's threads could not load
+    // (ORI-STUDIO-1S). Its runtime is wedged after that: it waits for the thread.
+    const threadsUnavailable = {
+      code: 'cp_detect_threads_unavailable',
+      message: 'The detector could not start its background threads.',
+    };
+
+    it('runs the call again on a fresh worker held to one thread', async () => {
+      const runtime = await freshRuntime();
+      const call = vi.fn().mockRejectedValueOnce(threadsUnavailable).mockResolvedValueOnce('detected');
+
+      await expect(runtime.runOnCpDetectClient(call)).resolves.toBe('detected');
+
+      expect(call).toHaveBeenCalledTimes(2);
+      expect(FakeWorker.instances).toHaveLength(2);
+      // The wedged worker goes, rather than staying beside its replacement.
+      expect(FakeWorker.instances[0].terminated).toBe(true);
+      expect(calledOn(FakeWorker.instances[0])).not.toContain('limitWasmThreads');
+      // Before anything else, so it lands before the runtime loads.
+      expect(calledOn(FakeWorker.instances[1])[0]).toBe('limitWasmThreads');
+      expect(call.mock.calls[1][0]).toBe(await runtime.getCpDetectClient());
+      expect(track).toHaveBeenCalledExactlyOnceWith('cp detect threads unavailable');
+    });
+
+    it('holds every later worker to one thread, and tries again only once', async () => {
+      const runtime = await freshRuntime();
+      await runtime.runOnCpDetectClient(vi.fn().mockRejectedValueOnce(threadsUnavailable).mockResolvedValueOnce('ok'));
+      runtime.releaseCpDetectClient();
+      await runtime.getCpDetectClient();
+      expect(calledOn(FakeWorker.instances[2])[0]).toBe('limitWasmThreads');
+
+      const again = vi.fn().mockRejectedValue(threadsUnavailable);
+      await expect(runtime.runOnCpDetectClient(again)).rejects.toMatchObject(threadsUnavailable);
+      expect(again).toHaveBeenCalledOnce();
+      expect(track).toHaveBeenCalledOnce();
+    });
+
+    it('does not try again after any other failure', async () => {
+      const runtime = await freshRuntime();
+      const call = vi.fn().mockRejectedValue({ code: 'cp_detect', message: 'the model failed' });
+
+      await expect(runtime.runOnCpDetectClient(call)).rejects.toMatchObject({ code: 'cp_detect' });
+      expect(call).toHaveBeenCalledOnce();
+      expect(FakeWorker.instances).toHaveLength(1);
+      expect(FakeWorker.instances[0].terminated).toBe(false);
+      expect(track).not.toHaveBeenCalled();
+    });
   });
 
   it('a listener that throws does not stop the others', async () => {
