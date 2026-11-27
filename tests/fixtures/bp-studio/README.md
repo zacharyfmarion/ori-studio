@@ -15,6 +15,11 @@ Fixtures in this directory seed the `oristudio-bp` parity work.
   so the layout reports `patternNotFound`. Note `layout.stretches` is empty —
   patternless stretches are never persisted, which is why the derived stretch
   set has to come from the engine.
+- `stretched-flap-hairline-overlap.sample.json`: a point flap (6, r=4) one
+  hair too close to the left end of a stretched flap (5, 7 wide, r=5) — √80
+  apart on a tree distance of 9. The junction is a 0.056-unit lens, the case
+  Box Pleating Studio widens into a visible bar; it pins the exported overlap
+  and the packing pane's stroke rule.
 - `v07.troll.sample.json`: hard-limit migration/check sample.
 - `optimizer-simple-request.json`: deterministic optimizer smoke request based
   on BP Studio's upstream optimizer spec.

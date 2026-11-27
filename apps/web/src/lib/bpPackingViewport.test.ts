@@ -7,7 +7,8 @@ import type {
   OristudioBpSheetKind,
 } from '../engine/oristudioBpTypes';
 import {
-  bpArcPathThickness,
+  bpArcPathNarrowness,
+  bpConflictStrokePx,
   bpArcPathToSvgPath,
   bpPackingCanResizeFlap,
   bpPackingCoveragePath,
@@ -240,38 +241,84 @@ describe('bpPackingSvgToPoint', () => {
   });
 });
 
-describe('bpArcPathThickness', () => {
-  it('measures the lens across its middle, as the sum of both sagittas', () => {
-    // The real conflict from minimal_repro_circle_issue.osf: a sliver ~0.17
-    // grid units thick. The outline stroke must not dwarf it.
-    const path = [
-      { x: 9.9557, y: 7.7057, arc: { x: 9.8, y: 7.2 }, r: 1 },
-      { x: 9.2943, y: 7.0443, arc: { x: 9.5454545, y: 7.4545455 }, r: 2 },
+describe('bpArcPathNarrowness', () => {
+  it('is the anchor span over the endpoint span for a two-arc lens', () => {
+    const path: OristudioBpArcPath = [
+      { x: 0, y: 0, arc: { x: 1, y: 1 }, r: 1 },
+      { x: 4, y: 0, arc: { x: 2, y: 1 }, r: 1 },
     ];
-    const thickness = bpArcPathThickness(path);
-    expect(thickness).not.toBeNull();
-    // r=1 sagitta 0.116 + r=2 sagitta 0.055
-    expect(thickness!).toBeGreaterThan(0.15);
-    expect(thickness!).toBeLessThan(0.19);
+    // anchors are 1 apart, endpoints 4 apart
+    expect(bpArcPathNarrowness(path)).toBeCloseTo(0.25);
   });
 
-  it('is null for paths that are not two arcs', () => {
-    expect(bpArcPathThickness([{ x: 0, y: 0 }])).toBeNull();
+  it('tends to zero for a hairline lens, which is what earns it a stroke', () => {
+    // stretched-flap-hairline-overlap.sample.json: flaps √80 apart on a tree
+    // distance of 9, a lens 0.056 units thick. Upstream strokes it 2/0.11 ≈ 18px.
+    const path: OristudioBpArcPath = [
+      { x: 8.77220486043289, y: 6.3305902791342215, arc: { x: 8.50561797752809, y: 6.752808988764045 }, r: 5 },
+      { x: 8.32779513956711, y: 7.219409720865778, arc: { x: 8.605633802816902, y: 6.802816901408451 }, r: 4 },
+    ];
+    const narrowness = bpArcPathNarrowness(path);
+    expect(narrowness).not.toBeNull();
+    expect(narrowness!).toBeGreaterThan(0.11);
+    expect(narrowness!).toBeLessThan(0.115);
+  });
+
+  it('has none for paths that are not a two-arc lens', () => {
     expect(
-      bpArcPathThickness([
+      bpArcPathNarrowness([
+        { x: 0, y: 0, arc: { x: 1, y: 1 }, r: 1 },
+        { x: 4, y: 0, arc: { x: 2, y: 1 }, r: 1 },
+        { x: 4, y: 4 },
+      ])
+    ).toBeNull();
+    expect(
+      bpArcPathNarrowness([
         { x: 0, y: 0 },
-        { x: 1, y: 0 },
+        { x: 4, y: 0 },
       ])
     ).toBeNull();
   });
+});
 
-  it('handles a degenerate arc whose radius cannot span the chord', () => {
+describe('bpConflictStrokePx', () => {
+  // stretched-flap-hairline-overlap.sample.json's lens, narrowness ≈ 0.112.
+  const hairline: OristudioBpArcPath = [
+    { x: 8.77220486043289, y: 6.3305902791342215, arc: { x: 8.50561797752809, y: 6.752808988764045 }, r: 5 },
+    { x: 8.32779513956711, y: 7.219409720865778, arc: { x: 8.605633802816902, y: 6.802816901408451 }, r: 4 },
+  ];
+
+  it('widens a hairline lens by 2 / narrowness screen pixels, as upstream does', () => {
+    const width = bpConflictStrokePx(hairline, 100);
+    expect(width).toBeGreaterThan(17.5);
+    expect(width).toBeLessThan(18);
+  });
+
+  it('never strokes wider than one grid cell on screen', () => {
+    // Upstream's cap is ProjectService.scale — pixels per grid unit.
+    expect(bpConflictStrokePx(hairline, 9.7)).toBe(9.7);
+  });
+
+  it('leaves a legible lens unstroked', () => {
+    // Narrowness 0.5: anchors half as far apart as the endpoints.
+    const legible: OristudioBpArcPath = [
+      { x: 0, y: 0, arc: { x: 1, y: 1 }, r: 1 },
+      { x: 4, y: 0, arc: { x: 3, y: 1 }, r: 1 },
+    ];
+    expect(bpConflictStrokePx(legible, 100)).toBe(0);
+  });
+
+  it('leaves anything but a two-arc lens unstroked, matching upstream NaN', () => {
     expect(
-      bpArcPathThickness([
-        { x: 0, y: 0, arc: { x: 0, y: 1 }, r: 0.1 },
-        { x: 10, y: 0, arc: { x: 10, y: 1 }, r: 0.1 },
-      ])
-    ).toBe(0.2);
+      bpConflictStrokePx(
+        [
+          { x: 0, y: 0, arc: { x: 1, y: 1 }, r: 1 },
+          { x: 4, y: 0, arc: { x: 2, y: 1 }, r: 1 },
+          { x: 4, y: 4 },
+        ],
+        100
+      )
+    ).toBe(0);
   });
 });
 
