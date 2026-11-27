@@ -124,7 +124,7 @@ validate ─┬─ draft ────────────────┐
 - **`publish`** — flips the draft to a **prerelease**, but only after asserting the
   expected asset set is complete. Prerelease assets are publicly downloadable while
   `releases/latest` skips them, so this is the state in which you install and verify
-  the build; a human then arms it with `gh release edit --prerelease=false`. See
+  the build; a human then arms it with `gh release edit --prerelease=false --latest`. See
   [desktop-auto-update.md](desktop-auto-update.md).
 - **`verify`** — fetches the *published* release from outside and re-drafts it on
   any failure.
@@ -332,7 +332,7 @@ otherwise compete for every "release version 0.3.0" prompt.
 - [ ] Stop. Tagging is a separate invocation after a human merges
 - [ ] Phase 9 reports the run URL and **stops** rather than blocking on `gh run watch` for 50 minutes across an approval, three builds and Apple's notarization queue
 - [ ] Separate `/ori-release status <version>` entry point querying jobs, draft/prerelease state, asset set and the `verify` conclusion — this is also what the in-flight recovery path needs, and it is how an un-armed release stays visible
-- [ ] `/ori-release arm <version>` wrapping `gh release edit --prerelease=false`, gated on a human confirming they installed and launched the build
+- [ ] `/ori-release arm <version>` wrapping `gh release edit --prerelease=false --latest`, gated on a human confirming they installed and launched the build
 - [ ] Guardrails: never merge the release PR, never push to `main`, never tag before merge, never read or print any credential, never force-push or re-point a tag, never build locally, never claim a change the merged PRs don't support
 - [ ] Dry-run it against the *previous* release range first — have it draft notes for v0.1.2 from real PRs and compare to what actually shipped
 - [ ] A scheduled Thursday workflow that opens an issue if no tag was pushed in 8 days — the only thing that will tell you the cadence has decayed
