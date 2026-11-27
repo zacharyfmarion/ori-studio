@@ -1088,6 +1088,7 @@
         "mountain": "山折。",
         "mountainAllPlaces_other": "全部 {{count}} 处都山折。",
         "mountainBothSides": "两侧都山折。",
+        "mountainPointsOntoLines": "山折，使两点分别落在标出的两条线上。",
         "mountainPrecrease": "山折后展开。",
         "mountainPrecreaseAllPlaces_other": "全部 {{count}} 处都山折后展开。",
         "mountainPrecreaseBothSides": "两侧都山折后展开。",
@@ -1124,7 +1125,8 @@
         "unsink": "反沉折。",
         "valley": "谷折。",
         "valleyAllPlaces_other": "全部 {{count}} 处都谷折。",
-        "valleyBothSides": "两侧都谷折。"
+        "valleyBothSides": "两侧都谷折。",
+        "valleyPointsOntoLines": "谷折，使两点分别落在标出的两条线上。"
       },
       "join": "连接第 {{first}} 步和第 {{next}} 步",
       "joinMirror": "将第 {{first}} 步和第 {{next}} 步连接为一步：它们互为镜像。",

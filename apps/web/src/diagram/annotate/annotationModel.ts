@@ -1569,10 +1569,14 @@ export function eyeLooking(
  * middle.
  */
 export function defaultBend(from: PicturePoint, to: PicturePoint, frame: PictureFrame): number {
-  const middle: PicturePoint = [frame.width / 2, frame.height / 2];
+  return bendAwayFrom(from, to, [frame.width / 2, frame.height / 2]);
+}
+
+/** Bow a new arrow away from a point, keeping its usual curvature. */
+export function bendAwayFrom(from: PicturePoint, to: PicturePoint, point: PicturePoint): number {
   const left = leftNormal(from, to);
   const mid: PicturePoint = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
-  const toward = (middle[0] - mid[0]) * left[0] + (middle[1] - mid[1]) * left[1];
+  const toward = (point[0] - mid[0]) * left[0] + (point[1] - mid[1]) * left[1];
   // A positive bend bulges to the left of the travel (`arrowApex`): away is the side the middle is not on.
   return toward > 0 ? -ARROW_BEND : ARROW_BEND;
 }
