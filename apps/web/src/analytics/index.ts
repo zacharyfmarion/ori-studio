@@ -50,6 +50,7 @@ export type {
   DiagramStyleChoiceName,
   DiagramTitleBlockBand,
   DiagramTitleBlockChoice,
+  DiagramTitleBlockPatternFormat,
   DiagramTitleBlockCreditChange,
   DiagramTitleBlockSize,
   DiagramTitleBlockTextShown,
@@ -131,9 +132,11 @@ export {
   createAnalyticsApi,
   track,
   trackAnalyticsError,
+  trackCountedUse,
   useAnalytics,
 } from './runtime';
 export type { AnalyticsApi, AnalyticsErrorContext } from './runtime';
+export type { CountedUseEvent } from './countedUses';
 
 export {
   trackCpToolFavorited,
@@ -195,6 +198,7 @@ export {
 } from './trackPaperExport';
 export { trackSymmetryPairChanged, type SymmetryPairAction } from './trackSymmetryPairChanged';
 export {
+  trackSimulatorAuxLinesChanged,
   trackSimulatorModelPulled,
   trackSimulatorPinnedFoldMoved,
   trackSimulatorPinsCleared,

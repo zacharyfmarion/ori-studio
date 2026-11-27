@@ -8,6 +8,7 @@ import {
 } from '../../lib/simulatorSettings';
 import { simulatorColorModeLabel } from '../../i18n/enumLabels';
 import type { PaperDisplayPen } from '../../lib/paper/usePaperDisplayStyle';
+import { useAuxLinesAsFacets } from '../../simulator/useAuxLinesAsFacets';
 import { useSimulatorPaperStyle } from '../../simulator/useSimulatorPaperStyle';
 import { useSimulationInHand } from '../../simulator/useSimulatorShortcuts';
 import { useWorkspaceStore } from '../../store/workspaceStore';
@@ -44,6 +45,7 @@ export function SimulatorViewControlsPanel() {
   // swatches stop doing anything; showing them live would promise an effect
   // they no longer have.
   const asEdges = paper.style.foldsAsEdges;
+  const auxLines = useAuxLinesAsFacets();
   const penRow = (pen: PaperDisplayPen, label: string, disabled = false, divider = true) => (
     <ColorField
       label={label}
@@ -163,6 +165,17 @@ export function SimulatorViewControlsPanel() {
             checked={asEdges}
             onChange={paper.setFoldsAsEdges}
           />
+          {auxLines.offered && (
+            <ToggleRow
+              label={t('panels:simulatorViewControls.auxLinesAreFacets', 'Bend along auxiliary creases')}
+              help={t(
+                'panels:simulatorViewControls.auxLinesAreFacetsHelp',
+                'Off, the crease pattern’s auxiliary lines are drawn on the paper and never folded. On, they are built into it as creases held flat that it can bend along, which is what a file that uses them as facet lines means. Saved with this crease pattern.'
+              )}
+              checked={auxLines.facets}
+              onChange={auxLines.setFacets}
+            />
+          )}
           <div className="simulator-view-controls-panel__colors">
             {penRow('mountainFolds', t('panels:simulatorViewControls.mountain', 'Mountain'), asEdges)}
             {penRow('valleyFolds', t('panels:simulatorViewControls.valley', 'Valley'), asEdges)}

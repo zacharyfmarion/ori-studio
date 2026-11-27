@@ -43,7 +43,7 @@ import {
   spreadValuesHold,
   type LayerSpreadChoice,
 } from './layerSpreadControls';
-import { spatialSpreadFromPercent, spatialSpreadPercent } from './spatialSpreadSettings';
+import { DEFAULT_SPATIAL_SPREAD_AMOUNT, spatialSpreadFromPercent, spatialSpreadPercent } from './spatialSpreadSettings';
 import {
   DEFAULT_CONNECTED_SPREAD,
   SPREAD_AXIS_RANGE,
@@ -144,7 +144,7 @@ export function foldedFigureSpreadSection(
     protocol: 'discrete',
     // A newer build's spread is on, by that build's rules.
     value: figure.spread != null,
-    commit: (on) => deps.setSpread(on ? figure.folded3d ? { kind: 'spatial', version: 1, amount: 1 } : { kind: 'record', spread: deps.spreadStarts().any } : null),
+    commit: (on) => deps.setSpread(on ? figure.folded3d ? { kind: 'spatial', version: 1, amount: DEFAULT_SPATIAL_SPREAD_AMOUNT } : { kind: 'record', spread: deps.spreadStarts().any } : null),
   };
   if (figure.spread?.kind === 'spatial' && figure.folded3d) {
     return {
@@ -158,7 +158,7 @@ export function foldedFigureSpreadSection(
         protocol: 'continuous', begin: () => deps.begin('spread-amount'),
         update: amount => deps.writeSpread({ verb: 'spread-amount', amount: spatialSpreadFromPercent(amount) }),
         end: () => deps.end(undoLabel), held: deps.held,
-        reset: () => deps.setSpread({ kind: 'spatial', version: 1, amount: 1 }),
+        reset: () => deps.setSpread({ kind: 'spatial', version: 1, amount: DEFAULT_SPATIAL_SPREAD_AMOUNT }),
       }],
     };
   }

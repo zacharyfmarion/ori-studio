@@ -407,6 +407,10 @@ in `implementation-plans/angle-restricted-endpoint-snap.md`.)
   the DOM starts with `// @vitest-environment jsdom`.
 - Desktop shell changes need `npm run check:desktop`; run the Tauri dev app when
   menu, dialog, filesystem, or window behavior changes.
+- Changes to how diagram pictures are captured, painted, laid out or marked out
+  of date need `npm run diagram-corpus` (Node 22) before the PR; put its one-line
+  summary in the PR and nothing else from it (`tests/corpus/README.md`,
+  "Diagram corpus").
 - Docs-only and workflow-only changes can usually be validated with
   `git diff --check`.
 

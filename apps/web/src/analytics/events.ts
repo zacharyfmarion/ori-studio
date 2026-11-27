@@ -43,6 +43,8 @@ export type FoldStepAddedOpKind =
   | 'refold'
   | 'turn'
   | 'rotate'
+  // Adjust order: the layer order alone, chosen in the Layer order dialog.
+  | 'adjust_order'
   // The reverse fold.
   | 'inside_reverse'
   | 'outside_reverse'
@@ -646,8 +648,14 @@ export type DiagramPageSetting =
   | 'title_block_note'
   | 'title_block_band_color';
 
-/** Where the title block's model or crease pattern was set to come from: what Auto finds, a step chosen, or none. */
-export type DiagramTitleBlockChoice = 'auto' | 'step' | 'none';
+/**
+ * Where the title block's model or crease pattern was set to come from: what Auto finds, a step chosen, none, or —
+ * the crease pattern alone, since 2026-11-25 — a file uploaded for it.
+ */
+export type DiagramTitleBlockChoice = 'auto' | 'step' | 'none' | 'upload';
+
+/** The format of a crease-pattern file uploaded for the title block (`title_block_pattern_format`), from its extension. */
+export type DiagramTitleBlockPatternFormat = 'cp' | 'fold' | 'ori' | 'orh';
 
 /**
  * What changed in the title block's credits (`title_block_credits`): a credit added or removed, its
@@ -708,6 +716,8 @@ export type LandingSectionId =
   | 'edit'
   | 'design'
   | 'simulate'
+  | 'fold'
+  | 'diagram'
   | 'compatibility'
   | 'get';
 
@@ -799,7 +809,10 @@ export type LandingFeatureId =
   | 'edit-share'
   | 'design-treemaker'
   | 'design-bp'
-  | 'design-explori';
+  | 'design-explori'
+  | 'diagram-pages'
+  | 'diagram-annotate'
+  | 'diagram-pose';
 
 /** Export target formats (the file's kind only — never its name or contents). */
 export type ExportFormat =
@@ -1267,14 +1280,22 @@ export type AnalyticsErrorDomain =
 
 /**
  * Hand-placed event names. The two chokepoint events (`command invoked`,
- * `cp tool used`) and `app opened` / `app error` also flow through `track`, but
- * these constants cover the Phase-4 domain events call sites reference by name.
+ * `cp tool used`) flow through `trackCountedUse` and `app opened` / `app error`
+ * through `track`, but these constants cover the Phase-4 domain events call
+ * sites reference by name.
  */
 export const ANALYTICS_EVENTS = {
   appOpened: 'app opened',
   appError: 'app error',
   analyticsPreferenceChanged: 'analytics preference changed',
+  /**
+   * A command's first use in a counting window (`countedUses.ts`), with
+   * `counting: 'first_in_window'`; `command uses counted` is its bucketed count
+   * when the window closes. Builds from before 2026-11-25 sent one per press,
+   * with no `counting`, and PostHog drops those at ingestion.
+   */
   commandInvoked: 'command invoked',
+  commandUsesCounted: 'command uses counted',
   /**
    * A context menu was raised on a canvas.
    *
@@ -1290,7 +1311,9 @@ export const ANALYTICS_EVENTS = {
    * keyboard / touch), and a bucketed `item_count`.
    */
   contextMenuOpened: 'context menu opened',
+  /** As `command invoked`, for the CP editor's operations: first use per window, then `cp tool uses counted`. */
   cpToolUsed: 'cp tool used',
+  cpToolUsesCounted: 'cp tool uses counted',
   workspaceViewed: 'workspace viewed',
   /**
    * A section of the Settings dialog was on show: the one it opened on, then
@@ -1759,6 +1782,14 @@ export const ANALYTICS_EVENTS = {
    */
   simulatorPullRefused: 'simulator pull refused',
   /**
+   * The user switched what the open crease pattern's aux lines are in its
+   * simulations. `aux_lines` is the new reading — `facets`, built into the
+   * paper as flat creases it can bend at, or `drawn`, drawn on it and left out
+   * of the simulation — and `file_says` what the file it came from implied,
+   * which tells overriding a file apart from restating it.
+   */
+  simulatorAuxLinesChanged: 'simulator aux lines changed',
+  /**
    * A pose ended, and what ended it: the fold control or a restart taking the
    * paper back, or Spring back asked for from the window, the menu or a key.
    * Whether people keep poses, or throw them away and how.
@@ -2001,6 +2032,13 @@ export const ANALYTICS_EVENTS = {
    * sequence ends up, and from which side the link is made.
    */
   foldStepSentToDiagram: 'fold step sent to diagram',
+  /**
+   * The Diagram's Fold browser split a merged card into its steps, or joined
+   * two cards into one step (implementation-plans/diagram-merge-symmetric-folds.md),
+   * by the kind of run: whether the reader changes what Merge symmetric steps
+   * starts with, and whether turned copies, offered apart, get joined.
+   */
+  diagramFoldMergeChanged: 'diagram fold merge changed',
   themeChanged: 'theme changed',
   localeChanged: 'locale changed',
   landingViewed: 'landing viewed',

@@ -68,13 +68,19 @@ export interface ModalFrameProps {
   footer?: ReactNode;
   /** The foot's verbs, at its end. */
   actions?: ReactNode;
-  /** Escape, the close button and, unless {@link closeOnBackdrop} is false, a press on the backdrop. */
+  /** The close button, Escape unless {@link onEscape} says otherwise, and, unless {@link closeOnBackdrop} is false, a press on the backdrop. */
   onClose: () => void;
+  /**
+   * What Escape does: `onClose` when left out. A dialog whose Escape means
+   * something else (the Layer order dialog clears the sentence it is
+   * building) passes its own. The frame owns the key either way: it never
+   * reaches the workspace behind.
+   */
+  onEscape?: () => void;
   /**
    * Whether a press on the backdrop closes the dialog (the default). A dialog
    * that holds work a stray press must not throw away (the Layer order
-   * dialog's constraints) closes only by its own verbs, Escape and the close
-   * button.
+   * dialog's constraints) closes only by its own verbs and the close button.
    */
   closeOnBackdrop?: boolean;
   /** Focus goes back here when the dialog closes, if it is still in the document. */
@@ -100,8 +106,9 @@ export interface ModalFrameProps {
  *
  * A shortcut barrier with `useModalDialog`'s focus and Escape: no key aimed
  * inside it reaches the workspace behind, focus stays inside it and goes back
- * to `returnFocus` on close, and Escape, the close button and a press on the
- * backdrop (unless `closeOnBackdrop` is false) call `onClose`.
+ * to `returnFocus` on close, and Escape (unless `onEscape` gives it another
+ * job), the close button and a press on the backdrop (unless
+ * `closeOnBackdrop` is false) call `onClose`.
  */
 export function ModalFrame({
   title,
@@ -113,6 +120,7 @@ export function ModalFrame({
   footer,
   actions,
   onClose,
+  onEscape,
   closeOnBackdrop = true,
   returnFocus,
   history,
@@ -122,7 +130,7 @@ export function ModalFrame({
   children,
 }: ModalFrameProps) {
   const { t } = useTranslation();
-  const { rootRef, documentRef, keepFocus } = useModalDialog(onClose, returnFocus);
+  const { rootRef, documentRef, keepFocus } = useModalDialog(onEscape ?? onClose, returnFocus);
 
   useEffect(() => {
     const root = rootRef.current;

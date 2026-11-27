@@ -92,6 +92,7 @@ describe('a Fold step’s instruction in the Diagram', () => {
     expect(foldDiagramSentence(t, fold)).toBe(words);
     expect(foldDiagramSentence(t, precrease)).toBe(`${words} Unfold.`);
     expect(foldDiagramMergedSentence(t, [precrease])).toBe(`${words} Unfold. Repeat on the other side.`);
+    expect(foldDiagramMergedSentence(t, [precrease], 4)).toBe(`${words} Unfold. Do this in all 4 places.`);
     expect(foldDiagramSentence(t, { ...fold, line: { ...line, moving: [1, 3] } })).toBe(`${verb} fold.`);
   });
 
@@ -106,8 +107,27 @@ describe('a Fold step’s instruction in the Diagram', () => {
     expect(foldDiagramMergedSentence(t, [pinch])).toBe('Make a pinch on both sides.');
     expect(foldDiagramMergedSentence(t, [valley, pinch])).toBe('Fold and unfold on both sides. Make a pinch on both sides.');
     expect(foldDiagramMergedSentence(t, [valley, pinch])).not.toMatch(/\b[A-Z]\b/);
-    // Only precreases merge today; a fold would be said the same way.
+    // Folds that mirror each other are said the same way.
     expect(foldDiagramMergedSentence(t, [{ op: 'fold', direction: 'valley', line, scope: all }])).toBe('Valley fold on both sides.');
     expect(foldDiagramMergedSentence(t, [{ op: 'fold', direction: 'mountain', line, scope: all }])).toBe('Mountain fold on both sides.');
+  });
+
+  it('says a step drawn in three places or more for every one of them', () => {
+    const line: FoldSentenceLine = { via: 'axiom', axiom: 3, inputs: [{ kind: 'line' }, { kind: 'line' }] };
+    const valley: FoldSentenceStep = { op: 'precrease', direction: 'valley', line, scope: all };
+    const pinch: FoldSentenceStep = { ...valley, extent: { kind: 'pinch', at: { kind: 'point' } } };
+    const fold = { op: 'fold', direction: 'valley', line, scope: all } as const;
+    expect(foldDiagramMergedSentence(t, [fold], 4)).toBe('Valley fold in all 4 places.');
+    expect(foldDiagramMergedSentence(t, [{ ...fold, direction: 'mountain' }], 3)).toBe('Mountain fold in all 3 places.');
+    expect(foldDiagramMergedSentence(t, [valley], 8)).toBe('Fold and unfold in all 8 places.');
+    expect(foldDiagramMergedSentence(t, [pinch], 3)).toBe('Make a pinch in all 3 places.');
+    // Two places are both sides.
+    expect(foldDiagramMergedSentence(t, [fold], 2)).toBe('Valley fold on both sides.');
+  });
+
+  it('says any other move in its own words, then where it is done again', () => {
+    const reverse = { op: 'reverse', kind: 'inside' } as unknown as Parameters<typeof foldDiagramSentence>[1];
+    expect(foldDiagramMergedSentence(t, [reverse])).toBe('Inside reverse fold. Do this on both sides.');
+    expect(foldDiagramMergedSentence(t, [reverse], 4)).toBe('Inside reverse fold. Do this in all 4 places.');
   });
 });

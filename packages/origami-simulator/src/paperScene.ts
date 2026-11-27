@@ -27,6 +27,7 @@ import { shadeFor, type Vec3Like } from './shading.js';
 import { linesAsLateAsUncovered, type DrawShape } from './lineDrawOrder.js';
 import { EDGE_CODE } from './edgeCodes.js';
 import { EDGE_BOUNDARY_A, EDGE_BOUNDARY_B, edgeBoundaryFlags } from './edgeBoundary.js';
+import { withVirtualVertices } from './auxOverlay.js';
 import {
   CREASE_DEPTH_BIAS_NDC,
   collectCreases,
@@ -301,7 +302,9 @@ export function meshToPaperScene(
   const lineWidth = Math.max(0, options.lineWidth ?? DEFAULT_LINE_WIDTH);
   const layers = options.layers;
   const perspective = options.perspective ?? true;
-  const projected = projectVertices(positions, camera, { perspective });
+  const projected = projectVertices(withVirtualVertices(positions, topology.virtual), camera, {
+    perspective,
+  });
   // Where the tree cuts: see the note above. Under `layers` a crease has no
   // nudge — it belongs to a layer of the plane it lies in, and its order there
   // says which.
@@ -319,8 +322,8 @@ export function meshToPaperScene(
       ? []
       : collectCreases(topology, projected, (code) => code <= EDGE_CODE.aux);
   const attributes = triangleAttributes(triangles, topology, projected, options);
-  const byEdge = trianglesByEdge(triangles);
-  const faceOfLine = lineFaces(creases, triangles, attributes, byEdge);
+  const owners = creaseOwners(creases, triangles, topology.edgeTriangles);
+  const faceOfLine = lineFaces(owners, triangles, attributes);
   const boundary = edgeBoundaryFlags(topology, projected.count);
   // How many drawn lines end at each vertex: an end another one shares is a
   // joint, not an end of the line.
@@ -370,22 +373,20 @@ export function meshToPaperScene(
   // Under `layers` a crease first follows its own face's piece. Then every
   // line is drawn as late as nothing covers it, as the GPU draws its creases
   // after the paper (see `lineDrawOrder.ts`) — except that under `layers` a
-  // line stays under every face parallel to its own: a plane's stack of
-  // layers lies exactly over itself, so a line on a buried layer touches the
-  // faces that bury it without being covered by them, and only the kernel's
-  // order (or, a hair apart, the tree's) says which is on top. Past the faces
-  // of other planes — across a bend, or meeting it at a vertex — it goes as
-  // in a simulated mesh, which has no such stacks.
+  // line stays under every face parallel to its own (the triangles it lies
+  // on, `creaseOwners`): a plane's stack of layers lies exactly over itself,
+  // so a line on a buried layer touches the faces that bury it without being
+  // covered by them, and only the kernel's order (or, a hair apart, the
+  // tree's) says which is on top. Past the faces of other planes — across a
+  // bend, or meeting it at a vertex — it goes as in a simulated mesh, which
+  // has no such stacks.
   const ordered = (
     layers
       ? creasesAfterOwnFace(
           traversed,
           {
             faceOf: (piece) => attributes[piece.ref]!.face,
-            ownersOf: (crease) => {
-              const { from, to } = creases[crease.ref]!;
-              return byEdge.get(vertexKey(from, to)) ?? [];
-            },
+            ownersOf: (crease) => owners[crease.ref]!,
           },
           layers.coplanarEps
         )
@@ -405,11 +406,8 @@ export function meshToPaperScene(
       reach: lineWidth,
       ...(layers
         ? {
-            stays: (line, face) => {
-              const { from, to } = creases[ordered[line]!.item.ref]!;
-              const owners = byEdge.get(vertexKey(from, to)) ?? [];
-              return owners.some((owner) => normals.parallel(owner, ordered[face]!.item.ref));
-            },
+            stays: (line, face) =>
+              owners[ordered[line]!.item.ref]!.some((owner) => normals.parallel(owner, ordered[face]!.item.ref)),
           }
         : {}),
     }
@@ -568,10 +566,10 @@ export function withLinesDrawnLate(scene: PaperScene): PaperScene {
  * tree files it under whichever plane's node it reaches first. Filed under the
  * neighbour's, it is drawn before its own face, whose antialiased edge then
  * covers half its ink — the thin-line fault the GPU avoids by drawing each
- * plane's creases after that plane's paper. Its own triangle is the one that
- * shares its two vertices — by index, not position: a buried layer's crease
- * sits at the same coordinates as the layer over it, and must not follow that
- * one — and the piece of it the crease lies on is the piece that still holds
+ * plane's creases after that plane's paper. Its own triangle is one it lies on
+ * (`creaseOwners`) — by index, not position: a buried layer's crease sits at
+ * the same coordinates as the layer over it, and must not follow that one —
+ * and the piece of it the crease lies on is the piece that still holds
  * both endpoints, since a cut leaves the same crossing on the face's edge as
  * on the crease. The crease goes after that piece's run of its face, so a
  * face's pieces stay consecutive for the merge, and lands over nothing the
@@ -583,7 +581,7 @@ function creasesAfterOwnFace(
   mesh: {
     /** The source face of a face piece. */
     faceOf: (piece: BspItem) => number;
-    /** The triangles (face `ref`s) that share both vertices of a crease piece. */
+    /** The triangles (face `ref`s) a crease piece lies on: see `creaseOwners`. */
     ownersOf: (crease: BspItem) => readonly number[];
   },
   eps: number
@@ -783,20 +781,41 @@ function trianglesByEdge(triangles: readonly Triangle[]): Map<string, number[]> 
 }
 
 /**
- * The face each crease is drawn on: of the triangles that share its edge, the
- * one nearer the eye — the face whose edge the line is painted over, since
- * the line is nudged toward the eye past it. Undefined for an edge no drawn
- * triangle owns. Index-aligned with `creases`.
+ * The drawn triangles each crease lies on, index-aligned with `creases`: the
+ * ones that share its edge or, for a line on ends of its own, the one recorded
+ * for it (`edgeTriangles`). Empty for an edge no drawn triangle owns: under
+ * `layers`, only a face that covers such a line keeps it under.
  */
-function lineFaces(
+function creaseOwners(
   creases: readonly Crease[],
   triangles: readonly Triangle[],
-  attributes: readonly TriangleAttributes[],
-  byEdge: ReadonlyMap<string, readonly number[]>
-): Array<number | undefined> {
+  edgeTriangles: ArrayLike<number> | undefined
+): ReadonlyArray<readonly number[]> {
+  const byEdge = trianglesByEdge(triangles);
+  const collected = new Map<number, number>();
+  if (edgeTriangles) triangles.forEach((triangle, index) => collected.set(triangle.source, index));
   return creases.map((crease) => {
+    const own = edgeTriangles?.[crease.edge] ?? -1;
+    if (own < 0) return byEdge.get(vertexKey(crease.from, crease.to)) ?? [];
+    const index = collected.get(own);
+    return index === undefined ? [] : [index];
+  });
+}
+
+/**
+ * The face each crease is drawn on: of the triangles it lies on, the one
+ * nearer the eye — the face whose edge the line is painted over, since the
+ * line is nudged toward the eye past it. Undefined for an edge no drawn
+ * triangle owns. Index-aligned with `owners`.
+ */
+function lineFaces(
+  owners: ReadonlyArray<readonly number[]>,
+  triangles: readonly Triangle[],
+  attributes: readonly TriangleAttributes[]
+): Array<number | undefined> {
+  return owners.map((list) => {
     let nearest: { depth: number; face: number } | undefined;
-    for (const index of byEdge.get(vertexKey(crease.from, crease.to)) ?? []) {
+    for (const index of list) {
       const depth = triangles[index]!.depth;
       if (!nearest || depth > nearest.depth) nearest = { depth, face: attributes[index]!.face };
     }

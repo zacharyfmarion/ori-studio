@@ -76,7 +76,7 @@ export function DiagramReferencesCard({
       kind={card.kind}
       title={title}
       badge={card.kind === 'fold' ? card.badge : ''}
-      picture={url ? <img className={styles.picture} src={url} alt="" draggable={false} decoding="async" /> : null}
+      picture={url ? <DiagramPullCardPicture url={url} /> : null}
       unreadable={unreadable}
       why={
         unreadable
@@ -97,6 +97,14 @@ export function DiagramReferencesCard({
       onFocus={onFocus}
     />
   );
+}
+
+/** A verb a pull card offers in its header: its words, its tooltip and accessible name, its icon, and what it does. */
+export interface PullCardAction {
+  label: string;
+  title: string;
+  icon: ReactNode;
+  onPress: () => void;
 }
 
 /**
@@ -123,8 +131,8 @@ export const DiagramPullCard = forwardRef<
     picture: ReactNode;
     /**
      * The picture is on the paper it prints on, white in either theme (a
-     * step's picture); false for lines in the theme's inks (a thumbnail).
-     * True by default.
+     * step's picture); false for what stands in for it — the loading state,
+     * or that it can't be drawn — on the well's own ground. True by default.
      */
     onPaper?: boolean;
     /** It cannot be added: a press does nothing; with no picture, the well says it cannot be drawn. */
@@ -146,6 +154,13 @@ export const DiagramPullCard = forwardRef<
     choosable: boolean;
     onPress: (modifiers: { range: boolean }) => void;
     onFocus: () => void;
+    /**
+     * The steps behind it, drawn as card edges: a card that is several steps
+     * drawn as one — one edge for two steps, two for more. None by default.
+     */
+    stack?: 0 | 1 | 2;
+    /** A verb of the card's own, at its header's end — a merged card's Split: pressing it chooses nothing. */
+    action?: PullCardAction;
   }
 >(function DiagramPullCard(
   {
@@ -167,6 +182,8 @@ export const DiagramPullCard = forwardRef<
     choosable,
     onPress,
     onFocus,
+    stack = 0,
+    action,
   },
   ref
 ) {
@@ -183,6 +200,7 @@ export const DiagramPullCard = forwardRef<
       data-selected={selected || undefined}
       data-offered={offered || undefined}
       data-kind={kind}
+      data-stack={stack || undefined}
       title={why}
       onFocus={onFocus}
       onClick={(event) => {
@@ -196,6 +214,23 @@ export const DiagramPullCard = forwardRef<
         </span>
         <span className={styles.title}>{title}</span>
         {badge && <span className={styles.badge}>{badge}</span>}
+        {action && (
+          <button
+            type="button"
+            className={styles.action}
+            title={action.title}
+            aria-label={action.title}
+            onClick={(event) => {
+              event.stopPropagation();
+              action.onPress();
+            }}
+            // Its own keys: Enter and Space press it, not the card.
+            onKeyDown={(event) => event.stopPropagation()}
+          >
+            {action.icon}
+            <span className={styles.actionLabel}>{action.label}</span>
+          </button>
+        )}
       </div>
       <div className={styles.well} data-picture={(picture !== null && onPaper) || undefined}>
         {picture ?? (unreadable ? <DiagramPullCardCantDraw /> : null)}
@@ -226,9 +261,9 @@ export const DiagramPullCard = forwardRef<
   );
 });
 
-/** A Fold step's picture in a pull card: its folded form, as Fold's strip draws it, in the card's well. */
-export function DiagramPullCardThumbnail({ children }: { children: ReactNode }) {
-  return <span className={styles.thumbnail}>{children}</span>;
+/** A pull card's picture: the step it would become, painted as a URL, fitted to the card's well. */
+export function DiagramPullCardPicture({ url }: { url: string }) {
+  return <img className={styles.picture} src={url} alt="" draggable={false} decoding="async" data-pull-picture="" />;
 }
 
 /** What a pull card's well says when its picture failed to draw, or there is nothing to draw it from. */

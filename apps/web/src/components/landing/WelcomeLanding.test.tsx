@@ -84,7 +84,7 @@ afterEach(() => {
 });
 
 describe('WelcomeLanding', () => {
-  it('renders the six sections in order', () => {
+  it('renders the eight sections in order', () => {
     const rendered = renderLanding();
     const ids = Array.from(rendered.querySelectorAll('.landing-section')).map((s) => s.id);
 
@@ -93,6 +93,8 @@ describe('WelcomeLanding', () => {
       'landing-edit',
       'landing-design',
       'landing-simulate',
+      'landing-fold',
+      'landing-diagram',
       'landing-compatibility',
       'landing-get',
     ]);
@@ -119,6 +121,19 @@ describe('WelcomeLanding', () => {
     );
 
     expect(titles).toEqual(['Box Pleating', 'Circle Packing', 'ExplOri']);
+  });
+
+  it('names what the Diagram workspace does', () => {
+    const rendered = renderLanding();
+    const titles = Array.from(rendered.querySelectorAll('#landing-diagram [role="tab"]')).map(
+      (tab) => tab.textContent
+    );
+
+    expect(titles).toEqual([
+      'Pages ready to print',
+      'All the annotations you need',
+      'Pictures from the model itself',
+    ]);
   });
 
   it('credits every upstream the app is ported from', () => {
@@ -205,10 +220,10 @@ describe('WelcomeLanding', () => {
     const sources = Array.from(rendered.querySelectorAll<HTMLImageElement>('.landing-figure__image'))
       .map((image) => image.getAttribute('src'));
 
-    // The Edit carousel mounts only its selected slide; the Design one is a
-    // scroll track, so all three of its slides are present — that is what there
-    // is to scroll. The default theme is dark; `LandingFigure` re-resolves on
-    // change.
+    // The Edit carousel mounts only its selected slide; the Design and Diagram
+    // ones are scroll tracks, so all three of each one's slides are present —
+    // that is what there is to scroll. The default theme is dark;
+    // `LandingFigure` re-resolves on change.
     expect(sources).toEqual([
       '/landing/overview-dark.webp',
       '/landing/edit-angles-dark.webp',
@@ -216,6 +231,10 @@ describe('WelcomeLanding', () => {
       '/landing/design-treemaker-dark.webp',
       '/landing/design-explori-dark.webp',
       '/landing/simulate-dark.webp',
+      '/landing/fold-dark.webp',
+      '/landing/diagram-pages-dark.webp',
+      '/landing/diagram-annotate-dark.webp',
+      '/landing/diagram-pose-dark.webp',
     ]);
   });
 
@@ -240,6 +259,10 @@ describe('WelcomeLanding', () => {
       'landing/design-treemaker-dark.webp',
       'landing/design-explori-dark.webp',
       'landing/simulate-dark.webp',
+      'landing/fold-dark.webp',
+      'landing/diagram-pages-dark.webp',
+      'landing/diagram-annotate-dark.webp',
+      'landing/diagram-pose-dark.webp',
     ]);
   });
 

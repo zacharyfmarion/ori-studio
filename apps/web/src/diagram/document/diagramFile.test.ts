@@ -992,6 +992,37 @@ describe('a newer build’s work', () => {
     }
   });
 
+  // Bug 2: a folded picture's link keeps the lines its sheet draws beside the
+  // lines it folds. A link saved before it did reads without them, and is
+  // compared as it was saved (`drawnLinesMatch`).
+  it('reads a folded link’s drawn lines and writes them back, nothing locked; a link saved before them reads without', () => {
+    const written = throughJson(writeDiagram(linkedDiagram()));
+    const flat = written.steps.find((step: WrittenSource) => step.id === 'step-flat');
+    const keys = Object.keys(flat.source);
+    flat.source = Object.fromEntries(
+      keys.flatMap((key) => (key === 'fingerprint' ? [[key, flat.source[key]], ['drawnFingerprint', 'rc1:drawn']] : [[key, flat.source[key]]]))
+    );
+    const read = readDiagram(written)!;
+    const step = stepsIn(read.document).find((entry) => entry.id === 'step-flat')!;
+    expect(step.unknown).toBeUndefined();
+    expect(step.source).toMatchObject({ kind: 'cp', drawnFingerprint: 'rc1:drawn' });
+    expect(JSON.stringify(throughJson(writeDiagram(read.document)))).toBe(JSON.stringify(written));
+    const before = stepsIn(readDiagram(throughJson(writeDiagram(linkedDiagram())))!.document);
+    expect(before.every((entry) => entry.source?.kind !== 'cp' || !('drawnFingerprint' in entry.source))).toBe(true);
+  });
+
+  it('drops a drawn-lines fingerprint that is not one alone: the link is compared by its folds', () => {
+    for (const damaged of [7, '', null, { digest: 'x' }]) {
+      const written = throughJson(writeDiagram(linkedDiagram()));
+      const flat = written.steps.find((step: WrittenSource) => step.id === 'step-flat');
+      flat.source.drawnFingerprint = damaged;
+      const step = stepsIn(readDiagram(written)!.document).find((entry) => entry.id === 'step-flat')!;
+      expect(step.unknown, String(damaged)).toBeUndefined();
+      expect(step.source, String(damaged)).not.toHaveProperty('drawnFingerprint');
+      expect(step.source, String(damaged)).toMatchObject({ kind: 'cp', fingerprint: 'fp-1' });
+    }
+  });
+
   it('reads every step a build writes with nothing locked, and writes it back byte for byte', () => {
     for (const document of [sampleDiagram(), linkedDiagram(), uploadDiagram().document, sentDiagram()]) {
       const written = throughJson(writeDiagram(document));

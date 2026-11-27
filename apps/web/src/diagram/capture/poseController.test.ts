@@ -27,6 +27,7 @@ import {
   TWO_SQUARES,
   twoSquaresIndex,
 } from './capture.fixtures';
+import { chooseStepCreases } from './captureCreases';
 import type { CpCaptureRuntime } from './captureFolded';
 import { stepLayerOrderOf } from './captureLayerOrder';
 import { DEFAULT_DIAGRAM_STYLE, setLinkedLayerOrder } from '../document/diagramDocument';
@@ -180,6 +181,25 @@ describe('the Pose controller', () => {
     expect(after.render).toMatchObject({ mode: 'crease-pattern', rotationDeg: 15 });
     expect(after.fingerprint).toBe(before.fingerprint);
     expect(after.scope.region).toEqual(regionReferenceFor(sheetRegions(moved)[0]!));
+    controller.dispose();
+  });
+
+  // Bug 2: a folded pose draws the sheet's aux lines, so its link keeps them,
+  // and a look at the crease pattern, whose fingerprint covers them, does not.
+  it('keeps the sheet’s drawn lines on a folded pose’s link, and none on a crease pattern’s', async () => {
+    const stepId = await linkedStep();
+    const controller = createPoseController(stepId, listener());
+    const choice = chooseStepCreases(document, { kind: 'segment', region: regionReferenceFor(left!) }, sheets);
+    if (choice.status !== 'found') throw new Error('found');
+    await controller.run({ verb: 'show-folded' });
+    expect(render(stepId)).toMatchObject({
+      render: { mode: 'folded-flat' },
+      fingerprint: choice.creases.fingerprint,
+      drawnFingerprint: choice.creases.drawnFingerprint,
+    });
+    await controller.run({ verb: 'show-crease-pattern' });
+    expect(render(stepId)).toMatchObject({ render: { mode: 'crease-pattern' }, fingerprint: choice.creases.drawnFingerprint });
+    expect(render(stepId)).not.toHaveProperty('drawnFingerprint');
     controller.dispose();
   });
 

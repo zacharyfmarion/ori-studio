@@ -47,6 +47,12 @@ const SLOT_MARKS = { subject: '', verb: '', objects: '' } as const;
 export interface LayerHintContext {
   /** Some of the faces on offer are tinted but unlettered at this zoom (D7's addition). */
   readonly unlettered: boolean;
+  /**
+   * The primary pointer is a mouse or a trackpad, so Shift+click can pick
+   * several objects without adding, and the object step's hint says so. A
+   * finger has no Shift to hold.
+   */
+  readonly shiftPicks: boolean;
 }
 
 export interface LayerOrderCopy {
@@ -202,7 +208,8 @@ export function layerOrderCopy(
     }
   };
 
-  const pickObject = (count: number, tinted: boolean, unlettered: boolean) => {
+  const pickObject = (count: number, tinted: boolean, unlettered: boolean, shiftPicks: boolean) => {
+    // Zooming in comes first: the letters are what the picks are made by.
     if (unlettered) {
       return t('dialogs:layerOrder.hint.pickObjectZoom', {
         count,
@@ -210,18 +217,21 @@ export function layerOrderCopy(
         defaultValue_other: 'Pick one of the {{count}} tinted faces. Zoom in to see their letters.',
       });
     }
-    if (tinted) {
-      return t('dialogs:layerOrder.hint.pickObjectTinted', {
-        count,
-        defaultValue_one: 'Pick the tinted face',
-        defaultValue_other: 'Pick one of the {{count}} tinted faces',
-      });
-    }
-    return t('dialogs:layerOrder.hint.pickObject', {
-      count,
-      defaultValue_one: 'Pick the labelled face',
-      defaultValue_other: 'Pick one of the {{count}} labelled faces',
-    });
+    const pick = tinted
+      ? t('dialogs:layerOrder.hint.pickObjectTinted', {
+          count,
+          defaultValue_one: 'Pick the tinted face',
+          defaultValue_other: 'Pick one of the {{count}} tinted faces',
+        })
+      : t('dialogs:layerOrder.hint.pickObject', {
+          count,
+          defaultValue_one: 'Pick the labelled face',
+          defaultValue_other: 'Pick one of the {{count}} labelled faces',
+        });
+    // A plain click adds at once; Shift is the one way to more than one object, so it is said.
+    return shiftPicks && count > 1
+      ? t('dialogs:layerOrder.hint.shiftPicksSeveral', '{{hint}} · Shift-click to pick several', { hint: pick })
+      : pick;
   };
 
   const attentionClash = (clashes: readonly LayerSentenceView[]) => {
@@ -247,7 +257,7 @@ export function layerOrderCopy(
 
   const hint = (value: LayerHint, context: LayerHintContext): string => capitalized(hintText(value, context), lng);
 
-  const hintText = ({ text }: LayerHint, { unlettered }: LayerHintContext): string => {
+  const hintText = ({ text }: LayerHint, { unlettered, shiftPicks }: LayerHintContext): string => {
     switch (text.key) {
       case 'pick_face':
         return t('dialogs:layerOrder.hint.pickFace', {
@@ -292,13 +302,15 @@ export function layerOrderCopy(
               { face: letter(text.subject) }
             );
       case 'pick_object':
-        return pickObject(text.objects, text.tinted, unlettered);
+        return pickObject(text.objects, text.tinted, unlettered, shiftPicks);
       case 'more_objects':
-        return t('dialogs:layerOrder.hint.moreObjects', 'Pick more faces to add them, or a picked face to remove it.');
+        return t('dialogs:layerOrder.hint.moreObjects', 'Shift-click to pick more faces or remove one.');
       case 'only_object':
         return t('dialogs:layerOrder.hint.onlyObject', '{{face}} is the only face to choose', { face: letter(text.object) });
       case 'checking':
         return t('dialogs:layerOrder.hint.checking', 'Checking {{sentence}}…', { sentence: clause(text.sentence) });
+      case 'adding':
+        return t('dialogs:layerOrder.hint.adding', 'Adding {{sentence}}…', { sentence: clause(text.sentence) });
       case 'cant_fit_explaining':
         return t('dialogs:layerOrder.hint.explaining', 'Can’t fit. Finding what it clashes with…');
       case 'cant_fit':

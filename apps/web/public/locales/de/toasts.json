@@ -106,6 +106,11 @@
     "refreshAllLayerOrderLostLoadReload_other": "Die Lagenreihenfolge konnte nicht geladen werden, daher wurden {{count}} Schritte nicht geändert. Lade Ori Studio neu, um es erneut zu versuchen.",
     "refreshedAll_one": "1 Schritt aktualisiert",
     "refreshedAll_other": "{{count}} Schritte aktualisiert",
+    "titleBlockPattern": {
+      "noFolds": "Dieses Faltmuster hat keine Berg- oder Talfalten, die sich zeigen ließen.",
+      "trimmed": "Dieses Faltmuster hat mehr Linien, als ein Diagramm speichert; die kürzesten Falten wurden deshalb weggelassen.",
+      "unreadable": "Diese Datei konnte nicht als Faltmuster gelesen werden."
+    },
     "uploadFailed_one": "Ein Bild konnte nicht hinzugefügt werden",
     "uploadFailed_other": "{{count}} Bilder konnten nicht hinzugefügt werden",
     "uploadFailureLine": "{{name}}: {{reason}}",

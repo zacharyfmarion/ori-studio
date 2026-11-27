@@ -38,6 +38,7 @@ use super::source::LayerSource;
 use super::stacks::ViewSide;
 use crate::import::ImportedPattern;
 use crate::pattern::FaceId;
+use crate::unordered::Unordered;
 
 type Point = [f64; 2];
 
@@ -57,6 +58,15 @@ pub enum FacesDiffer {
     /// point elsewhere: the match does not hold both ways.
     #[error("face {face}'s match does not hold both ways")]
     Unwitnessed { face: FaceId },
+    /// A state's face whose point lies in no Oriedita face (Adjust order's
+    /// match, `StateFaces`): `face` is the state's id, not Oriedita's.
+    #[error("the state's face {face} lies in no face Edit folds")]
+    Unplaced { face: FaceId },
+    /// The state orders one pair of Oriedita faces both ways (Adjust order's
+    /// match, `StateFaces`): Oriedita keeps one relation per pair, so the
+    /// dialog cannot show this order.
+    #[error("the state orders faces {faces:?} both ways")]
+    Interleaved { faces: [FaceId; 2] },
 }
 
 /// How Fold shows the imported state, in the dialog's terms
@@ -208,37 +218,7 @@ impl ImportedFaces {
     /// keeps, and the turn its rotation, read off the images of the crease
     /// pattern's axes (for the back, after the back's mirror image, x ↦ −x).
     pub fn look(&self, pattern: &ImportedPattern) -> ImportedLook {
-        let unordered = pattern.unordered();
-        let isometry = unordered.isometry(self.start).unwrap_or_default();
-        let view = unordered.parts().view.transform();
-        let shown = |p: Point| {
-            let [x, y] = view.apply(isometry.apply(pattern.to_sheet(p)));
-            // The screen's y runs down.
-            [x, -y]
-        };
-        let origin = shown([0.0, 0.0]);
-        let axis = |p: Point| {
-            let [x, y] = shown(p);
-            [x - origin[0], y - origin[1]]
-        };
-        let (ex, ey) = (axis([1.0, 0.0]), axis([0.0, 1.0]));
-        let det = ex[0] * ey[1] - ex[1] * ey[0];
-        let side = if det >= 0.0 {
-            ViewSide::Front
-        } else {
-            ViewSide::Back
-        };
-        // The back's picture is the front's mirrored, x ↦ −x: the crease
-        // pattern's x axis lands on the back at −x.
-        let x_image = match side {
-            ViewSide::Front => ex,
-            ViewSide::Back => [-ex[0], -ex[1]],
-        };
-        let turn = x_image[1].atan2(x_image[0]).to_degrees();
-        ImportedLook {
-            side,
-            turn_deg: wrap_degrees(turn),
-        }
+        look_of(pattern.unordered(), self.start, |p| pattern.to_sheet(p))
     }
 
     /// Turn `pattern`'s view so that Fold shows the imported state turned
@@ -259,6 +239,50 @@ impl ImportedFaces {
         // either side (a turned-over view's rotation follows its mirror).
         pattern.rotate_view(-by.to_radians());
         by
+    }
+}
+
+/// How Fold shows parts whose face `start` is the one Oriedita draws where
+/// the crease pattern has it, y down, front up ([`ImportedFaces::look`]):
+/// Fold draws it through `to_sheet` (crease-pattern coordinates to the
+/// sheet's), its isometry into the model frame and the view, y up. The side
+/// is the one that map keeps, and the turn its rotation, read off the images
+/// of the crease pattern's axes (for the back, after the back's mirror
+/// image, x ↦ −x). Import CP's and Adjust order's alike.
+pub(super) fn look_of(
+    unordered: &Unordered,
+    start: FaceId,
+    to_sheet: impl Fn(Point) -> Point,
+) -> ImportedLook {
+    let isometry = unordered.isometry(start).unwrap_or_default();
+    let view = unordered.parts().view.transform();
+    let shown = |p: Point| {
+        let [x, y] = view.apply(isometry.apply(to_sheet(p)));
+        // The screen's y runs down.
+        [x, -y]
+    };
+    let origin = shown([0.0, 0.0]);
+    let axis = |p: Point| {
+        let [x, y] = shown(p);
+        [x - origin[0], y - origin[1]]
+    };
+    let (ex, ey) = (axis([1.0, 0.0]), axis([0.0, 1.0]));
+    let det = ex[0] * ey[1] - ex[1] * ey[0];
+    let side = if det >= 0.0 {
+        ViewSide::Front
+    } else {
+        ViewSide::Back
+    };
+    // The back's picture is the front's mirrored, x ↦ −x: the crease
+    // pattern's x axis lands on the back at −x.
+    let x_image = match side {
+        ViewSide::Front => ex,
+        ViewSide::Back => [-ex[0], -ex[1]],
+    };
+    let turn = x_image[1].atan2(x_image[0]).to_degrees();
+    ImportedLook {
+        side,
+        turn_deg: wrap_degrees(turn),
     }
 }
 

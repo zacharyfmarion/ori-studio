@@ -60,3 +60,8 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--space-2);
 }
+
+/* A window that offers one thing (Adjust order's): its button, the window's width. */
+.footer[data-single] {
+  grid-template-columns: 1fr;
+}

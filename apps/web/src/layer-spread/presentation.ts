@@ -32,6 +32,16 @@ export function readSpreadPresentation(value: unknown): SpreadPresentation | und
   };
 }
 
+/**
+ * A Default spread as Perspective 3D lifts it: its heights exaggerated, and
+ * no reveal, since the camera shows the depth instead. The stored Amount, and
+ * the Diagram presentation's, stay as they are. A folded figure's OBJ is this
+ * spread's paper, so what the export dialog's 3D preview shows is the file.
+ */
+export function perspectiveSpread<T extends { amount: number; reveal: [number, number] }>(spread: T): T {
+  return { ...spread, amount: spread.amount * 2, reveal: [0, 0] };
+}
+
 /** Hysteresis at edge-on views is retained in the recipe and during a drag. */
 export function spreadCameraSide(
   camera: FoldedFigureCamera,

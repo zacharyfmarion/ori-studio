@@ -61,6 +61,7 @@ function build(state: Partial<DiagramStepActionState>, bound = deps()) {
       breakBefore: false,
       lightingChanged: false,
       facesMissing: false,
+      drawnLinesUntracked: false,
       capturing: false,
       patternOpen: true,
       showAs: null,
@@ -433,6 +434,19 @@ describe('the diagram step verbs', () => {
     // Still not without its pattern, or while it captures.
     expect(refresh({ link: 'missing' })?.disabled).toBe(true);
     expect(refresh({ link: 'unknown', patternOpen: false })?.disabled).toBe(true);
+    expect(refresh({ link: 'current', capturing: true })?.disabled).toBe(true);
+  });
+
+  // A folded link saved before links kept their sheet's drawn lines cannot
+  // tell an aux edit since: it reads current, so Refresh was disabled on a
+  // picture that may be behind its pattern's aux lines.
+  it('refreshes a current folded step whose link cannot tell an aux edit', () => {
+    const refresh = (state: Partial<DiagramStepActionState>) =>
+      diagramStepCommand(build({ hasSource: true, drawnLinesUntracked: true, ...state }), 'refresh-picture');
+    expect(refresh({ link: 'current' })).toMatchObject({ label: 'Refresh Picture', disabled: false });
+    expect(refresh({ link: 'current' })?.hint).toBeUndefined();
+    // Still not without its pattern, or while it captures.
+    expect(refresh({ link: 'missing' })?.disabled).toBe(true);
     expect(refresh({ link: 'current', capturing: true })?.disabled).toBe(true);
   });
 

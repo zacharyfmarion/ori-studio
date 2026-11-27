@@ -12,53 +12,80 @@
  *   words of Fold's: as References' Finished card ends a plan.
  *
  * Every picture is captured from the Fold session's replay
- * (`captureFoldStep`); nothing is folded here.
+ * (`captureFoldStep`), a card's as the step it adds is
+ * (`foldPullPreviews.ts`); nothing is folded here.
  *
  * React-free and store-free: the session is injected.
  */
 
 import type { TFunction } from 'i18next';
 import { isLockedStep, turnKindOf, type FoldSequenceDocument } from '../../fold/document/foldSequenceDocument';
-import { foldStateSpread, foldStepSpread } from '../../fold/document/foldStepSpread';
+import { foldStateSpread } from '../../fold/document/foldStepSpread';
 import { foldedLineOf } from '../../fold/engine/foldEngineCompoundWire';
+import { foldCardHandleKey } from '../../fold/sequence/foldCardPictureSource';
 import { foldNodeSentenceStep } from '../../fold/sequence/foldSentenceStep';
-import { foldCardPictureSource, type FoldCardPictureSource } from '../../fold/sequence/foldCardPictureSource';
 import type { FoldSequenceView } from '../../fold/sequence/useFoldSequenceView';
 import type { FoldSession } from '../../fold/session/foldSession';
 import type { TurnKind } from '../../lib/steps/turn';
 import { turnName } from '../../lib/steps/turnWords';
+import { spreadFailedPicture } from '../capture/captureFolded';
 import {
+  DEFAULT_LAYER_SPREAD,
   randomDiagramId,
   spreadFailedOf,
+  spreadFailedRender,
   type DiagramCpRender,
   type DiagramFoldMoment,
   type DiagramIdFactory,
   type SentDiagramEntry,
   type SentFoldStep,
 } from '../document/diagramDocument';
+import { storedFoldStepSource } from '../document/diagramFile';
 import type { PullCard } from '../references/referencesBrowserSelection';
-import { diagramCreaseWords, foldDiagramMergedSentence, foldDiagramSentence } from './foldDiagramSentence';
 import { diagramFoldConstruction } from './foldCreaseConstruction';
-import type { FoldPrecreaseMerge } from './foldPrecreaseMerge';
-import { captureFoldStep } from './foldStepCapture';
+import { diagramCreaseWords, foldDiagramMergedSentence, foldDiagramSentence } from './foldDiagramSentence';
+import type { FoldJoinOffer, FoldMergeKind } from './foldMergeLayout';
+import { captureFoldStep, type FoldStepCaptureResult } from './foldStepCapture';
+import type { FoldMergedRun } from './foldStepMerge';
 
 /**
  * What pulling a Fold card adds: a step at a moment — or a run of steps drawn
  * as one, from `step` through `through`, before the first folds
- * (`foldPrecreaseMerge.ts`) — or a turn between steps.
+ * (`foldStepMerge.ts`, `foldPrecreaseMerge.ts`) — or a turn between steps.
  */
 export type FoldPullTarget =
   | { readonly kind: 'step'; readonly step: string; readonly through?: string; readonly moment: DiagramFoldMoment }
   | { readonly kind: 'turn'; readonly turn: TurnKind };
 
+/** A step target: a step at a moment, or a run of steps drawn as one. */
+export type FoldPullStepTarget = Extract<FoldPullTarget, { kind: 'step' }>;
+
 /**
- * A Fold browser card's picture: the state it lands, as Fold's strip draws
- * it, once landed; `pending` while the replay has still to land it; `none`
- * when nothing will — the step broke, is a newer build's, or the replay
- * stopped short.
+ * What a Fold browser card's picture is captured from (`foldPullPreviews.ts`):
+ * the step the card adds — a turn's card, the state after the turn — in the
+ * render a pull gives it ({@link foldPullRender}).
+ */
+export interface FoldPullPreviewRequest {
+  readonly sequence: string;
+  readonly target: FoldPullStepTarget;
+  readonly render: Extract<DiagramCpRender, { mode: 'folded-flat' }>;
+  /**
+   * What names the picture whatever the engine's handles: the sequence, the
+   * target, the path to the state it is drawn from (`fh1`, which names every
+   * fold before it: a run's last step's names the run) and the render.
+   */
+  readonly key: string;
+}
+
+/**
+ * A Fold browser card's picture: once its state has landed, the step it
+ * adds, captured as the pull captures it — with its fold's line and arrow,
+ * spread as the step will be; `pending` while the replay has still to land
+ * it; `none` when nothing will — the step broke, is a newer build's, or the
+ * replay stopped short.
  */
 export type FoldBrowserPicture =
-  | { readonly status: 'landed'; readonly source: FoldCardPictureSource }
+  | { readonly status: 'landed'; readonly preview: FoldPullPreviewRequest }
   | { readonly status: 'pending' }
   | { readonly status: 'none' };
 
@@ -66,8 +93,14 @@ export type FoldBrowserPicture =
 export interface FoldBrowserCard extends PullCard<FoldPullTarget> {
   /** The step's number on the path, as Fold numbers it — a merged run's first; null for a turn or Finished. */
   readonly number: number | null;
+  /** What it shows of the path: its step's id, a merged run's every step, Finished's own mark — what a selection follows when cards merge or part. */
+  readonly ids: readonly string[];
   /** A merged run's last step's number; absent for one step. */
   readonly through?: number;
+  /** A merged run: how it is one step, and how many steps it draws. */
+  readonly merged?: { readonly kind: FoldMergeKind; readonly count: number };
+  /** The offer to join this card with the next one, where they would be one step. */
+  readonly join?: FoldJoinOffer;
   /** The step's words, or the turn's. */
   readonly sentence: string;
   readonly picture: FoldBrowserPicture;
@@ -76,16 +109,23 @@ export interface FoldBrowserCard extends PullCard<FoldPullTarget> {
 const PICTURE_PENDING: FoldBrowserPicture = Object.freeze({ status: 'pending' });
 const PICTURE_NONE: FoldBrowserPicture = Object.freeze({ status: 'none' });
 
-/** A path entry's picture: its state's once landed, else whether one is still to come. */
+/**
+ * A card's picture: the step `target` adds, once `entry` — the step whose
+ * landing it waits for, a run's last — has landed; else whether it is still
+ * to come.
+ */
 function entryPicture(
   document: FoldSequenceDocument,
   entry: FoldSequenceView['entries'][number],
-  id: string,
+  target: FoldPullStepTarget,
   replayFailed: boolean
 ): FoldBrowserPicture {
-  const source = foldCardPictureSource(entry.session.state, entry.session.fingerprint, foldStepSpread(document, id));
-  if (source) return { status: 'landed', source };
-  return entry.status === 'pending' && !replayFailed ? PICTURE_PENDING : PICTURE_NONE;
+  const { state, path, fingerprint } = entry.session;
+  if (!state) return entry.status === 'pending' && !replayFailed ? PICTURE_PENDING : PICTURE_NONE;
+  const render = foldPullRender(document, document.id, target);
+  const named = path ?? fingerprint ?? foldCardHandleKey(state);
+  const key = [document.id, target.step, target.through ?? '', target.moment, named, JSON.stringify(render)].join('|');
+  return { status: 'landed', preview: { sequence: document.id, target, render, key } };
 }
 
 /** How a pulled Fold step is shown: folded, as Fold shows it, from the front at no turn. */
@@ -97,19 +137,23 @@ export const FOLD_PULL_RENDER: Extract<DiagramCpRender, { mode: 'folded-flat' }>
 };
 
 /**
- * How a pulled Fold step is shown, its layers spread as Fold spreads the
- * state it shows (`foldStateSpread`): the state before the step is its
- * parent's picture, the state after it the step's own. None when Fold shows
- * it unspread, or the sequence is not the one given.
+ * How a pulled Fold step is shown: its layers spread as Fold spreads the
+ * state it shows (`foldStateSpread`) — the state before the step is its
+ * parent's picture, the state after it the step's own — else at the
+ * Diagram's default spread (`DEFAULT_LAYER_SPREAD`): a state Fold shows
+ * unspread, its spread turned off included, is spread all the same (owner,
+ * 2026-11-03), and so is one of a sequence that is not the one given.
  */
 export function foldPullRender(
   document: FoldSequenceDocument | null,
   sequence: string,
-  target: Pick<Extract<FoldPullTarget, { kind: 'step' }>, 'step' | 'moment'>
-): DiagramCpRender {
+  target: Pick<FoldPullStepTarget, 'step' | 'moment'>
+): Extract<DiagramCpRender, { mode: 'folded-flat' }> {
   const spread = document?.id === sequence ? foldStateSpread(document, target.step, target.moment) : null;
-  return spread ? { ...FOLD_PULL_RENDER, spread } : FOLD_PULL_RENDER;
+  return { ...FOLD_PULL_RENDER, spread: spread ?? DEFAULT_LAYER_SPREAD };
 }
+
+const NO_OFFERS: ReadonlyMap<string, FoldJoinOffer> = new Map();
 
 /** Whether a path entry's state has landed, so a capture can be drawn from it. */
 function landed(entry: FoldSequenceView['entries'][number]): boolean {
@@ -124,16 +168,22 @@ function landed(entry: FoldSequenceView['entries'][number]): boolean {
  * which (`FoldBrowserPicture`). `failed` is the replay's having stopped short:
  * a step still pending then will not land.
  *
- * Each of `merges` — precreases and their mirror images, merged
- * (`foldPrecreaseMerge.ts`) — is one card, the step it becomes: numbered
- * from its first step to its last, the state its last lands as its picture,
- * with every crease on it, its sentence the merged step's, added once every
- * step of it has landed.
+ * Each card's picture is the step it adds; a turn's, the state the turn
+ * leaves, which it adds no step for.
+ *
+ * Each of `merges` — precreases and their Repeat, or steps that mirror or
+ * turn each other (`foldStepMerge.ts`) — is one card, the step it becomes:
+ * numbered from its first step to its last, every step's line on the
+ * picture, its sentence the merged step's, pictured and added once every
+ * step of it has landed. A run that no longer matches the path is drawn step
+ * by step. `offers` names, by the last step of a card, the offer to join it
+ * with the next (`foldMergeLayout`).
  */
 export function foldBrowserCards(
   t: TFunction,
   { document, entries, words, frames, failed }: Pick<FoldSequenceView, 'document' | 'entries' | 'words' | 'frames' | 'failed'>,
-  merges: readonly FoldPrecreaseMerge[] = []
+  merges: readonly FoldMergedRun[] = [],
+  offers: ReadonlyMap<string, FoldJoinOffer> = NO_OFFERS
 ): FoldBrowserCard[] {
   const cards: FoldBrowserCard[] = [];
   const mergeAt = new Map(merges.map((merge) => [merge.steps[0], merge]));
@@ -147,6 +197,10 @@ export function foldBrowserCards(
     }
     return diagramCreaseWords(words[index] ?? { op: 'unknown' }, parent, child);
   };
+  const joinAfter = (id: string) => {
+    const join = offers.get(id);
+    return join ? { join } : {};
+  };
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index]!;
     const node = entry.node;
@@ -155,50 +209,63 @@ export function foldBrowserCards(
     const run = merge ? entries.slice(index, index + merge.steps.length) : [];
     if (merge && run.length === merge.steps.length && run.every((step, k) => step.id === merge.steps[k])) {
       const last = run.at(-1)!;
+      const target: FoldPullStepTarget = { kind: 'step', step: entry.id, through: last.id!, moment: 'before' };
+      // A Repeat run's words are its steps' but the Repeat, for both sides; a merged run's, its first step's, for every place.
+      const said =
+        merge.kind === 'repeat'
+          ? foldDiagramMergedSentence(t, run.slice(0, -1).map((_, k) => wordsAt(index + k)))
+          : foldDiagramMergedSentence(t, [wordsAt(index)], run.length);
       cards.push({
         index: cards.length,
         kind: 'fold',
         number: entry.number,
+        ids: merge.steps,
         ...(last.number !== null ? { through: last.number } : {}),
-        // The steps it is made from, the mirror left out: its words are said once, for both sides.
-        sentence: foldDiagramMergedSentence(t, run.slice(0, -1).map((_, k) => wordsAt(index + k))),
-        picture: entryPicture(document, last, last.id!, failed),
-        step: run.every(landed) ? { kind: 'step', step: entry.id, through: last.id!, moment: 'before' } : null,
+        merged: { kind: merge.kind, count: run.length },
+        ...joinAfter(last.id!),
+        sentence: said,
+        picture: entryPicture(document, last, target, failed),
+        step: run.every(landed) ? target : null,
       });
       index += run.length - 1;
       continue;
     }
-    const picture = entryPicture(document, entry, entry.id, failed);
     if (entry.kind === 'turn' && !isLockedStep(node) && (node.op.kind === 'turn' || node.op.kind === 'rotate')) {
       const turn = turnKindOf(node.op);
       cards.push({
         index: cards.length,
         kind: 'turn-over',
         number: null,
+        ids: [entry.id],
         sentence: turnName(turn, t),
-        picture,
+        picture: entryPicture(document, entry, { kind: 'step', step: entry.id, moment: 'after' }, failed),
         step: landed(entry) ? { kind: 'turn', turn } : null,
       });
       continue;
     }
+    const target: FoldPullStepTarget = { kind: 'step', step: entry.id, moment: 'before' };
     cards.push({
       index: cards.length,
       kind: 'fold',
       number: entry.number,
+      ids: [entry.id],
+      ...joinAfter(entry.id),
       sentence: foldDiagramSentence(t, wordsAt(index)),
-      picture,
-      step: landed(entry) ? { kind: 'step', step: entry.id, moment: 'before' } : null,
+      picture: entryPicture(document, entry, target, failed),
+      step: landed(entry) ? target : null,
     });
   }
   const tip = entries.at(-1);
   if (tip && tip.id !== null && entries.some((entry) => entry.kind === 'fold')) {
+    const target: FoldPullStepTarget = { kind: 'step', step: tip.id, moment: 'after' };
     cards.push({
       index: cards.length,
       kind: 'done',
       number: null,
+      ids: [`${tip.id}:finished`],
       sentence: t('panels:diagram.fold.finishedSentence', 'The model as the steps leave it.'),
-      picture: entryPicture(document, tip, tip.id, failed),
-      step: landed(tip) ? { kind: 'step', step: tip.id, moment: 'after' } : null,
+      picture: entryPicture(document, tip, target, failed),
+      step: landed(tip) ? target : null,
     });
   }
   return cards;
@@ -209,18 +276,69 @@ export interface FoldPulled {
   sent: SentDiagramEntry[];
   /** Steps that could not be captured (gone, no longer folding, the engine stopped), left out. */
   failed: number;
-  /** Steps Fold spreads by Default whose layers could not be spread here: added unspread, their spread kept to say so. */
+  /**
+   * Steps spread by Default added unspread, their spread kept to say so: their
+   * layers could not be spread, or the spread picture was too detailed to keep
+   * as a drawing ({@link captureFoldTarget}).
+   */
   spreadFailed: number;
 }
 
 /**
+ * Capture a step target as a pull adds it, in `render`. A Default spread its
+ * layers can't take is drawn unspread, its spread kept and the picture marked
+ * so (`captureFoldStep`).
+ *
+ * So is a Default spread whose picture is too detailed to keep as a drawing,
+ * which a pull has no bitmap for: it is captured again unspread, and the step
+ * is added rather than left out. Every pulled step is spread
+ * (`foldPullRender`), and a dense step came in unspread before that. A step
+ * too detailed unspread as well is left out, as before.
+ *
+ * The browser's cards are captured here too (`foldPullPreviews.ts`), so a
+ * card shows the step Add makes.
+ */
+export async function captureFoldTarget(
+  session: FoldSession,
+  sequence: string,
+  target: FoldPullStepTarget,
+  render: Extract<DiagramCpRender, { mode: 'folded-flat' }>,
+  options: { t: TFunction; newId?: DiagramIdFactory }
+): Promise<FoldStepCaptureResult> {
+  const { through } = target;
+  const request = { sequence, step: target.step, ...(through !== undefined ? { through } : {}), moment: target.moment };
+  const result = await captureFoldStep(session, { ...request, render }, options);
+  if (render.spread?.kind !== 'connected' || result.status !== 'captured' || result.captured.kind !== 'over-budget') return result;
+  const { spread: _spread, presentation: _presentation, ...unspread } = render;
+  const drawn = await captureFoldStep(session, { ...request, render: unspread }, options);
+  if (drawn.status !== 'captured' || drawn.captured.kind !== 'picture' || drawn.captured.picture.kind !== 'scene') return result;
+  // Kept as a step whose layers its Default spread can't take is (`captureFoldStep`).
+  const source = storedFoldStepSource({ ...drawn.source, render: spreadFailedRender(render) });
+  if (!source) throw new Error('The capture made a link the file cannot read');
+  return { ...drawn, source, captured: spreadFailedPicture(drawn.captured) };
+}
+
+/** A captured Fold step as a pull sends it: its picture, its marks lifted, its words. Null for one with no stored drawing. */
+export function sentFoldStep(result: FoldStepCaptureResult): SentFoldStep | null {
+  if (result.status !== 'captured' || result.captured.kind !== 'picture' || result.captured.picture.kind !== 'scene') return null;
+  const picture = result.captured.picture;
+  return {
+    source: result.source,
+    picture,
+    lifted: { picture, annotations: result.marks },
+    text: result.source.sentence ?? '',
+  };
+}
+
+/**
  * What pulling `targets` adds, in order: each step captured from the
- * session's replay folded, as Fold shows it, spread as Fold spreads it
- * ({@link foldPullRender}) — its marks lifted, its words the Diagram's — and each
- * turn as a turn. A step whose capture fails is left out
- * and counted; so is one too detailed to keep as a drawing, which a pull
- * has no bitmap for. One whose layers could not be spread is added
- * unspread, its spread kept, and counted.
+ * session's replay folded, as Fold shows it, spread as Fold spreads it or
+ * else at the default ({@link foldPullRender}) — its marks lifted, its words
+ * the Diagram's — and each turn as a turn. A step whose capture fails is left
+ * out and counted; so is one too detailed to keep as a drawing even unspread,
+ * which a pull has no bitmap for. One whose layers could not be spread, or
+ * whose spread picture is too detailed, is added unspread, its spread kept,
+ * and counted ({@link captureFoldTarget}).
  */
 export async function pullFoldTargets(
   session: FoldSession,
@@ -240,24 +358,12 @@ export async function pullFoldTargets(
         continue;
       }
       const render = foldPullRender(session.store.getState().sequence, sequence, target);
-      const { through } = target;
-      const result = await captureFoldStep(
-        session,
-        { sequence, step: target.step, ...(through !== undefined ? { through } : {}), moment: target.moment, render },
-        { t, newId }
-      );
-      if (result.status !== 'captured' || result.captured.kind !== 'picture' || result.captured.picture.kind !== 'scene') {
+      const step = sentFoldStep(await captureFoldTarget(session, sequence, target, render, { t, newId }));
+      if (!step) {
         failed += 1;
         continue;
       }
-      const picture = result.captured.picture;
-      if (spreadFailedOf(picture)) spreadFailed += 1;
-      const step: SentFoldStep = {
-        source: result.source,
-        picture,
-        lifted: { picture, annotations: result.marks },
-        text: result.source.sentence ?? '',
-      };
+      if (spreadFailedOf(step.picture)) spreadFailed += 1;
       sent.push(step);
     }
   } finally {

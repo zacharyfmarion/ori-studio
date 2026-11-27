@@ -22,8 +22,8 @@ import { storedScene } from '../pictures/storedScene';
  * bottom edge precreased to it, and its mirror image — Repeated across the
  * diagonal, or precreased by hand on the left — found, pulled as one Diagram
  * step, saved and opened, turned stale upstream and refreshed, and sent from
- * Fold with the option on and off. What does not mirror, or moves paper, is
- * never merged.
+ * Fold with the option on and off. What does not mirror, or is another kind
+ * of move — a precrease beside a fold — is never merged.
  *
  * The app's one session (`foldSession()`) is this test's. Skipped when the
  * bridge has not been built.
@@ -48,7 +48,7 @@ const { pullFromFold, sendFoldStepsToDiagram } = await import('./foldBrowserActi
 const { openDiagramStepInFold, refreshDiagramFoldStep, showFoldStepAs } = await import('./foldStepActions');
 const { foldLinkContextNow } = await import('./useFoldLinkContext');
 const { foldStepLinkStatus } = await import('./foldStepLink');
-const { foldPrecreaseMerges, forgetPrecreaseMirrorsForTest } = await import('./foldPrecreaseMirrors');
+const { foldPathMerges, forgetFoldMergesForTest } = await import('./foldStepMergeSession');
 // A pull loads Fold's lazy chunk, most of Fold's code, cold the first time. Loaded here, so
 // that is not inside whichever test happens to pull first, and its 5 s timeout.
 await (await import('../../workspaces/foldGateway')).loadFold();
@@ -142,7 +142,7 @@ function instructionLines(step: DiagramStep): number {
 
 describe.skipIf(!available)('merging a precrease and its mirror image into one Diagram step', () => {
   beforeEach(async () => {
-    forgetPrecreaseMirrorsForTest();
+    forgetFoldMergesForTest();
     useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
     useSettingsStore.getState().setDiagramFoldMergePrecreases(true);
     const module = await wasm();
@@ -159,7 +159,7 @@ describe.skipIf(!available)('merging a precrease and its mirror image into one D
     held.session = null;
   });
 
-  const mergesOf = (path: readonly FoldStepNode[]) => foldPrecreaseMerges(held.session!, state().foldSequences[0]!.document.id, path);
+  const mergesOf = (path: readonly FoldStepNode[]) => foldPathMerges(held.session!, state().foldSequences[0]!.document.id, path);
 
   it('finds a precrease and the Repeat of it, from the document', async () => {
     const [, bottom, repeat] = await fold([DIAG, BOTTOM], true);
@@ -239,11 +239,13 @@ describe.skipIf(!available)('merging a precrease and its mirror image into one D
     expect(kinds(merged).filter((kind) => kind === 'fold-unfold-arrow')).toHaveLength(2);
     expect(merged.text).toBe('Fold and unfold on both sides.');
     expect(statusOf(merged)).toBe('current');
-    // The title block's pattern is the state the run's last step lands: all three precreases, lying flat.
+    // The title block's pattern is the state the run's last step lands: all three precreases, lying flat, which the
+    // block leaves out — it draws the final folds — so only the sheet's edge is drawn.
     const { pattern } = resolveTitleBlock(state().diagram!);
     expect(pattern.step?.id).toBe(merged.id);
     const lines = (pattern.scene?.items ?? []).flatMap((item) => (item.kind === 'line' && item.role !== 'edge' ? [item.role] : []));
-    expect(lines).toEqual(['aux', 'aux', 'aux']);
+    expect(lines).toEqual([]);
+    expect(pattern.scene?.items.length).toBeGreaterThan(0);
   });
 
   it('keeps the run through a save and an open, opens its last step in Fold, and is missing once the Repeat no longer folds', async () => {

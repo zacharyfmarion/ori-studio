@@ -29,6 +29,27 @@
       "title": "Empacotamento de círculos"
     }
   },
+  "diagram": {
+    "annotate": {
+      "body": "Setas de vale, montanha e dobrar e desdobrar, linhas de dobra, divisões iguais, chamadas, detalhes e janelas de raio X, ajustados ao papel enquanto você desenha.",
+      "figureAlt": "Um detalhe da cabeça de um tsuru aberto para anotação, com uma seta de dobrar e desdobrar e sua linha de dobra ao lado das ferramentas de anotação.",
+      "title": "Todas as anotações de que você precisa"
+    },
+    "carouselLabel": "Recursos do Diagrama",
+    "eyebrow": "Diagrama",
+    "lead": "Importe dos workspaces de Edição, Dobra e Referências para criar um diagrama completo de um modelo. A imagem de cada passo é desenhada a partir do seu padrão de vincos ou de um passo do Dobrar, então se mantém fiel ao modelo, e as páginas prontas são exportadas como um PDF pronto para imprimir.",
+    "pages": {
+      "body": "Organize os passos em páginas A4, A5, B5 ou Carta, em grade ou em um fluxo sinuoso, com um bloco de título na primeira página. Exporte um PDF ou um ZIP com as imagens dos passos.",
+      "figureAlt": "Primeira página do diagrama de um tsuru: um bloco de título com o padrão de vincos e o modelo pronto acima dos passos numerados.",
+      "title": "Páginas prontas para imprimir"
+    },
+    "pose": {
+      "body": "Mostre um passo como seu padrão de vincos, dobrado plano com as camadas separadas ou dobrado em 3D e girado em qualquer ângulo. Um passo vinculado ao modelo avisa quando o modelo mudou.",
+      "figureAlt": "Uma caixa dobrada em 3D e girada para mostrar o interior, na visualização Pose do Diagrama.",
+      "title": "Imagens tiradas do próprio modelo"
+    },
+    "title": "Do modelo às instruções impressas"
+  },
   "edit": {
     "angles": {
       "body": "Desenhe, simule e resolva modelos de origami com vincos que não ficam planos.",
@@ -56,6 +77,12 @@
     "title": "Um editor que acompanha o ritmo"
   },
   "figureMissing": "A captura de tela entra aqui",
+  "fold": {
+    "eyebrow": "Dobrar",
+    "figureAlt": "O espaço de trabalho Dobrar: uma faixa de passos de dobradura acima do papel dobrado e do seu padrão de vincos.",
+    "lead": "Dobre um modelo como faria à mão, um passo de cada vez a partir de uma folha de papel plana. Importe do workspace de Edição e exporte para ele os passos que precisam de um colapso complicado. Quando terminar, importe a sequência inteira para o workspace de Diagrama e tenha diagramas completos e formatados!",
+    "title": "Dobre uma folha como você faria à mão"
+  },
   "formats": {
     "a11yBoth": "abre e exporta",
     "a11yExport": "só exporta",
@@ -81,7 +108,7 @@
   "what": {
     "eyebrow": "O que é",
     "figureAlt": "O espaço de trabalho do Ori Studio: um padrão de vinco na tela, com a barra de ferramentas e os painéis de inspeção ao redor.",
-    "lead": "Esboce uma base, desenhe o padrão de vincos e dobre para ver se funciona — tudo em um só lugar e sem conta. Abra em uma aba do navegador ou instale o aplicativo para desktop.",
+    "lead": "Esboce uma base, desenhe o padrão de vincos, dobre para ver se funciona e transforme em diagrama para outras pessoas dobrarem — tudo em um só lugar e sem conta. Abra em uma aba do navegador ou instale o aplicativo para desktop.",
     "title": "Um espaço de trabalho livre e de código aberto para projeto de origami"
   }
 }

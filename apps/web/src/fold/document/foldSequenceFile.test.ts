@@ -141,6 +141,11 @@ describe('the step tree', () => {
       // The Layer order dialog's turn on an import: degrees, at most half a turn either way.
       { kind: 'cp-jump', cpJson: '{}', orderJson: '[]', origin: 'cp', turnDeg: 'a quarter' },
       { kind: 'cp-jump', cpJson: '{}', orderJson: '[]', origin: 'cp', turnDeg: 270 },
+      // Adjust order stores its order and nothing else: never a turn or a side.
+      { kind: 'adjust-order' },
+      { kind: 'adjust-order', orderJson: 7 },
+      { kind: 'adjust-order', orderJson: '{}', turnDeg: 90 },
+      { kind: 'adjust-order', orderJson: '{}', side: 'back' },
       // A crimp's second line has no root to replay with, and its kind is one of two.
       { ...valleyOp, kind: 'crimp', second: valleyOp.line, crimp: 'sideways' },
       { ...valleyOp, kind: 'crimp', crimp: 'inside' },
@@ -167,6 +172,14 @@ describe('the step tree', () => {
       expect(ids(document.steps), JSON.stringify(op)).toEqual(['a', 'b']);
       expect(isLockedStep(document.steps[0]), JSON.stringify(op)).toBe(true);
     }
+  });
+
+  it('reads an Adjust order step, its order alone, and writes it back as it came', () => {
+    const op = { kind: 'adjust-order', orderJson: '{"faces":[[0.25,0.5],[0.75,0.5]],"orders":[[0,1,1]]}' };
+    const held = readSteps([raw('a', null), raw('b', 'a', { op })]);
+    expect(isLockedStep(held.document.steps[1])).toBe(false);
+    expect((held.document.steps[1] as FoldStep).op).toEqual(op);
+    expect((writeFoldSequence(held).steps as { op: unknown }[])[1]!.op).toEqual(op);
   });
 
   it('reads an import’s turn, and writes it back only when there is one', () => {

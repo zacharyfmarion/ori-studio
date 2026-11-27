@@ -11,8 +11,10 @@ import { inProcessFoldRuntime, settle } from '../../fold/session/foldSession.fix
 import type { PaperScene } from '../../lib/paper/paperScene';
 import {
   DEFAULT_DIAGRAM_STYLE,
+  DEFAULT_LAYER_SPREAD,
   isStep,
   setTitleBlockContent,
+  spreadFailedOf,
   type DiagramFoldStepSource,
   type DiagramStep,
 } from '../document/diagramDocument';
@@ -48,6 +50,9 @@ const { useWorkspaceStore } = await import('../../store/workspaceStore/store');
 const { foldSessionDocumentSource } = await import('../../store/workspaceStore/foldSession');
 const { useLayoutStore } = await import('../../store/layoutStore');
 const { pullFromFold, sendFoldStepsToDiagram } = await import('./foldBrowserActions');
+const { captureFoldTarget, foldPullRender, sentFoldStep } = await import('./foldPull');
+const { sentStep } = await import('../document/diagramDocument');
+const { default: i18n } = await import('../../i18n');
 const { openDiagramStepInFold, refreshDiagramFoldStep, spreadDiagramFoldStep, presentDiagramFoldStep, setDiagramFoldPresentation } = await import('./foldStepActions');
 const { foldLinkContextNow } = await import('./useFoldLinkContext');
 const { foldStepLinkStatus } = await import('./foldStepLink');
@@ -239,7 +244,8 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
     ];
     expect(await pullFromFold(targets, { kind: 'end' }, { via: 'fold' })).toBe(2);
     const [before, after] = state().diagram!.steps.filter(isStep);
-    // The state before step 3 is step 2's picture, spread as step 2 is; the one after it, off as step 3 is.
+    // The state before step 3 is step 2's picture, spread as step 2 is; the one after it, which Fold shows
+    // unspread (step 3 turns it off), at the Diagram's default spread all the same.
     expect((before!.source as DiagramFoldStepSource).render).toEqual({
       mode: 'folded-flat',
       side: 'front',
@@ -247,7 +253,7 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
       foldCase: 1,
       spread: depth,
     });
-    expect((after!.source as DiagramFoldStepSource).render).not.toHaveProperty('spread');
+    expect((after!.source as DiagramFoldStepSource).render).toMatchObject({ spread: DEFAULT_LAYER_SPREAD });
     const marks = before!.annotations.length;
     expect(marks).toBeGreaterThan(0);
 
@@ -265,6 +271,26 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
     expect(posed.annotations.every((mark) => !mark.unknown && mark.imported === 'untouched')).toBe(true);
   });
 
+  it('pictures a From Fold… card as the step Add makes: spread at the default, its fold’s line and arrow on it', async () => {
+    const sequence = state().foldSequences[0]!.document;
+    const target = { kind: 'step' as const, step: sequence.steps[1]!.id, moment: 'before' as const };
+    const render = foldPullRender(sequence, sequence.id, target);
+    // Fold shows the sequence unspread: the step comes at the Diagram's default.
+    expect(render.spread).toEqual(DEFAULT_LAYER_SPREAD);
+    const card = await captureFoldTarget(held.session!, sequence.id, target, render, { t: i18n.t.bind(i18n) });
+    const shown = sentStep(sentFoldStep(card)!).step;
+    // Its layers spread: not the unspread picture a spread they can't take is drawn as.
+    expect(spreadFailedOf(shown.picture)).toBe(false);
+    expect(await pullFromFold([target], { kind: 'end' }, { via: 'diagram_browser' })).toBe(1);
+    const added = onlyStep();
+    expect((shown.source as DiagramFoldStepSource).render).toEqual(render);
+    expect((added.source as DiagramFoldStepSource).render).toEqual(render);
+    expect(shown.picture?.key).toBe(added.picture?.key);
+    const kinds = (step: DiagramStep) => step.annotations.map((mark) => (mark.unknown ? 'unknown' : mark.kind));
+    expect(kinds(shown)).toEqual(kinds(added));
+    expect(kinds(shown)).toEqual(expect.arrayContaining(['valley-line', 'valley-arrow']));
+  });
+
   it('gives the title block the crease pattern of the last step sent, every crease so far, and of a step chosen', async () => {
     const [, second, third] = state().foldSequences[0]!.document.steps;
     state().moveFoldCursor(third!.id);
@@ -274,16 +300,23 @@ describe.skipIf(!available)('a Fold step in the Diagram, over the real bridge (D
     const roles = (scene: PaperScene | null) =>
       (scene?.items ?? []).flatMap((item) => (item.kind === 'line' ? [item.role] : [])).filter((role) => role !== 'edge');
 
-    // Auto: the Finished step, the kite: both valleys folded, the diagonal lying flat in the aux pen.
+    // Auto: the Finished step, the kite: both valleys folded; the diagonal, lying flat, is no final fold and is left out.
     const auto = resolveTitleBlock(diagram).pattern;
     expect([auto.from, auto.step?.id]).toEqual(['auto', sent.at(-1)!.id]);
-    expect(roles(auto.scene).sort()).toEqual(['aux', 'valley', 'valley']);
+    expect(roles(auto.scene).sort()).toEqual(['valley', 'valley']);
 
-    // The second step's diagram step: the state it lands, the diagonal and one valley.
+    // The kite's two flaps mirror each other on paper of their own: sent as one step, both lines and arrows on
+    // the state before them, said once. Its crease pattern is the state its run lands: both valleys, and the
+    // diagonal (left out).
     const step = sent.find((each) => (each.source as DiagramFoldStepSource).step === second!.id)!;
+    expect((step.source as DiagramFoldStepSource).through).toBe(third!.id);
+    const kinds = step.annotations.map((mark) => (mark.unknown ? 'unknown' : mark.kind));
+    expect(kinds.filter((kind) => kind === 'valley-line')).toHaveLength(2);
+    expect(kinds.filter((kind) => kind === 'valley-arrow')).toHaveLength(2);
+    expect(step.text).toBe('Valley fold on both sides.');
     const chosen = resolveTitleBlock(setTitleBlockContent(diagram, { pattern: { kind: 'step', stepId: step.id } })).pattern;
     expect(chosen.step?.id).toBe(step.id);
-    expect(roles(chosen.scene).sort()).toEqual(['aux', 'valley']);
+    expect(roles(chosen.scene).sort()).toEqual(['valley', 'valley']);
   });
 
   it('goes back to its step in Fold, and is missing once the step is deleted there', async () => {

@@ -11,7 +11,7 @@ import {
   prepareFoldModel,
 } from '../src/index.js';
 import { makeBookFoldFixture, maxPositionDelta } from '../src/testing.js';
-import type { FoldDocument, PreparedOrigamiModel } from '../src/types.js';
+import type { FoldAssignment, FoldDocument, PreparedOrigamiModel } from '../src/types.js';
 
 describe('prepareFoldModel', () => {
   it('normalizes FOLD data and extracts crease parameters', () => {
@@ -295,18 +295,53 @@ describe('prepareFoldModel', () => {
 // fixtures (all triangles and quads) never reach. Real Oriedita exports are full
 // of them, and every property below was broken there.
 describe('n-gon triangulation', () => {
-  /** A 20x1 pleat band, subdivided along both long sides like a real CP. */
-  function makeStrip(project: (x: number, y: number) => number[]) {
-    const top = Array.from({ length: 21 }, (_, i) => project(i, 1));
-    const bottom = Array.from({ length: 21 }, (_, i) => project(i, 0));
-    const ring = [...bottom, ...top.slice().reverse()];
-    const edges = ring.map((_, i): [number, number] => [i, (i + 1) % ring.length]);
+  /**
+   * A 20x1 pleat band between two rows of unit squares, as a box-pleated
+   * pattern has them. Each crease of a row meets the band's side, so every
+   * point of the band's ring has a third line through it and survives the
+   * redundant-vertex merge: earcut sees a 42-gon. The rows are quads.
+   */
+  function makeBand(project: (x: number, y: number) => number[]) {
+    const at = (row: number, column: number) => row * 21 + column;
+    const vertices_coords = [0, 1, 2, 3].flatMap((row) =>
+      Array.from({ length: 21 }, (_, column) => project(column, row))
+    );
+    const edges_vertices: [number, number][] = [];
+    const edges_assignment: FoldAssignment[] = [];
+    const edge = (a: number, b: number, assignment: FoldAssignment) => {
+      edges_vertices.push([a, b]);
+      edges_assignment.push(assignment);
+    };
+    for (let row = 0; row < 4; row += 1) {
+      for (let column = 0; column < 20; column += 1) {
+        edge(at(row, column), at(row, column + 1), row === 0 || row === 3 ? 'B' : 'V');
+      }
+    }
+    for (const row of [0, 2]) {
+      for (let column = 0; column <= 20; column += 1) {
+        edge(at(row, column), at(row + 1, column), column === 0 || column === 20 ? 'B' : 'M');
+      }
+    }
+    edge(at(1, 0), at(2, 0), 'B');
+    edge(at(1, 20), at(2, 20), 'B');
+    const squares = [0, 2].flatMap((row) =>
+      Array.from({ length: 20 }, (_, column) => [
+        at(row, column),
+        at(row, column + 1),
+        at(row + 1, column + 1),
+        at(row + 1, column),
+      ])
+    );
+    const band = [
+      ...Array.from({ length: 21 }, (_, column) => at(1, column)),
+      ...Array.from({ length: 21 }, (_, column) => at(2, 20 - column)),
+    ];
     return {
-      vertices_coords: ring,
-      edges_vertices: edges,
-      edges_assignment: edges.map(() => 'B' as const),
-      edges_foldAngle: edges.map(() => null),
-      faces_vertices: [ring.map((_, i) => i)],
+      vertices_coords,
+      edges_vertices,
+      edges_assignment,
+      edges_foldAngle: edges_assignment.map((a) => (a === 'M' ? -180 : a === 'V' ? 180 : null)),
+      faces_vertices: [band, ...squares],
     };
   }
 
@@ -342,16 +377,16 @@ describe('n-gon triangulation', () => {
     // to its own winding, so the two disagree unless the output is re-oriented.
     // Mixed winding flips half the sheet's normals, and every crease between a
     // flipped face and an unflipped one then folds the wrong way.
-    const strip = makeStrip((x, y) => [x, y]);
-    const apex = strip.vertices_coords.length;
+    const band = makeBand((x, y) => [x, y]);
+    const apex = band.vertices_coords.length;
     const prepared = prepareFoldModel({
-      ...strip,
-      vertices_coords: [...strip.vertices_coords, [0.5, -1]],
-      edges_vertices: [...strip.edges_vertices, [0, apex], [apex, 1]],
-      edges_assignment: [...strip.edges_assignment, 'B', 'B'],
-      edges_foldAngle: [...strip.edges_foldAngle, null, null],
+      ...band,
+      vertices_coords: [...band.vertices_coords, [0.5, -1]],
+      edges_vertices: [...band.edges_vertices, [0, apex], [apex, 1]],
+      edges_assignment: [...band.edges_assignment, 'B', 'B'],
+      edges_foldAngle: [...band.edges_foldAngle, null, null],
       faces_vertices: [
-        strip.faces_vertices[0]!.slice().reverse(),
+        ...band.faces_vertices.map((face) => face.slice().reverse()),
         [0, 1, apex],
       ],
     });
@@ -361,19 +396,18 @@ describe('n-gon triangulation', () => {
     expect(prepared.diagnostics.warnings).toEqual([]);
   });
 
-  it('triangulates a long strip without slivers', () => {
-    // Ear clipping spans a corner to the far end of a strip, which leaves
+  it('triangulates a long band without slivers', () => {
+    // Ear clipping spans a corner to the far end of a band, which leaves
     // triangles a tenth of a degree wide. The solver's crease force divides by
     // the adjacent triangle's height, so those never settle. The Delaunay
-    // criterion zig-zags across the strip instead: every triangle is a unit
+    // criterion zig-zags across the band instead: every triangle is a unit
     // right triangle, so 45 degrees is the exact optimum here.
-    //
-    // This is also what keeps the redundant-vertex merge off crease-free border
-    // points: merge them and the ring has nothing left to zig-zag between.
-    const prepared = prepareFoldModel(makeStrip((x, y) => [x, y]));
+    const prepared = prepareFoldModel(makeBand((x, y) => [x, y]));
     const angles = prepared.facesVertices.map((f) => smallestAngleDeg(prepared, f));
 
-    expect(prepared.vertexCount).toBe(42);
+    expect(prepared.vertexCount).toBe(84);
+    // The band's 40 triangles and two for each of the rows' 40 squares.
+    expect(prepared.faceCount).toBe(120);
     expect(Math.min(...angles)).toBeGreaterThan(44);
   });
 
@@ -382,15 +416,38 @@ describe('n-gon triangulation', () => {
     // 3-component file in whatever plane it used -- commonly xy. Projecting on
     // a fixed axis pair collapses one of the two to a line, and earcut then
     // returns nothing for every polygon in the sheet.
-    const xy = prepareFoldModel(makeStrip((x, y) => [x, y, 0]));
-    const xz = prepareFoldModel(makeStrip((x, y) => [x, 0, y]));
+    const xy = prepareFoldModel(makeBand((x, y) => [x, y, 0]));
+    const xz = prepareFoldModel(makeBand((x, y) => [x, 0, y]));
 
     for (const prepared of [xy, xz]) {
       expect(prepared.diagnostics.warnings).toEqual([]);
-      // A 20x1 strip with unit subdivisions: 40 unit right triangles.
-      expect(prepared.faceCount).toBe(40);
+      expect(prepared.faceCount).toBe(120);
       expect(Math.min(...prepared.facesVertices.map((f) => smallestAngleDeg(prepared, f)))).toBeGreaterThan(44);
     }
+  });
+
+  it('merges a crease-free strip down to its corners, as upstream does', () => {
+    // What the merge costs: with no crease meeting its long sides, a 20x1
+    // strip is a quad, and the best a quad can do is two triangles at 2.86
+    // degrees. Upstream makes the same mesh. A drawn point the paper does not
+    // have would otherwise become a hinge; mesh refinement is where resolution
+    // for long faces comes from (`implementation-plans/simulator-mesh-refinement.md`).
+    const top = Array.from({ length: 21 }, (_, i) => [i, 1]);
+    const bottom = Array.from({ length: 21 }, (_, i) => [i, 0]);
+    const ring = [...bottom, ...top.slice().reverse()];
+    const edges = ring.map((_, i): [number, number] => [i, (i + 1) % ring.length]);
+    const prepared = prepareFoldModel({
+      vertices_coords: ring,
+      edges_vertices: edges,
+      edges_assignment: edges.map(() => 'B' as const),
+      edges_foldAngle: edges.map(() => null),
+      faces_vertices: [ring.map((_, i) => i)],
+    });
+
+    expect(prepared.vertexCount).toBe(4);
+    expect(prepared.faceCount).toBe(2);
+    const angles = prepared.facesVertices.map((f) => smallestAngleDeg(prepared, f));
+    expect(Math.min(...angles)).toBeCloseTo(2.86, 1);
   });
 });
 
@@ -685,10 +742,11 @@ describe('redundant vertex removal', () => {
     expect(prepared.creaseParams).toHaveLength(1);
   });
 
-  it('leaves crease-free border subdivisions alone, unlike upstream', () => {
-    // Narrower than upstream on purpose: these points carry no crease to lose, and
-    // they are the only mesh resolution `delaunayFlipRing` has to work with. See
-    // the long-strip test in n-gon triangulation for what merging them costs.
+  it('merges crease-free border subdivisions, as upstream does', () => {
+    // A point on the paper's edge that nothing meets is how the pattern was
+    // drawn -- a crease since deleted, an aux line that ended there -- not
+    // paper. Kept, triangulation fans diagonals from it and the sheet bends
+    // along them.
     const prepared = prepareFoldModel({
       vertices_coords: [
         [0, 0],
@@ -709,9 +767,10 @@ describe('redundant vertex removal', () => {
       faces_vertices: [[0, 1, 2, 3, 4]],
     });
 
-    // Vertex 1 is degree-2 and collinear with 0 and 2, and upstream would merge it.
-    expect(prepared.vertexCount).toBe(5);
-    expect(prepared.diagnostics.warnings.some((w) => w.includes('redundant'))).toBe(false);
+    // Vertex 1 is degree-2 and collinear with 0 and 2.
+    expect(prepared.vertexCount).toBe(4);
+    expect(prepared.faceCount).toBe(2);
+    expect(prepared.diagnostics.warnings.some((w) => w.includes('redundant'))).toBe(true);
   });
 
   it('still drives a split crease whose halves disagree, which no merge can fix', () => {

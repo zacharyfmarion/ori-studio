@@ -366,6 +366,7 @@ const OP_KEYS = new Map<string, ReadonlySet<string>>([
   ['turn', new Set(['kind', 'axis'])],
   ['rotate', new Set(['kind', 'rotate'])],
   ['cp-jump', new Set(['kind', 'cpJson', 'orderJson', 'origin', 'source', 'turnDeg'])],
+  ['adjust-order', new Set(['kind', 'orderJson'])],
   // Compound folds (plan D4), one block per family.
   ['inside-reverse', ALONG_LINE_KEYS],
   ['outside-reverse', ALONG_LINE_KEYS],
@@ -515,6 +516,10 @@ function readOp(value: unknown, depth = 0, budget = { remaining: 256 }): FoldOp 
           documentId: source.documentId as string, revision: source.revision as string, ...(region ? { region } : {}),
         } } : {}), ...(turnDeg ? { turnDeg } : {}) }
         : null;
+    }
+    case 'adjust-order': {
+      const { orderJson } = value;
+      return typeof orderJson === 'string' ? { kind, orderJson } : null;
     }
     // Compound folds (plan D4), one block per family.
     case 'inside-reverse':
@@ -1163,6 +1168,8 @@ export function writeFoldOp(op: FoldOp): Record<string, unknown> {
         ...(op.source ? { source: { ...op.source } } : {}),
         ...(op.turnDeg ? { turnDeg: op.turnDeg } : {}),
       };
+    case 'adjust-order':
+      return { kind: op.kind, orderJson: op.orderJson };
     // Compound folds (plan D4), one block per family.
     case 'inside-reverse':
     case 'outside-reverse':

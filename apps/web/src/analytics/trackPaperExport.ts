@@ -60,7 +60,14 @@ interface PaperExportedBase {
   scope: PaperExportScope;
 }
 
-export type PaperExportedEvent = PaperImageExportedEvent | (PaperExportedBase & { format: 'obj' });
+export type PaperExportedEvent = PaperImageExportedEvent | (PaperExportedBase & {
+  format: 'obj';
+  /** A folded figure's OBJ, written with the dialog's spread or flat; absent for a mesh with no spread to set. */
+  objSpread?: PaperObjExportSpread;
+});
+
+/** Whether a folded figure's OBJ was written with its layers spread or flat. */
+export type PaperObjExportSpread = 'spread' | 'flat';
 
 interface PaperImageExportedEvent extends PaperExportedBase {
   format: PaperImageExportFormat;
@@ -105,7 +112,7 @@ export function trackPaperExported(event: PaperExportedEvent): void {
     format: event.format,
     options_changed: event.optionsChanged ? 'yes' : 'no',
     scope: event.scope,
-    ...(event.format === 'obj' ? {} : {
+    ...(event.format === 'obj' ? (event.objSpread ? { obj_spread: event.objSpread } : {}) : {
       hidden_faces: event.hiddenFaces,
       style: event.style,
       background: event.background,

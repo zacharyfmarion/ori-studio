@@ -174,8 +174,8 @@ function letterAt(pane: 'pattern' | 'folded', letter: string): { x: number; y: n
   };
 }
 
-const pointer = (type: string, x: number, y: number, pointerType = 'mouse') =>
-  new PointerEvent(type, { pointerId: 1, pointerType, button: 0, clientX: x, clientY: y, bubbles: true });
+const pointer = (type: string, x: number, y: number, pointerType = 'mouse', shiftKey = false) =>
+  new PointerEvent(type, { pointerId: 1, pointerType, button: 0, clientX: x, clientY: y, bubbles: true, shiftKey });
 
 /** Let the frames asked for run. */
 function runFrames() {
@@ -184,10 +184,10 @@ function runFrames() {
   });
 }
 
-function press(canvas: HTMLCanvasElement, at: { x: number; y: number }, pointerType = 'mouse') {
+function press(canvas: HTMLCanvasElement, at: { x: number; y: number }, pointerType = 'mouse', shiftKey = false) {
   act(() => {
-    canvas.dispatchEvent(pointer('pointerdown', at.x, at.y, pointerType));
-    canvas.dispatchEvent(pointer('pointerup', at.x, at.y, pointerType));
+    canvas.dispatchEvent(pointer('pointerdown', at.x, at.y, pointerType, shiftKey));
+    canvas.dispatchEvent(pointer('pointerup', at.x, at.y, pointerType, shiftKey));
   });
 }
 
@@ -287,14 +287,35 @@ describe('the Layer order panes', () => {
     const onEmptyPaper = vi.fn();
     render({ marks: PICKED, onFacePicked, onEmptyPaper });
     press(canvasOf('folded')!, letterAt('folded', 'C'));
-    expect(onFacePicked).toHaveBeenLastCalledWith({ face: C, origin: 'folded', input: 'pointer' });
+    expect(onFacePicked).toHaveBeenLastCalledWith({ face: C, origin: 'folded', input: 'pointer', shift: false });
     // A tap's pick waits out the double-tap window.
     press(canvasOf('pattern')!, letterAt('pattern', 'A'), 'touch');
     expect(onFacePicked).toHaveBeenCalledTimes(1);
     act(() => vi.advanceTimersByTime(DOUBLE_TAP_MS));
-    expect(onFacePicked).toHaveBeenLastCalledWith({ face: A, origin: 'pattern', input: 'tap' });
+    expect(onFacePicked).toHaveBeenLastCalledWith({ face: A, origin: 'pattern', input: 'tap', shift: false });
     press(canvasOf('pattern')!, { x: 2, y: 2 });
     expect(onEmptyPaper).toHaveBeenLastCalledWith({ origin: 'pattern', input: 'pointer' });
+  });
+
+  it('a pick says whether Shift was held as the press ended, a tap’s as it waited', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    const onFacePicked = vi.fn();
+    render({ marks: PICKED, onFacePicked });
+    press(canvasOf('folded')!, letterAt('folded', 'C'), 'mouse', true);
+    expect(onFacePicked).toHaveBeenLastCalledWith({ face: C, origin: 'folded', input: 'pointer', shift: true });
+    // Shift let go before the release: a plain click.
+    const at = letterAt('pattern', 'A');
+    act(() => {
+      canvasOf('pattern')!.dispatchEvent(pointer('pointerdown', at.x, at.y, 'mouse', true));
+      canvasOf('pattern')!.dispatchEvent(pointer('pointerup', at.x, at.y, 'mouse', false));
+    });
+    expect(onFacePicked).toHaveBeenLastCalledWith({ face: A, origin: 'pattern', input: 'pointer', shift: false });
+    // A tap made with Shift held (a keyboard on a tablet) keeps it through the double-tap wait.
+    press(canvasOf('folded')!, letterAt('folded', 'A'), 'touch', true);
+    // A press without Shift meanwhile, on empty paper of the same pane, changes nothing for it.
+    press(canvasOf('folded')!, { x: 2, y: 2 });
+    act(() => vi.advanceTimersByTime(DOUBLE_TAP_MS));
+    expect(onFacePicked).toHaveBeenLastCalledWith({ face: A, origin: 'folded', input: 'tap', shift: true });
   });
 
   it('two taps far apart are two picks, the first sent as the second comes', () => {
@@ -328,7 +349,7 @@ describe('the Layer order panes', () => {
     expect(onFaceHovered).toHaveBeenLastCalledWith({ face: C, origin: 'folded', input: 'tap' });
     expect(onFacePicked).not.toHaveBeenCalled();
     act(() => vi.advanceTimersByTime(DOUBLE_TAP_MS));
-    expect(onFacePicked).toHaveBeenCalledWith({ face: C, origin: 'folded', input: 'tap' });
+    expect(onFacePicked).toHaveBeenCalledWith({ face: C, origin: 'folded', input: 'tap', shift: false });
     expect(onFaceHovered).toHaveBeenLastCalledWith({ face: null, origin: 'folded', input: 'tap' });
     // The pick first, then the hover it ends.
     expect(onFacePicked.mock.invocationCallOrder[0]!).toBeLessThan(onFaceHovered.mock.invocationCallOrder.at(-1)!);

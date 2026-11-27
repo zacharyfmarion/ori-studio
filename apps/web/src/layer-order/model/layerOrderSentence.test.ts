@@ -10,6 +10,7 @@ import {
   candidatesOf,
   clearSentence,
   clearSlot,
+  clickFace,
   facesWithChoices,
   groundClick,
   isComplete,
@@ -199,9 +200,10 @@ describe('compound constraints (D21)', () => {
 
   it('keeps each object’s origin, in pick order: the object origin is the first remaining one’s', () => {
     const s = pickFace(pickFace(pickFace(EMPTY_SENTENCE, wide, 2, 'pattern'), wide, 0, 'menu'), wide, 3, 'folded');
+    // Picked to keep: a pick (Shift+click, a face menu) stays for the add to come.
     expect(s.objectPicks).toEqual([
-      { face: 0, origin: 'menu' },
-      { face: 3, origin: 'folded' },
+      { face: 0, origin: 'menu', kept: true },
+      { face: 3, origin: 'folded', kept: true },
     ]);
     expect(objectOriginOf(s)).toBe('menu');
     // The first object goes: the origin is the next one's, not the removed one's.
@@ -278,5 +280,74 @@ describe('compound constraints (D21)', () => {
       [2, 0, 1],
     ]);
     expect(isComplete(s, wide)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A plain click adds: Shift+click and the face menus pick as above.
+
+const click = (sentence: LayerSentence, face: number, origin: 'pattern' | 'folded' = 'folded') =>
+  clickFace(sentence, wide, face, origin, RANKS);
+
+describe('a plain click (clickFace)', () => {
+  it('picks the subject as a pick does, and adds nothing', () => {
+    expect(click(EMPTY_SENTENCE, 2, 'pattern')).toEqual({ sentence: pickWide(EMPTY_SENTENCE, 2), adds: false });
+    // A subject being replaced: still a pick.
+    const replacing = activateSlot(pickWide(EMPTY_SENTENCE, 2, 0), wide, 'subject');
+    expect(click(replacing, 4)).toMatchObject({ sentence: { subject: 4, active: 'object' }, adds: false });
+  });
+
+  it('on one of the subject’s faces, puts it among the objects and adds', () => {
+    const { sentence, adds } = click(pickWide(EMPTY_SENTENCE, 2), 0);
+    expect(adds).toBe(true);
+    expect(sentence).toMatchObject({ subject: 2, objects: [0], active: 'object' });
+    // Its own object is not kept: it is for this click's add only.
+    expect(sentence.objectPicks).toEqual([{ face: 0, origin: 'folded', kept: false }]);
+  });
+
+  it('adds with the objects picked to keep, in letter order', () => {
+    const kept = pickWide(EMPTY_SENTENCE, 2, 0, 3);
+    const { sentence, adds } = click(kept, 5);
+    expect(adds).toBe(true);
+    expect(sentence.objects).toEqual([5, 3, 0]);
+    expect(sentence.objectPicks.map((p) => [p.face, p.kept])).toEqual([
+      [0, true],
+      [3, true],
+      [5, false],
+    ]);
+  });
+
+  it('on a face already picked, keeps the sentence as it is and adds', () => {
+    const kept = pickWide(EMPTY_SENTENCE, 2, 0, 3);
+    expect(click(kept, 3)).toEqual({ sentence: kept, adds: true });
+    // Clicked again after its add didn't go through: the same sentence, added again.
+    const tried = click(pickWide(EMPTY_SENTENCE, 2), 0).sentence;
+    expect(click(tried, 0)).toEqual({ sentence: tried, adds: true });
+  });
+
+  it('replaces an earlier click’s object whose add didn’t go through, and keeps the ones picked to keep', () => {
+    // 0 clicked, can't fit: a click on 3 tries 3, not 0 and 3.
+    const tried = click(pickWide(EMPTY_SENTENCE, 2), 0).sentence;
+    expect(click(tried, 3).sentence).toMatchObject({ objects: [3], objectPicks: [{ face: 3, kept: false }] });
+    // With 5 picked to keep, then 0 clicked: a click on 3 tries 5 and 3.
+    const mixed = click(pickWide(EMPTY_SENTENCE, 2, 5), 0).sentence;
+    expect(mixed.objects).toEqual([5, 0]);
+    expect(click(mixed, 3).sentence.objects).toEqual([5, 3]);
+    // Clicking 5, kept, drops the tried 0 and adds 5 alone.
+    expect(click(mixed, 5)).toMatchObject({ sentence: { objects: [5] }, adds: true });
+  });
+
+  it('a face the subject can’t take is inert, picked objects or not', () => {
+    const s = pickWide(EMPTY_SENTENCE, 2, 0);
+    expect(click(s, 4)).toEqual({ sentence: s, adds: false });
+    expect(click(s, 2)).toEqual({ sentence: s, adds: false });
+    // A subject with nothing left: the click picks a subject again.
+    const stuck = { ...pickWide(EMPTY_SENTENCE, 2), subject: 1 };
+    expect(click(stuck, 4)).toMatchObject({ sentence: { subject: 4 }, adds: false });
+  });
+
+  it('a pick toggles a clicked object off as it would a kept one', () => {
+    const tried = click(pickWide(EMPTY_SENTENCE, 2), 0).sentence;
+    expect(pickFace(tried, wide, 0, 'folded', RANKS)).toMatchObject({ objects: [], objectPicks: [] });
   });
 });

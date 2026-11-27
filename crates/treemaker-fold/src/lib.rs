@@ -521,13 +521,6 @@ fn merge_edge(
     if assignment != fold.edges_assignment[low] {
         return false;
     }
-    // Narrower than upstream, matching the TypeScript port: a merge can only
-    // rescue a crease the solver folds, and a crease-free border subdivision is
-    // mesh resolution that a quality triangulator needs. See `mergeEdge` in
-    // `packages/origami-simulator/src/prepare.ts` for the measurement behind it.
-    if !assignment.is_driven_crease() {
-        return false;
-    }
     // Upstream never meets this case, because it removes these vertices before
     // faces exist and so cannot re-run on its own output. Merging into an edge
     // that already exists would leave a duplicate with no face -- the very shape
@@ -1169,9 +1162,9 @@ mod tests {
     }
 
     #[test]
-    fn leaves_crease_free_border_subdivisions_alone() {
-        // Narrower than upstream on purpose: no crease to lose, and these points
-        // are the mesh resolution a quality triangulator works with.
+    fn merges_crease_free_border_subdivisions_as_upstream_does() {
+        // A point on the paper's edge where nothing meets it is how the pattern
+        // was drawn, not paper: kept, it fans diagonals the sheet bends along.
         let mut doc = FoldDocument::new(
             vec![
                 vec![0.0, 0.0],
@@ -1186,9 +1179,11 @@ mod tests {
         doc.edges_fold_angle = vec![None; 5];
         doc.faces_vertices = vec![vec![0, 1, 2, 3, 4]];
 
-        // Vertex 1 is degree-2 and collinear with 0 and 2; upstream would merge it.
-        assert_eq!(remove_redundant_vertices(&mut doc, 0.01), 0);
-        assert_eq!(doc.vertices_coords.len(), 5);
+        // Vertex 1 is degree-2 and collinear with 0 and 2.
+        assert_eq!(remove_redundant_vertices(&mut doc, 0.01), 1);
+        assert_eq!(doc.vertices_coords.len(), 4);
+        assert!(find_edge(&doc.edges_vertices, 0, 1).is_some());
+        assert_eq!(doc.faces_vertices, vec![vec![0, 1, 2, 3]]);
     }
 
     #[test]

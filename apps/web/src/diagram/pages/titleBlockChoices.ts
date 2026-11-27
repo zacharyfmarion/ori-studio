@@ -14,12 +14,15 @@
  * (`givesModel`, `givesPattern`), so nothing offered prints nothing. A step
  * chosen that can no longer give its part — its picture removed, its link
  * replaced or drawing no line — is listed too, in its place and marked,
- * since it is what the block is set to. Pure.
+ * since it is what the block is set to. A crease pattern set to a file
+ * (`diagram-title-block-final-cp.md`) is offered as that file, by its name,
+ * while it is set to it. Pure.
  */
 import { thumbnailJson } from '../document/diagramFile';
 import {
   stepNumbers,
   stepsOf,
+  titleBlockPatternAsset,
   type DiagramDocument,
   type DiagramStep,
   type DiagramTitleBlockSource,
@@ -35,8 +38,8 @@ import {
 
 const STEP = 'step:';
 
-/** A part's choice as a select holds it: Auto, None, or a step by its id. */
-export type TitleBlockChoice = 'auto' | 'none' | `${typeof STEP}${string}`;
+/** A part's choice as a select holds it: Auto, None, a step by its id, or the crease pattern's file. */
+export type TitleBlockChoice = 'auto' | 'none' | 'upload' | `${typeof STEP}${string}`;
 
 /** A step offered for a part. */
 export interface TitleBlockStepChoice {
@@ -55,6 +58,12 @@ export interface TitleBlockPartChoices {
   autoNumber: number | null;
   /** The steps offered between Auto and None, in the diagram's order. */
   steps: readonly TitleBlockStepChoice[];
+  /**
+   * The crease pattern's file while the pattern is set to one (`upload`): its
+   * name, and whether it draws — one with no line the block draws is marked,
+   * as a step that can no longer give its part is.
+   */
+  file?: { name: string; gives: boolean };
 }
 
 export interface TitleBlockChoices {
@@ -81,35 +90,45 @@ export function titleBlockChoices(document: DiagramDocument): TitleBlockChoices 
       .filter((step) => offered.has(step) || (chosen.from === 'step' && chosen.step === step))
       .map((step) => ({ choice: stepChoice(step), number: numberOf(step)!, gives: gives(step) })),
   });
+  const file = titleBlockPatternAsset(document);
   return {
     model: part(resolved.model, autoModelStep(document), new Set(steps.filter(givesModel)), givesModel),
-    pattern: part(resolved.pattern, autoPatternStep(document), distinctPatterns(steps, resolved.pattern), givesPattern),
+    pattern: {
+      ...part(resolved.pattern, autoPatternStep(document), distinctPatterns(steps, resolved.pattern), givesPattern),
+      ...(file ? { file: { name: file.name, gives: resolved.pattern.scene !== null } } : {}),
+    },
   };
 }
 
 /**
  * One step for each distinct pattern the steps link: the step chosen for the
  * block where it links that pattern, else the last that does. A region of
- * Edit's and a Fold step's state are never one pattern: their aux lines are
- * read apart (`patternScene`).
+ * Edit's and a Fold step's state with one thumbnail are one pattern: the
+ * block draws every link's lines alike (`patternScene`).
  */
 function distinctPatterns(steps: readonly DiagramStep[], chosen: TitleBlockPart): ReadonlySet<DiagramStep> {
   const named = new Map<string, DiagramStep>();
   for (const step of steps) {
     if (!givesPattern(step)) continue;
-    const pattern = `${step.source.kind} ${thumbnailJson(step.source.thumbnail)}`;
+    const pattern = thumbnailJson(step.source.thumbnail);
     if (chosen.from !== 'step' || named.get(pattern) !== chosen.step) named.set(pattern, step);
   }
   return new Set(named.values());
 }
 
-/** What a choice sets its part to: a source, or `auto`, which takes the part's source away. */
-export function titleBlockChoiceSource(choice: string): DiagramTitleBlockSource | 'auto' {
+/**
+ * What a choice sets its part to: a source, or `auto`, which takes the part's
+ * source away; null for the file the pattern is set to, which choosing again
+ * changes nothing (a file is set by uploading one, `setDiagramTitleBlockPatternUpload`).
+ */
+export function titleBlockChoiceSource(choice: string): DiagramTitleBlockSource | 'auto' | null {
+  if (choice === 'upload') return null;
   if (choice === 'none') return { kind: 'none' };
   return choice.startsWith(STEP) ? { kind: 'step', stepId: choice.slice(STEP.length) } : 'auto';
 }
 
 function choiceOf(part: TitleBlockPart): TitleBlockChoice {
+  if (part.from === 'upload') return 'upload';
   return part.from === 'step' && part.step ? stepChoice(part.step) : part.from === 'none' ? 'none' : 'auto';
 }
 

@@ -51,13 +51,15 @@ export function DiagramTitleBlockOverlay({
   paper: Pick<PrintPaper, 'widthMm' | 'heightMm'>;
 }) {
   const { t } = useTranslation();
-  const words = ({ part, step, number }: MissingTitleBlockPart): string[] => {
+  const words = ({ part, step, number, file }: MissingTitleBlockPart): string[] => {
     switch (part) {
       case 'pattern':
         return [
-          step
-            ? t('panels:diagram.pages.titleBlock.stepNoPattern', 'Step {{number}} has no crease pattern', { number })
-            : t('panels:diagram.pages.titleBlock.noPattern', 'No step is linked to a crease pattern'),
+          file
+            ? t('panels:diagram.pages.titleBlock.fileNoPattern', 'The uploaded file has no folds')
+            : step
+              ? t('panels:diagram.pages.titleBlock.stepNoPattern', 'Step {{number}} has no crease pattern', { number })
+              : t('panels:diagram.pages.titleBlock.noPattern', 'No step is linked to a crease pattern'),
         ];
       case 'model':
         return [

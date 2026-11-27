@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -16,7 +16,7 @@ import { selectFoldCursorNode } from '../session/foldSessionState';
 import { foldRefusalNotice } from '../tools/refusalNotice';
 import { createFoldTools, type FoldTools } from '../tools/foldToolState';
 import { foldWindowPreview } from './foldCanvasModel';
-import { sheetToScene, type FoldPickIndex } from './foldPicking';
+import { foldStackAt, sheetToScene, type FoldPickIndex } from './foldPicking';
 import {
   clickPane,
   commitPreviewed,
@@ -29,21 +29,10 @@ import {
 } from './foldToolFlow.fixtures';
 import type { FoldStateView } from './useFoldStateView';
 
-/**
- * The ghost precrease (`tests/fixtures/fold-regressions/ghost-precrease.osf`)
- * made through the tools, as a folder makes it: the flap's corner lies on
- * the strip's corner, which shows past it. Clicked on the folded pane, the
- * corner takes the flap's sheet point — the one a click on the crease
- * pattern takes — and the precrease lands as the fixture stores it. Picked
- * on the crease pattern at the strip's corner instead, it is refused as the
- * point staying put, and the refusal offers the point on the moving flap,
- * which lands it.
- *
- * Skipped when the bridge has not been built.
- */
+/** Recreate the final step of saved Fold regressions through the canvas hit tests, preview and commit. */
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const FIXTURE = resolve(process.cwd(), '../../tests/fixtures/fold-regressions/ghost-precrease.osf');
+const FIXTURES = resolve(process.cwd(), '../../tests/fixtures/fold-regressions');
 const t = i18n.t.bind(i18n);
 
 let session: FoldSession;
@@ -53,8 +42,8 @@ let root: Root;
 const snapshot = () => session.store.getState();
 const cursor = () => selectFoldCursorNode(snapshot());
 
-function opened(): FoldSequenceDocument {
-  const project = parseNativeProjectFile(readFileSync(FIXTURE, 'utf8'));
+function opened(name: string): FoldSequenceDocument {
+  const project = parseNativeProjectFile(readFileSync(resolve(FIXTURES, name), 'utf8'));
   const [held] = readFoldSequences(project.workspace.foldSequences);
   if (!held) throw new Error('no sequence');
   return held.document;
@@ -66,7 +55,7 @@ function stepAt(document: FoldSequenceDocument, n: number): FoldStep {
   return node;
 }
 
-describe.skipIf(!FOLD_FLOW_AVAILABLE || !existsSync(FIXTURE))('the ghost precrease through the tools', () => {
+describe.skipIf(!FOLD_FLOW_AVAILABLE)('Fold regression fixtures through the canvas tools', () => {
   beforeEach(async () => {
     useWorkspaceStore.setState(useWorkspaceStore.getInitialState(), true);
     session = createFoldSession({ document: foldSessionDocumentSource(useWorkspaceStore), runtime: await foldFlowBridge() });
@@ -83,16 +72,15 @@ describe.skipIf(!FOLD_FLOW_AVAILABLE || !existsSync(FIXTURE))('the ghost precrea
     session.dispose();
   });
 
-  it('takes the flap’s corner on the folded pane, and offers it when the strip’s corner is picked', async () => {
-    const fixture = opened();
-    const precrease = stepAt(fixture, 3);
-    // The fixture to its third step, on screen: the flap's corner on the strip's.
-    const document = { ...fixture, steps: fixture.steps.slice(0, 3) };
-    const parent = stepAt(document, 2);
+  async function beforeLastStep(name: string) {
+    const fixture = opened(name);
+    const last = stepAt(fixture, fixture.steps.length - 1);
+    const document = { ...fixture, steps: fixture.steps.slice(0, -1) };
+    const parent = stepAt(document, document.steps.length - 1);
     useWorkspaceStore
       .getState()
       .installFoldSequences([{ document, readOnlyRaw: null }], withFoldCursor(initialFoldReaderState(document.id), document, parent.id));
-    await untilFlow(() => snapshot().cursor === parent.id && cursor().status === 'ok' && cursor().summary, 'the flap on the strip');
+    await untilFlow(() => snapshot().cursor === parent.id && cursor().status === 'ok' && cursor().summary, name);
     const tools: FoldTools = createFoldTools();
     const seen: FoldFlowSeenRef = { current: null };
     const index: FoldPickIndex = await shownPickIndex(session);
@@ -105,6 +93,11 @@ describe.skipIf(!FOLD_FLOW_AVAILABLE || !existsSync(FIXTURE))('the ghost precrea
       if (!now) throw new Error('no canvas');
       return now;
     };
+    return { last, tools, index, seen, verbs };
+  }
+
+  it('takes the flap’s corner on the folded pane, and offers it when the strip’s corner is picked', async () => {
+    const { last: precrease, tools, index, seen, verbs } = await beforeLastStep('ghost-precrease.osf');
     const shown = (sheet: SheetPoint) => {
       const at = sheetToScene(index.scene, sheet);
       if (!at) throw new Error('not on the paper');
@@ -175,5 +168,41 @@ describe.skipIf(!FOLD_FLOW_AVAILABLE || !existsSync(FIXTURE))('the ghost precrea
     // Committed, it is the fixture's step.
     const committed = await commitPreviewed(session, seen);
     expect(committed.fingerprint).toBe(precrease.expect);
+  });
+
+  it('rabbit-ears the top layer of the corner with the backing and the sheet body still', async () => {
+    const { last, tools, index: before, seen, verbs } = await beforeLastStep('rabbit-ear-folded-corner.osf');
+    const [flap, backing] = foldStackAt(before, { x: 0.75, y: 0.32 });
+    if (flap === undefined || backing === undefined) throw new Error('expected the corner folded over its backing');
+    await act(async () => {
+      verbs().selectTool('rabbit-ear');
+      await settle();
+    });
+    for (const [x, y] of [[0.5, 0.5], [1, 0.5], [0.5, 0], [0.72, 0.47]] as const) {
+      await clickPane(seen, { x, y });
+    }
+    await act(async () => {
+      tools.setFanLayers(1);
+      await settle();
+    });
+    await untilFlow(() => {
+      const preview = seen.current?.preview;
+      return preview?.step && !preview.landing && !preview.refused;
+    }, 'the single-layer rabbit ear');
+    const committed = await commitPreviewed(session, seen);
+    expect(committed.fingerprint).toBe(last.expect);
+
+    const after = await shownPickIndex(session);
+    for (const [i, face] of before.scene.lineage.entries()) {
+      if (i === flap) continue;
+      const j = after.scene.lineage.findIndex(child => child.id === face.id);
+      expect(j).toBeGreaterThanOrEqual(0);
+      expect(after.scene.face_transforms[j]).toEqual(before.scene.face_transforms[i]);
+      expect(after.scene.faces[j]!.front_up).toBe(before.scene.faces[i]!.front_up);
+    }
+    const stack = foldStackAt(after, { x: 0.75, y: 0.32 }).map(i => after.scene.lineage[i]!);
+    expect(stack).toHaveLength(5);
+    expect(stack[4]!.id).toBe(before.scene.lineage[backing]!.id);
+    for (const piece of stack.slice(0, 4)) expect(piece.parent).toBe(before.scene.lineage[flap]!.id);
   });
 });

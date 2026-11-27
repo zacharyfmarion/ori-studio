@@ -22,7 +22,13 @@ import type {
   PaperExportPages,
   PaperExportScope,
   PaperExportTarget,
+  PaperObjSpread,
+  PaperObjSpreadSource,
+  PaperObjSpreadView,
 } from '../../paperExport/paperExportTarget';
+import type { ConnectedSpreadView } from '../../layer-spread/view';
+import type { OristudioCpFolded3dRenderModel } from '../../engine/oristudioCpTypes';
+import { FoldedObjUnavailableError } from '../../lib/foldedExport';
 import type { FileService } from '../../platform/fileService';
 import { usePaperExportUiStore } from '../../store/paperExportUiStore';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -57,6 +63,12 @@ const { service, paperSvgToPng } = vi.hoisted(() => ({
   paperSvgToPng: vi.fn(async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47])),
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+// The 3D preview needs WebGL and a worker: the dialog's tests read what it is handed.
+vi.mock('./ObjSpreadPreview', () => ({
+  ObjSpreadPreview: ({ preparation, spread }: { preparation: { status: string }; spread: PaperObjSpread }) => (
+    <div data-obj-spread-preview="" data-status={preparation.status} data-on={String(spread.on)} data-amount={String(spread.amount)} />
+  ),
+}));
 vi.mock('../../platform/fileService', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../platform/fileService')>()),
   getFileService: () => service as unknown as FileService,
@@ -213,6 +225,113 @@ describe('PaperExportModal', () => {
     expect(opened.release).toHaveBeenCalledTimes(1);
     await open(target({ surface, obj: opened.obj }));
     expect(button('Export OBJ')?.disabled).toBe(false);
+  });
+
+  it.each(['folded-3d', 'folded-flat'] as const)('saves a folded figure’s OBJ from %s and remembers it for figures alone', async (surface) => {
+    const build = vi.fn(async () => 'v 0 0 0\nvt 0 0\nf 1/1 1/1 1/1\n');
+    await open(target({ surface, obj: { unavailableReason: null, build } }));
+    await act(async () => button('OBJ')?.click());
+    expect(text()).toContain('ready for texturing in your 3D software');
+    await submit();
+    expect(service.saveTextFile).toHaveBeenCalledWith(expect.objectContaining({ suggestedName: 'Crane.obj' }));
+    expect(useSettingsStore.getState().paperExport['folded-figure'].format).toBe('obj');
+    expect(useSettingsStore.getState().paperExport.simulation.format).toBe('svg');
+  });
+
+  describe('an OBJ whose spread the dialog sets', () => {
+    const VIEW: PaperObjSpreadView = {
+      kind: 'connected',
+      view: { scene: { faces: [] }, prepared: {} } as unknown as ConnectedSpreadView,
+    };
+    function spreading(overrides: Partial<PaperObjSpreadSource> = {}) {
+      const build = vi.fn(async (spread?: PaperObjSpread) => `o ${spread?.on ? spread.amount : 'flat'}\n`);
+      const spread: PaperObjSpreadSource = {
+        kind: 'connected',
+        initial: { on: true, amount: 0.14 },
+        prepare: vi.fn(async () => VIEW),
+        unspread: vi.fn(async () => true),
+        ...overrides,
+      };
+      return { build, spread, opened: target({ obj: { unavailableReason: null, spread, build } }) };
+    }
+    const stage = () => document.querySelector<HTMLElement>('[data-obj-spread-preview]');
+
+    it('lays out Spread layers and Amount alone, and previews the fold in 3D once it is ready', async () => {
+      const { opened, spread } = spreading();
+      await open(opened, null, 'obj');
+      await flush();
+      expect(spread.prepare).toHaveBeenCalled();
+      expect(stage()).toMatchObject({ dataset: { status: 'ready', on: 'true', amount: '0.14' } });
+      expect(text()).toContain('Spread layers');
+      expect(text()).toContain('Amount');
+      // Default alone lifts a mesh, and the preview turns it: no Spread by.
+      expect(text()).not.toContain('Spread by');
+      expect(text()).toContain('Drag to turn it');
+    });
+
+    it('prepares nothing until OBJ is chosen', async () => {
+      const { opened, spread } = spreading();
+      await open(opened, null, 'svg');
+      await flush();
+      expect(spread.prepare).not.toHaveBeenCalled();
+      expect(stage()).toBeNull();
+    });
+
+    it('writes the file with the spread as the dialog sets it', async () => {
+      const { opened, build } = spreading();
+      await open(opened, null, 'obj');
+      await flush();
+      await act(async () => button('Spread layers')?.click());
+      expect(stage()?.dataset.on).toBe('false');
+      await submit();
+      expect(build).toHaveBeenCalledWith({ on: false, amount: 0.14 });
+      expect(service.saveTextFile).toHaveBeenCalledWith(expect.objectContaining({ contents: 'o flat\n' }));
+    });
+
+    it('says why a figure with no fold to give has no mesh, and keeps its pictures', async () => {
+      const refused = async () => {
+        throw new FoldedObjUnavailableError('needs-refold');
+      };
+      const { opened } = spreading({ prepare: vi.fn(refused), unspread: vi.fn(async () => false) });
+      await open(opened, null, 'obj');
+      await flush();
+      expect(text()).toContain('can’t be rebuilt from its file');
+      expect(button('Export OBJ')?.disabled).toBe(true);
+      await act(async () => button('PNG')?.click());
+      expect(button('Export PNG')?.disabled).toBe(false);
+    });
+
+    it('sets a 3D figure’s spatial spread over its whole field, and previews the figure’s own view', async () => {
+      const model = { span: 1 } as unknown as OristudioCpFolded3dRenderModel;
+      const { opened, build } = spreading({
+        kind: 'spatial',
+        initial: { on: true, amount: 1 },
+        prepare: vi.fn(async (): Promise<PaperObjSpreadView> => ({ kind: 'spatial', model, camera: null })),
+      });
+      await open(opened, null, 'obj');
+      await flush();
+      expect(stage()).toMatchObject({ dataset: { status: 'ready', on: 'true', amount: '1' } });
+      // A spatial spread of 1 is a quarter of its field, as the figure's own sheet reads it.
+      expect(text()).toContain('25%');
+      await submit();
+      expect(build).toHaveBeenCalledWith({ on: true, amount: 1 });
+    });
+
+    it('writes a fold whose layers could not be spread flat, once the spread is off', async () => {
+      const { opened, build } = spreading({
+        prepare: vi.fn(async () => {
+          throw new Error('Layer spread model exceeds its preparation budget');
+        }),
+      });
+      await open(opened, null, 'obj');
+      await flush();
+      expect(text()).toContain('These layers couldn’t be spread');
+      expect(button('Export OBJ')?.disabled).toBe(true);
+      await act(async () => button('Spread layers')?.click());
+      expect(button('Export OBJ')?.disabled).toBe(false);
+      await submit();
+      expect(build).toHaveBeenCalledWith({ on: false, amount: 0.14 });
+    });
   });
 
   it('does not offer OBJ on image-only targets or honour an unsupported requested format', async () => {

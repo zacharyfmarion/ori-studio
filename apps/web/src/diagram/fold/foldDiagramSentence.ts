@@ -49,6 +49,11 @@ function precreaseWords(step: Extract<FoldSentenceStep, { op: 'precrease' }>): P
   return step.extent?.kind === 'pinch' ? 'pinch' : step.direction;
 }
 
+/** A precrease whose words name the points it brings onto lines (Axiom 6), not just the fold. */
+function namesAlignment(step: Extract<FoldSentenceStep, { op: 'precrease' }>): boolean {
+  return precreaseWords(step) !== 'pinch' && pointsOntoLines(step.line);
+}
+
 function precreaseSentence(t: TFunction, words: PrecreaseWords): string {
   switch (words) {
     case 'valley':
@@ -62,17 +67,40 @@ function precreaseSentence(t: TFunction, words: PrecreaseWords): string {
 
 /** The same precrease made on both sides, said once: a merged step's words. */
 function bothSidesSentence(t: TFunction, step: Extract<FoldSentenceStep, { op: 'precrease' }>): string {
-  const words = precreaseWords(step);
-  if (words !== 'pinch' && pointsOntoLines(step.line)) {
+  if (namesAlignment(step)) {
     return then(t, foldDiagramSentence(t, step), t('panels:diagram.fold.instruction.repeatEarlier', 'Repeat on the other side.'));
   }
-  switch (words) {
+  switch (precreaseWords(step)) {
     case 'valley':
       return t('panels:diagram.fold.instruction.precreaseBothSides', 'Fold and unfold on both sides.');
     case 'mountain':
       return t('panels:diagram.fold.instruction.mountainPrecreaseBothSides', 'Mountain fold and unfold on both sides.');
     case 'pinch':
       return t('panels:diagram.fold.instruction.pinchBothSides', 'Make a pinch on both sides.');
+  }
+}
+
+/** The same precrease made in `count` places, three or more, said once. */
+function allPlacesSentence(t: TFunction, words: PrecreaseWords, count: number): string {
+  switch (words) {
+    case 'valley':
+      return t('panels:diagram.fold.instruction.precreaseAllPlaces', {
+        count,
+        defaultValue_one: 'Fold and unfold in {{count}} place.',
+        defaultValue_other: 'Fold and unfold in all {{count}} places.',
+      });
+    case 'mountain':
+      return t('panels:diagram.fold.instruction.mountainPrecreaseAllPlaces', {
+        count,
+        defaultValue_one: 'Mountain fold and unfold in {{count}} place.',
+        defaultValue_other: 'Mountain fold and unfold in all {{count}} places.',
+      });
+    case 'pinch':
+      return t('panels:diagram.fold.instruction.pinchAllPlaces', {
+        count,
+        defaultValue_one: 'Make a pinch in {{count}} place.',
+        defaultValue_other: 'Make a pinch in all {{count}} places.',
+      });
   }
 }
 
@@ -122,7 +150,7 @@ export function foldDiagramSentence(t: TFunction, step: FoldSentenceStep): strin
         ? t('panels:diagram.fold.instruction.valley', 'Valley fold.')
         : t('panels:diagram.fold.instruction.mountain', 'Mountain fold.');
     case 'precrease':
-      if (pointsOntoLines(step.line) && step.extent?.kind !== 'pinch') {
+      if (namesAlignment(step)) {
         return then(t, alignmentSentence(t, step.direction), t('panels:diagram.fold.instruction.unfold', 'Unfold.'));
       }
       return precreaseSentence(t, precreaseWords(step));
@@ -155,6 +183,9 @@ export function foldDiagramSentence(t: TFunction, step: FoldSentenceStep): strin
           : t('panels:diagram.fold.instruction.unfold', 'Unfold.');
     case 'cp-jump':
       return t('panels:diagram.fold.instruction.collapse', 'Collapse.');
+    // Only the layer order changes: no crease, so no arrow, and the diagrammer's words for it.
+    case 'adjust-order':
+      return t('panels:diagram.fold.instruction.adjustOrder', 'Rearrange the layers.');
     case 'reverse':
       return step.kind === 'inside'
         ? t('panels:diagram.fold.instruction.insideReverse', 'Inside reverse fold.')
@@ -184,25 +215,57 @@ export function foldDiagramSentence(t: TFunction, step: FoldSentenceStep): strin
   }
 }
 
+/** One step's words, said for both sides of a merged step. */
+function bothSidesWords(t: TFunction, step: FoldSentenceStep): string {
+  if (step.op === 'precrease') return bothSidesSentence(t, step);
+  if (step.op === 'fold' && !step.inserted) {
+    return step.direction === 'valley'
+      ? t('panels:diagram.fold.instruction.valleyBothSides', 'Valley fold on both sides.')
+      : t('panels:diagram.fold.instruction.mountainBothSides', 'Mountain fold on both sides.');
+  }
+  return t('panels:diagram.fold.instruction.doBothSides', '{{sentence}} Do this on both sides.', {
+    sentence: foldDiagramSentence(t, step),
+  });
+}
+
+/** One step's words, said for every one of a merged step's `count` places, three or more. */
+function allPlacesWords(t: TFunction, step: FoldSentenceStep, count: number): string {
+  // An Axiom 6 precrease keeps its own words, said once for every place.
+  if (step.op === 'precrease' && !namesAlignment(step)) return allPlacesSentence(t, precreaseWords(step), count);
+  if (step.op === 'fold' && !step.inserted) {
+    return step.direction === 'valley'
+      ? t('panels:diagram.fold.instruction.valleyAllPlaces', {
+          count,
+          defaultValue_one: 'Valley fold in {{count}} place.',
+          defaultValue_other: 'Valley fold in all {{count}} places.',
+        })
+      : t('panels:diagram.fold.instruction.mountainAllPlaces', {
+          count,
+          defaultValue_one: 'Mountain fold in {{count}} place.',
+          defaultValue_other: 'Mountain fold in all {{count}} places.',
+        });
+  }
+  return t('panels:diagram.fold.instruction.doAllPlaces', {
+    count,
+    sentence: foldDiagramSentence(t, step),
+    defaultValue_one: '{{sentence}} Do this in {{count}} place.',
+    defaultValue_other: '{{sentence}} Do this in all {{count}} places.',
+  });
+}
+
 /**
- * A merged step's instruction (`foldPrecreaseMerge.ts`): the steps it is
- * made from — every step of the run but its mirror, the last — said once for
- * both sides, "Fold and unfold on both sides." A run of more than one kind
- * says each kind once, in the run's order. Only precreases merge today; a
- * valley or mountain fold would say "Valley fold on both sides.", and any
- * other step its own words.
+ * A merged step's instruction: the steps it is made from, said once for the
+ * places it folds — "Fold and unfold on both sides.", "Valley fold in all 4
+ * places." `count` is how many places: two for a precrease and its Repeat,
+ * whose words are the steps before the Repeat (`foldPrecreaseMerge.ts`); the
+ * run's length for steps that mirror or turn each other, whose words are its
+ * first step's (`foldStepMerge.ts`). A run of more than one kind says each
+ * kind once, in the run's order.
  */
-export function foldDiagramMergedSentence(t: TFunction, steps: readonly FoldSentenceStep[]): string {
+export function foldDiagramMergedSentence(t: TFunction, steps: readonly FoldSentenceStep[], count = 2): string {
   const said: string[] = [];
   for (const step of steps) {
-    const words =
-      step.op === 'precrease'
-        ? bothSidesSentence(t, step)
-        : step.op === 'fold' && !step.inserted
-          ? step.direction === 'valley'
-            ? t('panels:diagram.fold.instruction.valleyBothSides', 'Valley fold on both sides.')
-            : t('panels:diagram.fold.instruction.mountainBothSides', 'Mountain fold on both sides.')
-          : foldDiagramSentence(t, step);
+    const words = count > 2 ? allPlacesWords(t, step, count) : bothSidesWords(t, step);
     if (!said.includes(words)) said.push(words);
   }
   return said.reduce(

@@ -67,7 +67,7 @@ describe('the Rotate tool’s window', () => {
     ]);
     expect(model.instructions.notes).toContain('Esc puts Rotate down without adding the turn.');
     expect(model.footer?.commit).toMatchObject({ label: 'Rotate', shortcut: 'fold.commit', disabled: false });
-    expect(model.footer?.cancel.shortcut).toBe('viewport.cancel');
+    expect(model.footer?.cancel?.shortcut).toBe('viewport.cancel');
   });
 
   it('sets a preset, a direction and an exact angle, each keeping the rest', () => {

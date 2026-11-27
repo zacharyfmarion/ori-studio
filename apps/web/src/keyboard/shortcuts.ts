@@ -223,6 +223,7 @@ export type FoldShortcutId =
   | 'fold.adjustSpread'
   | 'fold.turnOver'
   | 'fold.rotate'
+  | 'fold.toolAdjustOrder'
   | 'fold.lineAxiom1'
   | 'fold.lineAxiom2'
   | 'fold.lineAxiom3'
@@ -868,7 +869,7 @@ const FOLD_SHORTCUTS: ShortcutDefinition[] = [
   //   Shift+G the petal fold (the squash's), and the three sinks in the
   //   rail's order on Shift+Z, X, C;
   // - the sequence verbs beside each other: Shift+E Unfold to step, Shift+R
-  //   Repeat on the other side.
+  //   Repeat on the other side; and Shift+T Adjust order, beside Turn over;
   //
   // The axioms on the bare digits, as the rail numbers them: in Fold they
   // shadow the viewport's digit keys (pan, rotate, zoom), whose verbs the
@@ -892,6 +893,9 @@ const FOLD_SHORTCUTS: ShortcutDefinition[] = [
   foldShortcut('fold.turnOver', 'Turn Over', { key: 't' }),
   // R takes the Rotate tool in hand: its window sets how far and which way, Enter applies.
   foldShortcut('fold.rotate', 'Rotate', { key: 'r' }),
+  // Shift+T takes Adjust order in hand, beside Turn over, the other model step
+  // that folds nothing: Enter opens the Layer order dialog.
+  foldShortcut('fold.toolAdjustOrder', 'Adjust Order', { shift: true, key: 't' }),
   foldShortcut('fold.lineAxiom1', 'Axiom 1', { key: '1' }),
   foldShortcut('fold.lineAxiom2', 'Axiom 2', { key: '2' }),
   foldShortcut('fold.lineAxiom3', 'Axiom 3', { key: '3' }),

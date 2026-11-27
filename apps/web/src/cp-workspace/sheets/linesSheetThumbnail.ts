@@ -9,11 +9,13 @@ import { fitSheetThumbnail, type SheetStroke, type SheetThumbnail } from './shee
  * role — and a crease folded short of 180° carrying its angle, which the
  * painters shade as Edit's canvas does — fitted. No faces are needed, so a
  * sheet of the index is drawn without building any — and the lines are the
- * ones drawn, not their face edges.
+ * ones drawn, not their face edges. Fitted to a `size`-unit box: a card's
+ * 100, or an uploaded crease pattern's larger one.
  */
 export function linesSheetThumbnail(
   document: OristudioCpDocumentSnapshot,
-  lineIds: readonly number[]
+  lineIds: readonly number[],
+  size = 100
 ): SheetThumbnail | null {
   const lines = document.crease_pattern.line_segments;
   const strokes: SheetStroke[] = [];
@@ -29,5 +31,5 @@ export function linesSheetThumbnail(
       foldDegrees: partialFoldDegrees(line.fold_magnitude),
     });
   }
-  return fitSheetThumbnail(strokes);
+  return fitSheetThumbnail(strokes, size);
 }

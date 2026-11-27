@@ -8,7 +8,7 @@
  * - Property hygiene is by discipline (enums + bucketed numbers), not scrubbing.
  */
 
-import { createContext, useContext, useLayoutEffect, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, type ReactNode } from 'react';
 import { useLocaleStore } from '../store/localeStore';
 import { useSettingsStore } from '../store/settingsStore';
 import {
@@ -18,6 +18,7 @@ import {
   inferErrorDomain,
   type PostHogClientLike,
 } from './bootstrap';
+import { createUseCounter, type CountedUseEvent, type FlushCountedUsesOptions } from './countedUses';
 import type { AnalyticsErrorDomain, AnalyticsProperties } from './events';
 import { usePaperStyleSuperProperties } from './paperStyleProperties';
 import { clearStableId, getOrCreateStableId } from './stableId';
@@ -44,6 +45,10 @@ export interface AnalyticsErrorContext {
 
 export interface AnalyticsApi {
   track: (eventName: string, properties?: AnalyticsProperties) => void;
+  /** A use of a CP tool or a command: its first use per window is sent, the rest counted (`countedUses.ts`). */
+  trackCountedUse: (eventName: CountedUseEvent, properties: AnalyticsProperties) => void;
+  /** Close the counting window now and send its counts. */
+  flushCountedUses: (options?: FlushCountedUsesOptions) => void;
   trackError: (context: AnalyticsErrorContext) => void;
   setAnalyticsEnabled: (
     enabled: boolean,
@@ -53,23 +58,38 @@ export interface AnalyticsApi {
 
 const NOOP_ANALYTICS: AnalyticsApi = {
   track: () => {},
+  trackCountedUse: () => {},
+  flushCountedUses: () => {},
   trackError: () => {},
   setAnalyticsEnabled: () => {},
 };
 
 /**
  * Build the API around a (possibly null) client. Stable for a given client, so
- * it can be memoized and stored once. Holds its own error-dedupe state.
+ * it can be memoized and stored once. Holds its own error-dedupe state and
+ * counting window.
  */
 export function createAnalyticsApi(client: PostHogClientLike | null): AnalyticsApi {
   if (!client) return NOOP_ANALYTICS;
 
   const recentErrors = new Map<string, number>();
+  const uses = createUseCounter((eventName, properties, options) => {
+    if (options) client.capture(eventName, properties, { ...options });
+    else client.capture(eventName, properties);
+  });
 
   return {
     track(eventName, properties) {
       // Opted-out capture is a no-op inside PostHog, so no consent check needed.
       client.capture(eventName, properties);
+    },
+
+    trackCountedUse(eventName, properties) {
+      uses.record(eventName, properties);
+    },
+
+    flushCountedUses(options) {
+      uses.flush(options);
     },
 
     trackError(context) {
@@ -113,6 +133,8 @@ export function createAnalyticsApi(client: PostHogClientLike | null): AnalyticsA
           });
         }
       } else {
+        // Uses counted before the opt-out are not sent after it.
+        uses.discard();
         // Send the opt-out event while still opted in, then forget identity.
         if (options?.capturePreferenceChange) {
           client.capture('analytics preference changed', {
@@ -135,6 +157,11 @@ let runtimeAnalytics: AnalyticsApi = NOOP_ANALYTICS;
 /** Emit an event from outside React (menu dispatch, store slices). */
 export function track(eventName: string, properties?: AnalyticsProperties): void {
   runtimeAnalytics.track(eventName, properties);
+}
+
+/** Count a CP tool's or a command's use from outside React (`countedUses.ts`). */
+export function trackCountedUse(eventName: CountedUseEvent, properties: AnalyticsProperties): void {
+  runtimeAnalytics.trackCountedUse(eventName, properties);
 }
 
 /** Report an error from outside React. */
@@ -189,6 +216,22 @@ export function AnalyticsRuntimeProvider({ client, children }: AnalyticsRuntimeP
   useLayoutEffect(() => {
     client?.register(getLocaleProperties(locale, localePreference));
   }, [client, locale, localePreference]);
+
+  // A hidden page may never come back, and a timer in one may not run, so the
+  // counting window closes when the page is hidden or torn down, by beacon.
+  useEffect(() => {
+    const flushByBeacon = () => api.flushCountedUses({ beacon: true });
+    const flushIfHidden = () => {
+      if (document.visibilityState === 'hidden') flushByBeacon();
+    };
+    document.addEventListener('visibilitychange', flushIfHidden);
+    window.addEventListener('pagehide', flushByBeacon);
+    return () => {
+      document.removeEventListener('visibilitychange', flushIfHidden);
+      window.removeEventListener('pagehide', flushByBeacon);
+      api.flushCountedUses();
+    };
+  }, [api]);
 
   usePaperStyleSuperProperties(client);
 

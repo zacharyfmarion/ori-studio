@@ -39,7 +39,7 @@ import {
   type DiagramPosedSource,
   type DiagramStyle,
   type KnownDiagramAnnotation,
-  type KnownDiagramAsset,
+  type DiagramPictureAsset,
   stepById,
 } from '../../diagram/document/diagramDocument';
 import { diagramScenePaintStyle, diagramStyleKey } from '../../diagram/pictures/diagramPaperStyle';
@@ -75,6 +75,7 @@ import type { ProjectDocumentCommit } from './projectDocumentHistory';
 import { landSeededFrame, type LandedFirstFrame } from '../../diagram/zoom/zoomFrames';
 import { trackSeeded } from './diagramZoom';
 import { releaseSimulatorClient, retainSimulatorClient } from './simulatorRuntime';
+import { selectCpAuxLinesAreFacets } from './cpSimulationAuxLines';
 import { stopFoldRun, withFoldInFlight, type FoldRunControls, type FoldRunOptions } from './foldRuns';
 import { isFoldCancellation, oristudioCpError } from './oristudioCpRuntime';
 import type { WorkspaceState } from './types';
@@ -556,7 +557,8 @@ export async function storeSimulationFold(
 ): Promise<FoldDocument | null> {
   const artifacts = await ensureCpSheetSimulationArtifacts(
     store.get().oristudioCpDocument?.document,
-    sheet.id
+    sheet.id,
+    selectCpAuxLinesAreFacets(store.get())
   );
   const [segment] = resolveCpSegments(artifacts);
   if (!artifacts || !segment) return null;
@@ -599,7 +601,7 @@ export async function keptPicture(
   captured: CapturedPicture,
   render: DiagramCpRender,
   style: DiagramStyle
-): Promise<{ picture: DiagramPicture; asset?: KnownDiagramAsset }> {
+): Promise<{ picture: DiagramPicture; asset?: DiagramPictureAsset }> {
   if (captured.kind === 'picture') return { picture: captured.picture };
   if (hasConnectedDrawing(captured.scene)) {
     const { raster } = await rasterSpreadScene(captured.scene, {

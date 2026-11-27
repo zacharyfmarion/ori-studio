@@ -356,6 +356,9 @@ export interface LayerFlash {
 // ---------------------------------------------------------------------------
 // The state
 
+/** Where a plain click's add is: waiting on the sentence's check, or committing it. */
+export type LayerClickAdd = 'checking' | 'adding';
+
 export interface LayerOrderDialogState {
   /** Which host asked, when it says: the analytics' `surface`. */
   readonly surface: LayerOrderSurface | null;
@@ -390,6 +393,16 @@ export interface LayerOrderDialogState {
   readonly reviewRows: readonly number[] | null;
 
   readonly sentence: LayerSentence;
+  /**
+   * A plain click's add (`clickFace`): `checking` until the sentence's check
+   * answers, when a fit is added as Add adds it and a can't-fit or a check
+   * that ran out lets go, the hint line saying why; then `adding` while that
+   * commit is in the worker, until it lands. Any other edit of the sentence
+   * lets go of `checking`; `adding` lands whatever happens meanwhile. While
+   * it is either, the panes' picks and empty-paper clicks are ignored, so a
+   * quick second click never lands on a sentence that is about to clear.
+   */
+  readonly clickAdd: LayerClickAdd | null;
   /** The verb under the pointer or focus in the open verb menu: previewed in place of the sentence's (Round3:457, 893). */
   readonly pointedVerb: LayerVerb | null;
   /**
@@ -553,7 +566,17 @@ export type LayerOrderAction =
   | { readonly type: 'engine_lost'; readonly unavailable?: boolean }
   // The panes.
   | { readonly type: 'face_hovered'; readonly face: LayerFace | null }
-  | { readonly type: 'face_picked'; readonly face: LayerFace; readonly origin: LayerPickOrigin }
+  | {
+      readonly type: 'face_picked';
+      readonly face: LayerFace;
+      readonly origin: LayerPickOrigin;
+      /**
+       * A plain click on a pane: on one of the subject's faces it adds the
+       * sentence once its check fits (`clickFace`, {@link LayerOrderDialogState.clickAdd}).
+       * Left out for Shift+click and the face menus, which only pick.
+       */
+      readonly adds?: boolean;
+    }
   | { readonly type: 'ground_clicked' }
   // The builder.
   | { readonly type: 'slot_activated'; readonly slot: LayerSlot }

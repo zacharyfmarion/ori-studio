@@ -12,6 +12,7 @@ import {
   shadeColor,
   shadeFor,
   viewRotationFor,
+  withVirtualVertices,
 } from "@treemaker/origami-simulator";
 import type {
   CameraUniforms,
@@ -232,7 +233,9 @@ export function drawFrame(
     // `map` below places it.
     camera: cameraUniforms(view, framing.center, framing.radius, width, height),
   };
-  const projected = projectPositions(positions, view, framing.center);
+  // The drawn-on aux lines' ends ride their triangles, so they are placed from
+  // this frame's nodes before anything is projected.
+  const projected = projectPositions(withVirtualVertices(positions, model.virtual), view, framing.center);
   // Shared with the GPU renderer so the two frame a model identically.
   const availableSize = fitExtent(width, height);
   const scale = (availableSize / (2 * framing.radius)) * view.zoom;
@@ -831,6 +834,12 @@ function drawTriangleEdges(
       0.85,
     );
   });
+  // Aux lines drawn on this triangle go down with it, in its place in the
+  // painter's order, so the paper in front still covers them.
+  for (const edge of model.trianglePieces?.get(triangle.faceIndex) ?? []) {
+    const [from, to] = model.edgesVertices[edge]!;
+    drawEdgeSegment(ctx, model, projected, map, from, to, edge, alpha, palette, highlights, dpr, 0.85);
+  }
 }
 
 /** Every edge, front and back alike: the wireframe drawn when faces are off. */

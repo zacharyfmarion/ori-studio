@@ -19,10 +19,10 @@ import { registerCanvasSessionEnder } from '../cp-workspace/canvasObjects/canvas
 import { registerModalHistory } from '../keyboard/dialogShortcuts';
 import { handleAppKeyDown } from '../lib/appKeyboard';
 
-const analyticsMocks = vi.hoisted(() => ({ track: vi.fn() }));
+const analyticsMocks = vi.hoisted(() => ({ trackCountedUse: vi.fn() }));
 vi.mock('../analytics', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../analytics')>()),
-  track: analyticsMocks.track,
+  trackCountedUse: analyticsMocks.trackCountedUse,
 }));
 
 // The default `showWorkspace` navigates for real, and the point of the tests
@@ -1041,7 +1041,7 @@ describe('the menus behind a modal dialog', () => {
   const state = () => useWorkspaceStore.getState();
   const stepCount = () => state().diagram?.steps.length ?? 0;
   const counted = (commandId: string) =>
-    analyticsMocks.track.mock.calls.some(
+    analyticsMocks.trackCountedUse.mock.calls.some(
       ([event, properties]) => event === 'command invoked' && properties?.command_id === commandId
     );
   let dialog: HTMLElement | null = null;
@@ -1073,7 +1073,7 @@ describe('the menus behind a modal dialog', () => {
     state().addDiagramStep();
     expect(state().activeEditingContext).toBe('diagram');
     expect(stepCount()).toBe(2);
-    analyticsMocks.track.mockClear();
+    analyticsMocks.trackCountedUse.mockClear();
   });
 
   afterEach(() => {
@@ -1098,7 +1098,7 @@ describe('the menus behind a modal dialog', () => {
     await expect(handleMenuAction('edit.undo')).resolves.toBe(true);
     expect(stepCount()).toBe(1);
     const future = state().diagramHistory.future.length;
-    analyticsMocks.track.mockClear();
+    analyticsMocks.trackCountedUse.mockClear();
     openModal();
 
     await expect(handleMenuAction('edit.redo')).resolves.toBe(false);

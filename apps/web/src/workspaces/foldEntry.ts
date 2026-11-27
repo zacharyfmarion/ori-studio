@@ -20,7 +20,7 @@ export { foldSession } from '../store/workspaceStore/foldSession';
 export { captureFoldStep, readFoldStepCapture } from '../diagram/fold/foldStepCapture';
 export { foldStepPicture } from '../diagram/fold/foldStepPicture';
 export { pullFoldTargets } from '../diagram/fold/foldPull';
-export { foldPrecreaseMerges } from '../diagram/fold/foldPrecreaseMirrors';
+export { foldPathMerges } from '../diagram/fold/foldStepMergeSession';
 // The menu bar's verbs: the sequence's, and its imports and hand-offs.
 export { runFoldMenuVerb } from '../fold/sequence/foldCommands';
 export { runFoldIoCommand } from '../fold/io/foldIoCommands';

@@ -36,6 +36,8 @@ import {
   setGlContextAttributeOverrides,
   sheetExtent,
   sourceFaceGroups,
+  withAuxLinesMapped,
+  withVirtualVertices,
   type CameraUniforms,
   type GlContextAttributeOverrides,
   type FoldDocument,
@@ -184,6 +186,14 @@ export interface SimulatorModelInfo {
    * erodes what the GPU pass and the export erode.
    */
   auxEnds: ArrayBuffer;
+  /**
+   * The ends of aux lines drawn on the paper (`MeshTopology.virtual`): edge
+   * indices from `start` name them, placed in triangles by `nodes` (`Uint32`)
+   * and `weights` (`Float32`), 3 each. Null when the model draws none.
+   */
+  virtual: { start: number; nodes: ArrayBuffer; weights: ArrayBuffer } | null;
+  /** `Int32`, per edge: the triangle a drawn-on aux line lies on, or -1. */
+  edgeTriangles: ArrayBuffer;
   /** 3 edge indices per (triangulated) face; -1 where an edge was not found. */
   facesEdges: ArrayBuffer;
   /** The unfolded sheet's extent in world units, the unit erode is a fraction of. */
@@ -324,6 +334,8 @@ export interface SimulatorExportGeometry {
   vertexCount: number;
   /** Fold percent the snapshot was taken at, for the exported file's metadata. */
   foldPercent: number;
+  /** The aux lines drawn on the paper, where it holds them: 6 floats (two ends) per cut. */
+  auxLines: ArrayBuffer;
 }
 
 interface Session {
@@ -701,6 +713,25 @@ function disposeSession(token: SimulatorSessionToken): void {
   }
 }
 
+/** Each drawn-on aux line cut's two ends where `positions` hold the paper, 6 floats per cut. */
+function auxLinesWhereHeld(
+  prepared: OrigamiModel['prepared'],
+  positions: Float32Array
+): Float32Array {
+  const overlay = prepared.auxOverlay;
+  if (!overlay) return new Float32Array(0);
+  const placed = withVirtualVertices(positions, {
+    start: prepared.vertexCount,
+    nodes: overlay.nodes,
+    weights: overlay.weights,
+  });
+  const ends = new Float32Array(overlay.pieces.length * 3);
+  overlay.pieces.forEach((end, i) => {
+    ends.set(placed.subarray((prepared.vertexCount + end) * 3, (prepared.vertexCount + end) * 3 + 3), i * 3);
+  });
+  return ends;
+}
+
 /**
  * Uniformly scale a fold into a unit box before it reaches the solver.
  *
@@ -742,14 +773,13 @@ export function foldScaledForSolver(fold: FoldDocument): FoldDocument {
   // introduce rounding for nothing.
   if (!Number.isFinite(span) || span <= 0 || (span > 0.5 && span <= 2)) return fold;
 
-  return {
-    ...fold,
-    vertices_coords: coords.map((coord) => [
-      ((coord[0] ?? 0) - min[0]!) / span,
-      ((coord[1] ?? 0) - min[1]!) / span,
-      ((coord[2] ?? 0) - min[2]!) / span,
-    ]),
-  };
+  const scaled = (coord: readonly number[]) => [
+    ((coord[0] ?? 0) - min[0]!) / span,
+    ((coord[1] ?? 0) - min[1]!) / span,
+    ((coord[2] ?? 0) - min[2]!) / span,
+  ];
+  // The aux lines drawn on the paper move with it, or they come loose.
+  return withAuxLinesMapped({ ...fold, vertices_coords: coords.map(scaled) }, scaled);
 }
 
 /**
@@ -1325,7 +1355,7 @@ const api = {
     // before a single solver step had run. Prepared models are immutable, so a
     // keyed one is safe to share between loads; solver state is not cached and a
     // fresh backend is always built, so no fold state leaks across a switch.
-    const prepareOptions = options.prepare ?? { triangulate: true };
+    const prepareOptions = { ...(options.prepare ?? { triangulate: true }), auxLines: true };
     const prepared = options.modelKey
       ? preparedModels.get(options.modelKey, () =>
           prepareFoldModel(foldScaledForSolver(fold), prepareOptions)
@@ -1398,11 +1428,12 @@ const api = {
 
     const indices = prepared.indices.slice();
 
-    const edgesVertices = new Int32Array(prepared.edgesVertices.length * 2);
-    const edgesAssignment = new Uint8Array(prepared.edgesVertices.length);
-    prepared.edgesVertices.forEach((edge, index) => {
-      edgesVertices[index * 2] = edge[0];
-      edgesVertices[index * 2 + 1] = edge[1];
+    // The render topology's edges: the mesh's, then any aux lines drawn on it,
+    // which are flat lines (`F`) on ends of their own.
+    const edgesVertices = Int32Array.from(topology.edgeIndices);
+    const edgesAssignment = new Uint8Array(topology.edgeAssignments.length);
+    edgesAssignment.fill(EDGE_ASSIGNMENT_CODES.indexOf('F'));
+    prepared.edgesVertices.forEach((_edge, index) => {
       const code = EDGE_ASSIGNMENT_CODES.indexOf(
         prepared.edgesAssignment[index] ?? 'U'
       );
@@ -1411,6 +1442,14 @@ const api = {
 
     const edgeCodes = topology.edgeAssignments;
     const auxEnds = topology.auxEnds ?? new Uint8Array(edgeCodes.length);
+    const edgeTriangles = topology.edgeTriangles?.slice() ?? new Int32Array(edgeCodes.length).fill(-1);
+    const virtual = topology.virtual
+      ? {
+          start: topology.virtual.start,
+          nodes: topology.virtual.nodes.slice().buffer as ArrayBuffer,
+          weights: topology.virtual.weights.slice().buffer as ArrayBuffer,
+        }
+      : null;
 
     const facesEdges = new Int32Array(prepared.faceCount * 3);
     facesEdges.fill(-1);
@@ -1431,6 +1470,8 @@ const api = {
         edgesAssignment: edgesAssignment.buffer as ArrayBuffer,
         edgeCodes: edgeCodes.buffer as ArrayBuffer,
         auxEnds: auxEnds.buffer as ArrayBuffer,
+        virtual,
+        edgeTriangles: edgeTriangles.buffer as ArrayBuffer,
         facesEdges: facesEdges.buffer as ArrayBuffer,
         sheet: sheetExtent(model.originalPositions),
         faceGroups: faceGroups.slice().buffer as ArrayBuffer,
@@ -1445,6 +1486,8 @@ const api = {
         edgesAssignment.buffer as ArrayBuffer,
         edgeCodes.buffer as ArrayBuffer,
         auxEnds.buffer as ArrayBuffer,
+        edgeTriangles.buffer as ArrayBuffer,
+        ...(virtual ? [virtual.nodes, virtual.weights] : []),
         facesEdges.buffer as ArrayBuffer,
       ]
     );
@@ -1709,17 +1752,20 @@ const api = {
    */
   exportGeometry(): SimulatorExportGeometry {
     const active = requireSession();
-    const positions = new Float32Array(active.model.prepared.vertexCount * 3);
+    const { prepared } = active.model;
+    const positions = new Float32Array(prepared.vertexCount * 3);
     active.backend.readPositions(positions);
-    const triangles = active.model.prepared.indices.slice();
+    const triangles = prepared.indices.slice();
+    const auxLines = auxLinesWhereHeld(prepared, positions);
     return transfer(
       {
         positions: positions.buffer as ArrayBuffer,
         triangles: triangles.buffer as ArrayBuffer,
-        vertexCount: active.model.prepared.vertexCount,
+        vertexCount: prepared.vertexCount,
         foldPercent: active.foldPercent,
+        auxLines: auxLines.buffer as ArrayBuffer,
       },
-      [positions.buffer as ArrayBuffer, triangles.buffer as ArrayBuffer]
+      [positions.buffer as ArrayBuffer, triangles.buffer as ArrayBuffer, auxLines.buffer as ArrayBuffer]
     );
   },
 
@@ -1819,7 +1865,7 @@ const api = {
   flatScene(fold: FoldDocument, options: SimulatorStillSceneOptions): PaperScene | null {
     // Prepared afresh, not through `preparedModels`: that small cache is the
     // live windows', and a step's capture must not evict one of theirs.
-    const prepared = prepareFoldModel(foldScaledForSolver(fold), { triangulate: true });
+    const prepared = prepareFoldModel(foldScaledForSolver(fold), { triangulate: true, auxLines: true });
     const { originalPositions } = new OrigamiModel(prepared);
     return sceneOfFrame(stillFrame(originalPositions, prepared, originalPositions, options.view, options.size), options);
   },

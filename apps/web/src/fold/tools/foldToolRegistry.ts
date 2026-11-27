@@ -141,7 +141,7 @@ export function crimpInput(mode: FoldLineModeId, second: FoldSecondLineModeId): 
  * The clicks the tool in hand collects: a fold along a line, its line mode's
  * — a crimp's, its two lines' —; a vertex fold, its own, a petal fold's hinge
  * and a swivel's target named as `vertex` says (`tools/vertex/vertexInputs`);
- * the Divide line's, its segment; Rotate's and Unfold to step's, none; Repeat's,
+ * the Divide line's, its segment; Rotate's, Adjust order's and Unfold to step's, none; Repeat's,
  * its line mode's, the mirror axis drawn on either pane (`fold/repeat/repeatDrawn`).
  */
 export function toolInput(
@@ -152,6 +152,7 @@ export function toolInput(
 ): FoldInputModel {
   switch (tool) {
     case 'rotate':
+    case 'adjust-order':
     case 'unfold-to':
       return NO_CLICKS;
     case 'repeat':

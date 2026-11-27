@@ -280,6 +280,12 @@
     "ratioTitle": "按比率分割线"
   },
   "fold": {
+    "adjustOrder": {
+      "enter": "按 Enter 打开“层叠顺序”对话框。",
+      "failed": "无法将该顺序添加为一步。请打开对话框后重试。",
+      "open": "编辑层叠顺序…",
+      "unreadable": "“层叠顺序”对话框无法读取这一步的层。"
+    },
     "categoryLabel": "折叠工作区",
     "chooser": {
       "noKeys": {
@@ -877,6 +883,7 @@
       "unfoldTarget": "选择要返回的步骤。"
     },
     "tool": {
+      "adjustOrderHelp": "改变哪些层位于前面，不添加新折痕。",
       "closedSinkHelp": "把闭合角的尖端推入夹层，各层保持在一起。",
       "crimpHelp": "沿一条线把翼片向内折，再沿第二条线向外折回，使它的末端转向。",
       "divideLine": "等分线",

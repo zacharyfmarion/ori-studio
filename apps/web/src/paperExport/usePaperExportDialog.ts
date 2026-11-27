@@ -62,7 +62,9 @@ import type { PaperExportScope } from './paperExportTarget';
 import { paperExportedEvent, savePaperExport, savePaperExportZip } from './savePaperExport';
 import { usePaperExportScenes, type PaperExportStatus } from './usePaperExportScenes';
 import { saveObjExport } from './saveObjExport';
+import { usePaperObjSpread, type PaperObjSpreadBinding } from './usePaperObjSpread';
 import { ZipUnavailableError } from './zipPages';
+import type { PaperStyle } from '../lib/paper/paperStyle';
 
 export type { PaperExportStatus };
 
@@ -114,6 +116,14 @@ export interface PaperExportDialogBinding {
   title: string;
   /** The picture is fixed: only the format can be chosen. */
   fixed: boolean;
+  /**
+   * The spread an OBJ is written with, for a mesh whose layers can spread (a
+   * flat folded figure's): the draft its rows edit and the fold its 3D preview
+   * draws. Null for any other target.
+   */
+  objSpread: PaperObjSpreadBinding | null;
+  /** The style as the target's surface reads it: what a 3D preview paints its paper in. */
+  paintedStyle: PaperStyle;
   draft: PaperExportSettings;
   /** Change some options; nothing is remembered until a file is saved. */
   patch: (next: Partial<PaperExportSettings>) => void;
@@ -229,6 +239,9 @@ export function usePaperExportDialog(
     [target, pages]
   );
   const style = useMemo(() => paperExportStyle(target, draft.style, rows), [target, draft.style, rows]);
+  const paintedStyle = useMemo(() => target.paintStyle(style), [target, style]);
+  // An OBJ's spread, prepared once OBJ is chosen: a draft, as every option here is.
+  const objSpread = usePaperObjSpread(target.obj?.spread, format === 'obj');
   const inputs = useMemo(
     () =>
       pageIndices.map((page) =>
@@ -283,7 +296,7 @@ export function usePaperExportDialog(
   const lastSave = useRef<Exclude<PaperExportLastSave, 'stopped'>>('none');
   const canExport =
     !saving && (format === 'obj'
-      ? target.obj !== undefined && target.obj.unavailableReason === null
+      ? target.obj !== undefined && target.obj.unavailableReason === null && (objSpread?.writable ?? true)
       : status === 'ready' && caughtUp && shown !== null && shown === painted && !pngTooLarge);
 
   // Aborted when the dialog goes, so a PNG still encoding, or a ZIP's pages
@@ -305,7 +318,7 @@ export function usePaperExportDialog(
       let name: string | null;
       if (draft.format === 'obj') {
         if (!target.obj) return;
-        name = await saveObjExport(target.obj, target.fileStem, t, signal);
+        name = await saveObjExport(target.obj, target.fileStem, t, signal, objSpread?.value);
       } else if (shown && all && pages) {
         name = await savePaperExportZip({
           // Every page from the same scenes and options as the preview.
@@ -346,6 +359,7 @@ export function usePaperExportDialog(
           scope,
           pageCount: scenes.length,
           marks: target.marks ?? [],
+          objSpread: objSpread?.value ?? null,
         })
       );
       toast.success(t('toasts:paperExport.saved', 'Exported {{name}}', { name }));
@@ -372,6 +386,7 @@ export function usePaperExportDialog(
     scenes,
     shownAt,
     target,
+    objSpread,
     style,
     pageOptions,
     draft,
@@ -397,6 +412,8 @@ export function usePaperExportDialog(
   return {
     title: all ? pages.title : target.title,
     fixed: fixed !== null,
+    objSpread,
+    paintedStyle,
     draft,
     patch,
     scopes: choosable ? { scope, setScope } : null,
