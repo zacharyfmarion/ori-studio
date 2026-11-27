@@ -1739,6 +1739,10 @@ export function CreasePatternWebglCanvas({
     // A rebuild after context loss succeeded, so clear any earlier failure.
     setRendererStatus(null);
     rendererRef.current = renderer;
+    // The render loop uploads the grid itself, and only when its key changes. A
+    // new renderer starts with no grid, so the key the old one was drawn with
+    // must not stand for it, or the grid stays off until the view next moves.
+    gridKeyRef.current = null;
 
     const viewportOf = (ratio: number): Viewport => ({
       width: canvas.width,
