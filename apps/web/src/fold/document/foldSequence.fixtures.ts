@@ -4,6 +4,7 @@
  * op kind, choice and mark this build reads, in the order it writes them.
  */
 
+import { expect } from 'vitest';
 import { builtInPaperPreset } from '../../lib/paper/paperPresets';
 import {
   FOLD_DEFAULT_PAPER_STYLE,
@@ -32,6 +33,19 @@ export function valleyAt(y: number): FoldPlainOp {
     moving: [0.5, (1 + y) / 2],
     seed: { scope: 'all' },
   };
+}
+
+/**
+ * A stored op as an op drawn again through the tools is expected to equal it:
+ * exactly, but for a free line's sheet points, which are read off the scene's
+ * subfaces and so agree with the stored ones only to a rounding error once the
+ * subfaces' corners move in their last bits (the scene seals them into one
+ * arrangement). What the step lands on is checked by its fingerprint.
+ */
+export function drawnAgain(op: FoldOp): unknown {
+  if (!('line' in op) || op.line.via !== 'free') return op;
+  const through = op.line.through.map((point) => point.map((c) => expect.closeTo(c, 12)));
+  return { ...op, line: { ...op.line, through } };
 }
 
 export function step(id: string, parent: string | null, op: FoldOp = valleyAt(0.5), rest: Partial<FoldStep> = {}): FoldStep {

@@ -27,6 +27,7 @@ import { prepareRepeat } from '../repeat/repeatPreparation';
 import { reflection, verifiedSymmetry } from '../repeat/repeatGeometry';
 import { verifyMaterial } from '../repeat/repeatVerification';
 import { createFoldReplayer, type FoldReplayProgress } from './foldReplay';
+import { drawnAgain } from './foldSequence.fixtures';
 import { isLockedStep, type FoldChoices, type FoldOp, type FoldSequenceDocument, type FoldStep, type SheetPoint } from './foldSequenceDocument';
 import { readFoldSequences } from './foldSequenceFile';
 
@@ -321,7 +322,7 @@ describe.skipIf(!available)('the fold-regression fixtures', () => {
       buildReverseStep({ lineMode: 'free', picks, candidate: null, swapped: false, seed: asked, kind: 'inside', openings: [], completion: null }, index);
     const drawnStep = build(seed);
     if (drawnStep.status !== 'built') throw new Error('not built');
-    expect(drawnStep.op).toEqual(reverse.op);
+    expect(drawnStep.op).toEqual(drawnAgain(reverse.op));
     // The old default, every layer on the line: neither kind lands, and the engine offers no fix.
     const everyLayer = build(FOLD_EVERY_LAYER);
     if (everyLayer.status !== 'built') throw new Error('not built');
