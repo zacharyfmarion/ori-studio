@@ -184,6 +184,32 @@ export function isStorableResponse(response: Response): boolean {
 }
 
 /**
+ * Whether a response is HTML. For anything but a navigation, that is never the
+ * file that was asked for: it is Pages' SPA fallback answering a path it does
+ * not have.
+ *
+ * The fallback is a 200, so {@link isStorableResponse} cannot tell it from the
+ * real file, and `_headers` gives `/assets/*` a one-year `immutable` header
+ * whatever the body turns out to be. A request that lands while a deploy is
+ * still propagating therefore gets `index.html` under a script's name, marked
+ * as cacheable for a year — by Cloudflare's edge, by the browser, and by this
+ * worker, whose cache-first route would then never ask again. The deploy of
+ * #601 did exactly that to its own entry script, and the site rendered nothing.
+ */
+export function isHtmlResponse(response: Response): boolean {
+  return (response.headers.get('Content-Type') ?? '').includes('text/html');
+}
+
+/**
+ * Whether a response for anything other than the shell may be stored: the
+ * fallback in {@link isHtmlResponse} must never be, since a stored copy outlives
+ * the deploy race that produced it.
+ */
+export function isStorableSubresource(response: Response): boolean {
+  return isStorableResponse(response) && !isHtmlResponse(response);
+}
+
+/**
  * The entry script a cached shell loads, read out of the shell's own HTML.
  *
  * **Not `ServiceWorkerManifest.entry`.** Navigation is network first, so the
@@ -219,8 +245,5 @@ export function shellEntryPath(html: string, fallback: string): string {
  * with a picture the next time the network was gone.
  */
 export function isShellResponse(response: Response): boolean {
-  return (
-    isStorableResponse(response) &&
-    (response.headers.get('Content-Type') ?? '').includes('text/html')
-  );
+  return isStorableResponse(response) && isHtmlResponse(response);
 }
