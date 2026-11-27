@@ -60,9 +60,21 @@ export interface DiagramFontText {
 }
 
 export class DiagramFontError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = 'DiagramFontError';
+  }
+}
+
+/**
+ * A font the network would not give (`fontDownload.ts`): offline, or a
+ * connection that dropped. Not a defect: the Pages view and the export say
+ * so and offer to try again, and nothing is reported.
+ */
+export class DiagramFontDownloadError extends DiagramFontError {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'DiagramFontDownloadError';
   }
 }
 

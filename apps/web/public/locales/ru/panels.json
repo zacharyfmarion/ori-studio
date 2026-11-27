@@ -1559,6 +1559,7 @@
       "noPicture": "Ещё нет картинки",
       "pageOf": "Страница {{number}} из {{total}}",
       "previousPage": "Предыдущая страница",
+      "retry": "Повторить",
       "step": "Шаг {{number}}",
       "stepCut": "Шаг {{number}}, текст не помещается",
       "textCut": "Текст не помещается",

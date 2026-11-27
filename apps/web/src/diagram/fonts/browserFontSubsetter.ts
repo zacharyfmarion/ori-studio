@@ -3,18 +3,19 @@
  * wasm from harfbuzzjs, served from the bundle.
  */
 import subsetWasmUrl from 'harfbuzzjs/dist/harfbuzz-subset.wasm?url';
+import { downloadFontAsset } from './fontDownload';
 import { createFontSubsetter, type FontSubsetter } from './fontSubset';
 
 let loading: Promise<FontSubsetter> | null = null;
 
 export function browserFontSubsetter(): Promise<FontSubsetter> {
   if (!loading) {
-    const pending = fetch(subsetWasmUrl)
-      .then((response) => {
+    // A download the network refuses is tried again, then a `DiagramFontDownloadError`.
+    const pending = downloadFontAsset(subsetWasmUrl, {
+      refuse: (response) => {
         if (!response.ok) throw new Error(`harfbuzz-subset.wasm: ${response.status}`);
-        return response.arrayBuffer();
-      })
-      .then((bytes) => createFontSubsetter(bytes));
+      },
+    }).then((bytes) => createFontSubsetter(bytes));
     loading = pending;
     // A failure is forgotten, so the next page tries again.
     pending.catch(() => {

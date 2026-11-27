@@ -21,6 +21,7 @@ import type { PreparedDiagramPages } from '../../diagram/pages/diagramPages';
 import { composedPageUrl } from '../../diagram/pages/useDiagramPages';
 import { PAGES_PAD, PAGES_PX_PER_MM, usePagesView } from '../../diagram/pages/usePagesView';
 import { ViewportToolbar } from '../panels/ViewportToolbar';
+import { Button } from '../ui/Button';
 import { DiagramPageBand } from './DiagramPageBand';
 import { DiagramPagePreview } from './DiagramPagePreview';
 import { DiagramTitleBlockOverlay } from './DiagramTitleBlockOverlay';
@@ -86,6 +87,7 @@ function pageImageUrl(
 export function DiagramPagesView({
   pages: prepared,
   failed,
+  onRetry,
   steps,
   selectedStepId,
   pathColor,
@@ -95,6 +97,8 @@ export function DiagramPagesView({
 }: {
   pages: PreparedDiagramPages | null;
   failed: boolean;
+  /** Lay the pages out again, after a layout failed: offered as Try again. */
+  onRetry?: () => void;
   steps: readonly DiagramStep[];
   selectedStepId: string | null;
   /** The flow band's colour as the diagram has it now, which a layout under way may not yet. */
@@ -424,6 +428,11 @@ export function DiagramPagesView({
           {failed
             ? t('panels:diagram.pages.failed', 'The pages couldn’t be laid out. Check your connection and try again.')
             : t('panels:diagram.pages.loading', 'Laying out the pages…')}
+          {failed && onRetry && (
+            <Button size="sm" variant="secondary" onClick={onRetry}>
+              {t('panels:diagram.pages.retry', 'Try again')}
+            </Button>
+          )}
         </div>
       )}
       <ViewportToolbar

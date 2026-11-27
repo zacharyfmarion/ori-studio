@@ -140,6 +140,9 @@
   inset: 0;
   display: grid;
   place-items: center;
+  /* The words and, after a failed layout, Try again under them, together in the middle. */
+  align-content: center;
+  gap: var(--space-2);
   color: var(--text-tertiary);
   font-size: 0.8rem;
 }

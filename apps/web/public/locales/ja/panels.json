@@ -1391,6 +1391,7 @@
       "noPicture": "まだ図がありません",
       "pageOf": "{{number}} / {{total}} ページ",
       "previousPage": "前のページ",
+      "retry": "再試行",
       "step": "ステップ {{number}}",
       "stepCut": "ステップ {{number}}、文章が収まりません",
       "textCut": "文章が収まりません",

@@ -13,6 +13,7 @@ import notoSansRegularUrl from './NotoSans-Regular.ttf?url';
 import { getRuntimeSurface, type RuntimeSurface } from '../../platform/runtime';
 import { SITE_ORIGIN } from '../../seo/siteMeta';
 import type { DiagramFontSource } from './diagramFonts';
+import { downloadFontAsset } from './fontDownload';
 
 const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
 const CJK_FONTS = `${base}fonts/diagram/`;
@@ -27,21 +28,29 @@ export function diagramFontUrl(
   return `${remote ? `${SITE_ORIGIN}/fonts/diagram/` : CJK_FONTS}${encodeURIComponent(name)}`;
 }
 
-async function bytes(url: string): Promise<ArrayBuffer> {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`${url}: ${response.status}`);
-  // The site answers a path it does not have with the app's page, status 200:
-  // a font it no longer serves is a failed download, not a font.
-  if (response.headers.get('content-type')?.includes('text/html')) throw new Error(`${url}: not a font`);
-  return response.arrayBuffer();
+/** A response that is the file asked for, or a refusal: a download that fails this way is not the network's. */
+function refuseUnserved(url: string) {
+  return (response: Response) => {
+    if (!response.ok) throw new Error(`${url}: ${response.status}`);
+    // The site answers a path it does not have with the app's page, status 200:
+    // a font it no longer serves is a failed download, not a font.
+    if (response.headers.get('content-type')?.includes('text/html')) throw new Error(`${url}: not a font`);
+  };
 }
+
+/** A file's bytes; a download the network refuses is tried again, then a `DiagramFontDownloadError`. */
+const bytes = (url: string) => downloadFontAsset(url, { refuse: refuseUnserved(url) });
 
 export const browserFontSource: DiagramFontSource = {
   latin: (weight) => bytes(weight === 700 ? notoSansBoldUrl : notoSansRegularUrl),
   manifest: async () => {
-    const response = await fetch(`${CJK_FONTS}manifest.json`);
-    if (!response.ok) throw new Error(`manifest: ${response.status}`);
-    return response.json() as Promise<unknown>;
+    const url = `${CJK_FONTS}manifest.json`;
+    const json = await downloadFontAsset(url, {
+      refuse: (response) => {
+        if (!response.ok) throw new Error(`manifest: ${response.status}`);
+      },
+    });
+    return JSON.parse(new TextDecoder().decode(json)) as unknown;
   },
   file: (name) => bytes(diagramFontUrl(name)),
 };

@@ -1503,6 +1503,7 @@
       "noPicture": "Pas encore d’image",
       "pageOf": "Page {{number}} sur {{total}}",
       "previousPage": "Page précédente",
+      "retry": "Réessayer",
       "step": "Étape {{number}}",
       "stepCut": "Étape {{number}}, le texte ne tient pas",
       "textCut": "Le texte ne tient pas",

@@ -18,6 +18,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore';
 import { stepsOf, type DiagramDocument } from '../document/diagramDocument';
 import { browserFontSource } from '../fonts/browserFontSource';
 import { browserFontSubsetter } from '../fonts/browserFontSubsetter';
+import { DiagramFontDownloadError } from '../fonts/diagramFonts';
 import { prepareDiagramPages, type PreparedDiagramPages } from '../pages/diagramPages';
 import { composedPageUrl } from '../pages/useDiagramPages';
 
@@ -64,9 +65,15 @@ export async function printDiagram(dependencies: DiagramPrintDependencies = BROW
     await dependencies.print(request);
     return true;
   } catch (cause) {
-    reportError(cause, { surface: 'diagram:print' });
+    // Offline, or a connection that dropped (ORI-STUDIO-16): said as the export says it, and not reported.
+    const offline = cause instanceof DiagramFontDownloadError;
+    if (!offline) reportError(cause, { surface: 'diagram:print' });
     toast.error(i18n.t('toasts:diagramPrint.failed', 'The diagram couldn’t be printed'), {
-      description: cause instanceof Error ? cause.message : String(cause),
+      description: offline
+        ? i18n.t('dialogs:diagramExport.fontsFailed', 'The diagram’s fonts couldn’t be loaded. Check your connection and try again.')
+        : cause instanceof Error
+          ? cause.message
+          : String(cause),
     });
     return false;
   } finally {

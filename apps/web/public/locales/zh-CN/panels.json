@@ -1391,6 +1391,7 @@
       "noPicture": "还没有图",
       "pageOf": "第 {{number}} 页，共 {{total}} 页",
       "previousPage": "上一页",
+      "retry": "重试",
       "step": "第 {{number}} 步",
       "stepCut": "第 {{number}} 步，文字放不下",
       "textCut": "文字放不下",

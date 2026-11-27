@@ -4,18 +4,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import { createDiagram, insertSteps, setPageSetup, type DiagramDocument } from '../document/diagramDocument';
 import { cpStep } from '../document/diagramSteps.fixtures';
+import { DiagramFontDownloadError } from '../fonts/diagramFonts';
 import type { PreparedDiagramPages } from './diagramPages';
 import { cellSlots } from './stepPlaces';
-import { useDiagramPages, type DiagramPagesState } from './useDiagramPages';
+import { useDiagramPages, type DiagramPagesBinding } from './useDiagramPages';
 
 const prepare = vi.hoisted(() => vi.fn());
 vi.mock('./diagramPages', () => ({ prepareDiagramPages: prepare }));
+const report = vi.hoisted(() => vi.fn());
+vi.mock('../../monitoring', async (importOriginal) => ({ ...(await importOriginal<object>()), reportError: report }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 let host: HTMLDivElement;
 let root: Root;
-let seen: DiagramPagesState | null = null;
+let seen: DiagramPagesBinding | null = null;
 
 function Pages({ document }: { document: DiagramDocument }) {
   const state = useDiagramPages(document);
@@ -27,6 +30,7 @@ function Pages({ document }: { document: DiagramDocument }) {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  report.mockReset();
   prepare.mockReset();
   prepare.mockImplementation(
     async (document: DiagramDocument) => ({ of: document, layout: { pages: [] }, unavailableFonts: [] }) as unknown as PreparedDiagramPages
@@ -118,5 +122,50 @@ describe('useDiagramPages', () => {
     expect(useWorkspaceStore.getState().diagram).toBe(installed);
     expect(installed.pageArrangements).toBeUndefined();
     expect(pages.adoptedAs).not.toHaveBeenCalled();
+  });
+
+  /** `happen`, rendered, then the layout it starts, once the timers have run. */
+  async function settled(happen: () => void) {
+    act(happen);
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+  }
+
+  it('reports nothing for a font the network would not give, and lays out again once back online (ORI-STUDIO-16)', async () => {
+    const document = createDiagram({ title: 'Heart' });
+    prepare.mockRejectedValueOnce(new DiagramFontDownloadError('/assets/NotoSans-Regular.ttf could not be downloaded'));
+    await settled(() => root.render(<Pages document={document} />));
+    expect(seen?.failed).toBe(true);
+    expect(report).not.toHaveBeenCalled();
+    await settled(() => window.dispatchEvent(new Event('online')));
+    expect(prepare).toHaveBeenCalledTimes(2);
+    expect(seen).toMatchObject({ failed: false, of: document });
+    // Laid out, it no longer listens.
+    await settled(() => window.dispatchEvent(new Event('online')));
+    expect(prepare).toHaveBeenCalledTimes(2);
+  });
+
+  it('lays out again once back online after a layout went without a CJK face, and has it', async () => {
+    const document = createDiagram({ title: 'Heart' });
+    const without = { of: document, layout: { pages: [] }, unavailableFonts: [{ key: 'jp', weight: 400 }] };
+    prepare.mockResolvedValueOnce(without as unknown as PreparedDiagramPages);
+    await settled(() => root.render(<Pages document={document} />));
+    expect(seen?.pages).toBe(without);
+    await settled(() => window.dispatchEvent(new Event('online')));
+    expect(prepare).toHaveBeenCalledTimes(2);
+    expect(seen?.pages?.unavailableFonts).toEqual([]);
+  });
+
+  it('lays the diagram out again on Try again, and reports a layout that failed for anything else', async () => {
+    const document = createDiagram({ title: 'Heart' });
+    const broken = new Error('a font that does not read');
+    prepare.mockRejectedValueOnce(broken);
+    await settled(() => root.render(<Pages document={document} />));
+    expect(seen?.failed).toBe(true);
+    expect(report).toHaveBeenCalledWith(broken, { surface: 'diagram:pages' });
+    await settled(() => seen!.retry());
+    expect(prepare).toHaveBeenCalledTimes(2);
+    expect(seen?.failed).toBe(false);
   });
 });
