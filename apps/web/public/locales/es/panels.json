@@ -1172,6 +1172,7 @@
         "mountainAllPlaces_many": "Pliegue monte en los {{count}} lugares.",
         "mountainAllPlaces_other": "Pliegue monte en los {{count}} lugares.",
         "mountainBothSides": "Pliegue monte en ambos lados.",
+        "mountainPointsOntoLines": "Haz un pliegue monte llevando los puntos a las dos líneas indicadas.",
         "mountainPrecrease": "Dobla en monte y desdobla.",
         "mountainPrecreaseAllPlaces_one": "Dobla en monte y desdobla en {{count}} lugar.",
         "mountainPrecreaseAllPlaces_many": "Dobla en monte y desdobla en los {{count}} lugares.",
@@ -1217,10 +1218,11 @@
         "unfoldToStep": "Desdobla hasta el paso {{number}}.",
         "unsink": "Deshacer hundido.",
         "valley": "Pliegue valle.",
-        "valleyAllPlaces_one": "Pliegue valle en {{count}} lugar.",
         "valleyAllPlaces_many": "Pliegue valle en los {{count}} lugares.",
+        "valleyAllPlaces_one": "Pliegue valle en {{count}} lugar.",
         "valleyAllPlaces_other": "Pliegue valle en los {{count}} lugares.",
-        "valleyBothSides": "Pliegue valle en ambos lados."
+        "valleyBothSides": "Pliegue valle en ambos lados.",
+        "valleyPointsOntoLines": "Haz un pliegue valle llevando los puntos a las dos líneas indicadas."
       },
       "join": "Unir el paso {{first}} y el paso {{next}}",
       "joinMirror": "Unir los pasos {{first}} y {{next}} en un solo paso: son imagen especular uno del otro.",

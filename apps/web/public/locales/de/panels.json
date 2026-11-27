@@ -1130,6 +1130,7 @@
         "mountainAllPlaces_one": "Bergfalte an {{count}} Stelle.",
         "mountainAllPlaces_other": "Bergfalte an allen {{count}} Stellen.",
         "mountainBothSides": "Bergfalte auf beiden Seiten.",
+        "mountainPointsOntoLines": "Die Punkte mit einer Bergfalte auf die beiden markierten Linien legen.",
         "mountainPrecrease": "Als Bergfalte falten und wieder öffnen.",
         "mountainPrecreaseAllPlaces_one": "An {{count}} Stelle als Bergfalte falten und wieder öffnen.",
         "mountainPrecreaseAllPlaces_other": "An allen {{count}} Stellen als Bergfalte falten und wieder öffnen.",
@@ -1172,7 +1173,8 @@
         "valley": "Talfalte.",
         "valleyAllPlaces_one": "Talfalte an {{count}} Stelle.",
         "valleyAllPlaces_other": "Talfalte an allen {{count}} Stellen.",
-        "valleyBothSides": "Talfalte auf beiden Seiten."
+        "valleyBothSides": "Talfalte auf beiden Seiten.",
+        "valleyPointsOntoLines": "Die Punkte mit einer Talfalte auf die beiden markierten Linien legen."
       },
       "join": "Schritt {{first}} und Schritt {{next}} verbinden",
       "joinMirror": "Schritte {{first}} und {{next}} zu einem Schritt verbinden: Sie spiegeln einander.",

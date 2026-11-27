@@ -1088,6 +1088,7 @@
         "mountain": "산접기.",
         "mountainAllPlaces_other": "{{count}}곳 모두 산접기.",
         "mountainBothSides": "양쪽 모두 산접기.",
+        "mountainPointsOntoLines": "두 점이 각각 표시된 선에 오도록 산접기.",
         "mountainPrecrease": "산접기했다 펼치기.",
         "mountainPrecreaseAllPlaces_other": "{{count}}곳 모두 산접기했다 펼치기.",
         "mountainPrecreaseBothSides": "양쪽 모두 산접기했다 펼치기.",
@@ -1124,7 +1125,8 @@
         "unsink": "가라앉혀 접기 되돌리기.",
         "valley": "골접기.",
         "valleyAllPlaces_other": "{{count}}곳 모두 골접기.",
-        "valleyBothSides": "양쪽 모두 골접기."
+        "valleyBothSides": "양쪽 모두 골접기.",
+        "valleyPointsOntoLines": "두 점이 각각 표시된 선에 오도록 골접기."
       },
       "join": "{{first}}단계와 {{next}}단계 연결",
       "joinMirror": "{{first}}단계와 {{next}}단계를 한 단계로 연결합니다. 서로 거울상입니다.",

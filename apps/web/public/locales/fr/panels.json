@@ -1172,6 +1172,7 @@
         "mountainAllPlaces_many": "Pli montagne aux {{count}} endroits.",
         "mountainAllPlaces_other": "Pli montagne aux {{count}} endroits.",
         "mountainBothSides": "Pli montagne des deux côtés.",
+        "mountainPointsOntoLines": "Faites un pli montagne pour amener les points sur les deux lignes indiquées.",
         "mountainPrecrease": "Pliez en montagne et dépliez.",
         "mountainPrecreaseAllPlaces_one": "Pliez en montagne et dépliez à {{count}} endroit.",
         "mountainPrecreaseAllPlaces_many": "Pliez en montagne et dépliez aux {{count}} endroits.",
@@ -1217,10 +1218,11 @@
         "unfoldToStep": "Dépliez jusqu’à l’étape {{number}}.",
         "unsink": "Désenfoncer.",
         "valley": "Pli vallée.",
-        "valleyAllPlaces_one": "Pli vallée à {{count}} endroit.",
         "valleyAllPlaces_many": "Pli vallée aux {{count}} endroits.",
+        "valleyAllPlaces_one": "Pli vallée à {{count}} endroit.",
         "valleyAllPlaces_other": "Pli vallée aux {{count}} endroits.",
-        "valleyBothSides": "Pli vallée des deux côtés."
+        "valleyBothSides": "Pli vallée des deux côtés.",
+        "valleyPointsOntoLines": "Faites un pli vallée pour amener les points sur les deux lignes indiquées."
       },
       "join": "Joindre l’étape {{first}} et l’étape {{next}}",
       "joinMirror": "Joindre les étapes {{first}} et {{next}} en une seule étape\u00a0: elles sont l’image miroir l’une de l’autre.",

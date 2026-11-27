@@ -1,8 +1,6 @@
 /**
- * A Fold step's instruction as a Diagram step says it: the fold's kind and
- * nothing more — "Valley fold.", "Fold and unfold.", "Inside reverse fold."
- * — in the words published diagrams use (Lang's diagramming conventions,
- * the Yoshizawa–Randlett names), never a letter.
+ * A Fold step's instruction as a Diagram step says it. Most steps name the
+ * fold alone. Axiom 6 also names the points and lines its two arrows connect.
  *
  * Fold's own strip names what a step brings together by the letters Fold's
  * canvas draws on its references (`fold/stepSentence`). A Diagram step's
@@ -17,13 +15,43 @@
  * Pure and React-free.
  */
 import type { TFunction } from 'i18next';
-import { foldStepSentence, type FoldSentenceStep } from '../../fold/stepSentence';
+import type { FoldStateFrame } from '../../fold/sequence/foldStateFrame';
+import { foldStepSentence, type FoldSentenceLine, type FoldSentenceStep } from '../../fold/stepSentence';
+import { entirelyPrecreased } from './foldCreaseCoverage';
+
+/** An Axiom 6 step entirely on existing creases takes the ordinary fold instruction. */
+export function diagramCreaseWords(step: FoldSentenceStep, before: FoldStateFrame | null, after: FoldStateFrame | null): FoldSentenceStep {
+  if ((step.op === 'fold' || step.op === 'precrease') && pointsOntoLines(step.line) && before && after && entirelyPrecreased(before, after)) {
+    return { ...step, line: { via: 'crease' } };
+  }
+  return step;
+}
+
+function pointsOntoLines(line: FoldSentenceLine): boolean {
+  return line.via === 'axiom' && line.axiom === 6 &&
+    (!line.moving || (line.moving.includes(0) && line.moving.includes(2)));
+}
+
+function alignmentSentence(t: TFunction, direction: 'valley' | 'mountain'): string {
+  return direction === 'valley'
+    ? t('panels:diagram.fold.instruction.valleyPointsOntoLines', 'Valley fold the points onto the two indicated lines.')
+    : t('panels:diagram.fold.instruction.mountainPointsOntoLines', 'Mountain fold the points onto the two indicated lines.');
+}
+
+function then(t: TFunction, first: string, next: string): string {
+  return t('panels:diagram.fold.instruction.then', '{{first}} {{next}}', { first, next });
+}
 
 /** A precrease as an instruction says it: the whole line or a segment folded and unfolded, or a pinch. */
 type PrecreaseWords = 'valley' | 'mountain' | 'pinch';
 
 function precreaseWords(step: Extract<FoldSentenceStep, { op: 'precrease' }>): PrecreaseWords {
   return step.extent?.kind === 'pinch' ? 'pinch' : step.direction;
+}
+
+/** A precrease whose words name the points it brings onto lines (Axiom 6), not just the fold. */
+function namesAlignment(step: Extract<FoldSentenceStep, { op: 'precrease' }>): boolean {
+  return precreaseWords(step) !== 'pinch' && pointsOntoLines(step.line);
 }
 
 function precreaseSentence(t: TFunction, words: PrecreaseWords): string {
@@ -38,8 +66,11 @@ function precreaseSentence(t: TFunction, words: PrecreaseWords): string {
 }
 
 /** The same precrease made on both sides, said once: a merged step's words. */
-function bothSidesSentence(t: TFunction, words: PrecreaseWords): string {
-  switch (words) {
+function bothSidesSentence(t: TFunction, step: Extract<FoldSentenceStep, { op: 'precrease' }>): string {
+  if (namesAlignment(step)) {
+    return then(t, foldDiagramSentence(t, step), t('panels:diagram.fold.instruction.repeatEarlier', 'Repeat on the other side.'));
+  }
+  switch (precreaseWords(step)) {
     case 'valley':
       return t('panels:diagram.fold.instruction.precreaseBothSides', 'Fold and unfold on both sides.');
     case 'mountain':
@@ -114,10 +145,14 @@ export function foldDiagramSentence(t: TFunction, step: FoldSentenceStep): strin
   switch (step.op) {
     case 'fold':
       if (step.inserted) return foldDiagramSentence(t, { op: 'tuck', direction: step.direction, line: step.line });
+      if (pointsOntoLines(step.line)) return alignmentSentence(t, step.direction);
       return step.direction === 'valley'
         ? t('panels:diagram.fold.instruction.valley', 'Valley fold.')
         : t('panels:diagram.fold.instruction.mountain', 'Mountain fold.');
     case 'precrease':
+      if (namesAlignment(step)) {
+        return then(t, alignmentSentence(t, step.direction), t('panels:diagram.fold.instruction.unfold', 'Unfold.'));
+      }
       return precreaseSentence(t, precreaseWords(step));
     case 'unfold':
       return t('panels:diagram.fold.instruction.unfold', 'Unfold.');
@@ -182,7 +217,7 @@ export function foldDiagramSentence(t: TFunction, step: FoldSentenceStep): strin
 
 /** One step's words, said for both sides of a merged step. */
 function bothSidesWords(t: TFunction, step: FoldSentenceStep): string {
-  if (step.op === 'precrease') return bothSidesSentence(t, precreaseWords(step));
+  if (step.op === 'precrease') return bothSidesSentence(t, step);
   if (step.op === 'fold' && !step.inserted) {
     return step.direction === 'valley'
       ? t('panels:diagram.fold.instruction.valleyBothSides', 'Valley fold on both sides.')
@@ -195,7 +230,8 @@ function bothSidesWords(t: TFunction, step: FoldSentenceStep): string {
 
 /** One step's words, said for every one of a merged step's `count` places, three or more. */
 function allPlacesWords(t: TFunction, step: FoldSentenceStep, count: number): string {
-  if (step.op === 'precrease') return allPlacesSentence(t, precreaseWords(step), count);
+  // An Axiom 6 precrease keeps its own words, said once for every place.
+  if (step.op === 'precrease' && !namesAlignment(step)) return allPlacesSentence(t, precreaseWords(step), count);
   if (step.op === 'fold' && !step.inserted) {
     return step.direction === 'valley'
       ? t('panels:diagram.fold.instruction.valleyAllPlaces', {
@@ -233,7 +269,7 @@ export function foldDiagramMergedSentence(t: TFunction, steps: readonly FoldSent
     if (!said.includes(words)) said.push(words);
   }
   return said.reduce(
-    (all, next) => (all === '' ? next : t('panels:diagram.fold.instruction.then', '{{first}} {{next}}', { first: all, next })),
+    (all, next) => (all === '' ? next : then(t, all, next)),
     ''
   );
 }

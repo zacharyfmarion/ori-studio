@@ -213,13 +213,28 @@ gh release edit v0.3.0 --draft=false --prerelease=true
 # 3. Install the build yourself and confirm it launches.
 
 # 4. Arm it. This is what starts offering the update to users.
-gh release edit v0.3.0 --prerelease=false
+gh release edit v0.3.0 --prerelease=false --latest
 ```
 
 `releases/latest` skips drafts and prereleases, so until step 4 runs the
 release is downloadable but offered to nobody. That is the soak gate, and it is
 also the kill switch — flipping `--prerelease=true` puts `releases/latest` back
 on the previous good release.
+
+**`--latest` is part of the arm.** GitHub keeps its own pointer to the Latest
+release, and a release published as a prerelease does not take it when the
+flag is cleared. Without `--latest` the release sits at `prerelease=false`
+while `releases/latest` still returns the previous one, so every install
+truthfully reports "up to date". That is how 0.3.1, 0.5.0 and 0.6.0 first went
+out. Check the arm instead of assuming it:
+
+```sh
+gh api repos/zacharyfmarion/ori-studio/releases/latest --jq .tag_name
+curl -fsSL https://github.com/zacharyfmarion/ori-studio/releases/latest/download/latest.json | jq -r .version
+```
+
+The first must print the new tag and the second the new version. The download
+redirect can lag a couple of minutes behind the first.
 
 #### Step 2 is mandatory, and its position is not arbitrary
 
@@ -322,7 +337,7 @@ corruption. Do not delete or re-point a tag.
 | Tag pushed, some legs failed | Draft holds a partial asset set | `gh run rerun --failed`; if the failure is real, burn the version and cut the next patch |
 | Draft release, all assets | Ready to test | Publish as prerelease, then `publish-updater-manifest.sh X.Y.Z` |
 | Prerelease, no `latest.json` | The manifest step was skipped; arming now silently strands every install | `./scripts/publish-updater-manifest.sh X.Y.Z` before arming |
-| Prerelease with `latest.json`, verified | Ready to ship | `gh release edit vX --prerelease=false` |
+| Prerelease with `latest.json`, verified | Ready to ship | `gh release edit vX --prerelease=false --latest`, then confirm `releases/latest` names it |
 | Latest, no `latest.json` | Already stranded: the updater endpoint 404s fleet-wide | `gh release edit vX --prerelease=true`, run the manifest script, re-arm |
 | Latest, and wrong | Shipped a bad build | `gh release edit vX --prerelease=true`, then hotfix forward |
 
@@ -431,4 +446,4 @@ set `publish = false` per-crate on the app and internal members instead —
 16. Publish the draft as a prerelease, run
     `./scripts/publish-updater-manifest.sh X.Y.Z`, confirm `latest.json` is
     attached to the release, and only then arm it with
-    `gh release edit vX.Y.Z --prerelease=false`.
+    `gh release edit vX.Y.Z --prerelease=false --latest`.
