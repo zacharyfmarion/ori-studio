@@ -607,8 +607,14 @@ painted, laid out or marked out of date: `apps/web/src/diagram/{capture,
 pictures,pages,document,fold}`, `cp-workspace/{folded,regions,sheets}`,
 `lib/paper`, `lib/nativeProjectFile.ts`, `layer-spread`, `simulator`,
 `packages/{origami-simulator,layer-spread}`, and the CP, fold and layer-spread
-crates. Say its one-line summary in the PR (`diagram corpus: 0 of 420 steps
-changed`), never a file name, a picture or the page.
+crates. Say its one-line summary in the PR, never a file name, a picture or
+the page. The line says how many steps changed, how many of them were
+captured again and how many were not (a step whose capture was not compared is
+not one that stayed the same), and how many Pose views were checked:
+
+```text
+diagram corpus: 0 of 420 steps changed; 149 re-captured, 271 not; 23 Pose views at 9 cameras each; 114 problems already broken before
+```
 
 How the two sides run (`scripts/diagram-dataset/run.mjs`):
 
@@ -619,7 +625,11 @@ How the two sides run (`scripts/diagram-dataset/run.mjs`):
   sides (built there otherwise). The working copy's harness is copied in, so
   both sides run the same checks. Its results are kept in the corpus's
   `results/` and reused while the commit, the harness and the corpus stay the
-  same. A commit older than the harness cannot be a "before".
+  same. A commit older than the harness has what the harness needs of the app
+  applied to its working tree, never committed: 999c4ab26, which only moved
+  the CP worker's API into its own module (`HARNESS_NEEDS` in the runner).
+  So any commit back to v0.10.0 can be a "before"; its label says what was
+  applied.
 - **After** rebuilds the simulator and layer-spread packages, and any bridge
   whose Rust changed since it was built, then runs.
 - The report goes to the corpus's `reports/`.
@@ -627,8 +637,10 @@ How the two sides run (`scripts/diagram-dataset/run.mjs`):
 The harness is the vitest suite in `apps/web/src/diagram/dataset/`. It skips
 when `ORI_DIAGRAM_DATASET_DIR` is unset, and `ORI_DIAGRAM_DATASET_REQUIRED=1`
 makes that a failure. It refuses any output path inside the checkout. Each
-side takes about two minutes for the 38 default files on an Apple Silicon Mac;
-"before" is reused while its commit, the harness and the corpus stay the same.
+side takes about four minutes for the 38 default files on an Apple Silicon Mac,
+half of it the Pose views (most of that one simulated step whose saved shape
+Pose cannot put back, re-solved from flat); "before" is reused while its
+commit, the harness and the corpus stay the same.
 
 What each side records, per file and per step:
 
@@ -650,12 +662,57 @@ What each side records, per file and per step:
 - **3D window check.** Each unspread 3D step's scene against the window's
   depth-tested draw passes, with the step's own aux lines and camera. Aux ink
   over paper the window shows bare is a problem on its own; other stray ink is
-  held to the "before" side's.
+  held to the "before" side's. The model of the window takes its depth mode
+  from the draws the window makes, so it is refused, as the live views below
+  are, on a side whose shaders the replay does not read.
 - **Aux probe.** On a fresh copy, each sheet's steps refreshed, one aux line
   drawn inside a face, and each step captured again: a step whose picture
   changed must read out of date, and one whose picture did not must not.
+- **Pose views.** Each step Pose shows live (unspread 3D, Simulated above 0%)
+  at its own camera and a fixed ring of eight: four azimuths, each from 21°
+  above the paper and 21° below it, where a buried layer lies closest to the
+  paper over it on screen (`datasetPose.ts`). Two frames per camera:
+  - the **live view**, replayed on the CPU from the draws the view's own code
+    makes on a recording WebGL2 context (`meshRendererReplay.testSupport.ts`):
+    a 3D step through `FoldedMeshSource`, a simulated one through the GPU
+    solver's renderer, each with the settings Pose's viewport hands it. The
+    depth mode, crease bias and depth write, passes, pens and erode are the
+    view's own, so a change to any of them reaches the check;
+  - the **picture** leaving Pose saves at that camera.
 
-Not yet: Fold-linked steps, spatial spreads, Simulated steps above 0% (they
-need Pose) and layer-order records. They are listed as skipped, never passed.
-The workers' time limits are not run either; a capture over 10 s is marked
+  Each frame is held to "a line shows only on its own paper"
+  (`folded3dWindowParity.testSupport.ts`): ink over paper that is not the
+  line's own (a buried line poking through), and points where its own paper
+  shows and its ink does not (a line cut into pieces). Every count is held to
+  the other side's. A simulated step is drawn from the shape it saved when
+  Pose would put it back, else re-solved from flat by the CPU solver to its
+  fold %, for at most ten million node-steps (a count, so every run stops at
+  the same step); a saved shape Pose cannot put back (another sheet's) is a
+  problem on its own. A changed step shows both sides' frames at the camera
+  that moved most, as the replay draws them.
+
+  The replay reads only the shaders it models, known by the digest of their
+  code with comments and layout stripped (`MODELED_PROGRAMS`: the face
+  program, and the edge programs from v0.10.0 to main). It refuses a view
+  drawn with any other rather than replay it as the nearest one it knows: the
+  report lists that step's live views as not compared, with the side and what
+  the replay does not read ("its edge shader declares faceDepth, faceSlope,
+  which the replay does not read"), and still checks its pictures. A 3D window
+  check is refused the same way. The summary line counts both ("N not replayed
+  live", "3D window check not replayed on N steps") and says nothing of them
+  when neither happens. So a PR that changes the renderer's shaders teaches the
+  replay their code, its digest and its arithmetic beside the old, or its live
+  views go unchecked.
+
+Not captured again, and listed under "Not compared": Fold-linked steps,
+spatial spreads, layer-order records, and Simulated steps above 0% and Defox
+renders, which need Pose (their Pose views are checked as above). The
+workers' time limits are not run either; a capture over 10 s is marked
 timing-sensitive and not compared exactly.
+
+What the Pose check cannot see: shaders the replay does not read (refused, as
+above), the GPU solver's own shape, float32 precision, bitmap presentation and
+the stage, WebKit and Windows' ANGLE, cameras off the ring, and spatial
+spreads. On the corpus it shows #621's simulated stubs against 5b2b40eab, the
+last commit without them, and 90591a0ca's buried aux lines in 3D pictures with
+#624 reverted.

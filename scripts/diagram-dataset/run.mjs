@@ -29,9 +29,21 @@ const HARNESS = [
   'apps/web/src/diagram/dataset',
   'apps/web/src/cp-workspace/folded/folded3dWindowParity.testSupport.ts',
   'apps/web/src/layer-spread/captureWorker.testSupport.ts',
+  'apps/web/src/simulator/meshRendererReplay.testSupport.ts',
 ];
-/** App modules the harness needs that a commit older than it lacks. */
-const HARNESS_NEEDS = ['apps/web/src/workers/oristudioCpWorkerApi.ts'];
+/**
+ * App modules the harness needs that a commit older than it lacks, each with
+ * the commit that added it. A "before" without one has that commit applied to
+ * its checkout's working tree (never committed): each of these only moves
+ * code, so the base behaves as it did, and its results say they were patched.
+ */
+const HARNESS_NEEDS = [
+  {
+    path: 'apps/web/src/workers/oristudioCpWorkerApi.ts',
+    commit: '999c4ab2658079b26c8a76a3fc60a33fb7102f35',
+    what: "the CP worker's API moved into its own module",
+  },
+];
 /** The wasm bridges the harness runs, by crate and the npm script that builds each. */
 const BRIDGES = [
   { crate: 'oristudio-cp-wasm', script: 'build:oristudio-cp-wasm' },
@@ -228,8 +240,29 @@ function prepareWorkingCopy(repo, sourcesByBridge) {
   }
 }
 
+/**
+ * Puts each of `patches` (entries of {@link HARNESS_NEEDS}) into `checkout`'s
+ * working tree, unless its module is there already: a reused checkout keeps
+ * what an earlier run applied.
+ */
+function applyHarnessNeeds(repo, checkout, commit, patches) {
+  for (const need of patches) {
+    if (existsSync(join(checkout, need.path))) continue;
+    step(`"before" lacks ${need.path}: applying ${need.commit.slice(0, 12)} (${need.what})`);
+    const diff = run('git', ['diff', '--binary', `${need.commit}^`, need.commit], { cwd: repo });
+    if (diff.status !== 0) fail(`git diff ${need.commit.slice(0, 12)}: ${diff.stderr.trim()}`);
+    const applied = run('git', ['apply', '--whitespace=nowarn'], { cwd: checkout, input: diff.stdout });
+    if (applied.status !== 0) {
+      fail(
+        `${need.commit.slice(0, 12)} does not apply to ${commit.slice(0, 12)}: ${applied.stderr.trim()}\n` +
+          '    Pick a newer --base.'
+      );
+    }
+  }
+}
+
 /** A detached checkout of `commit`, made ready to run the harness: the "before" side. */
-function prepareBaseCheckout(repo, commit, reuse) {
+function prepareBaseCheckout(repo, commit, reuse, patches) {
   const checkout = join(cacheRoot(), 'checkouts', commit.slice(0, 12));
   git(repo, 'worktree', 'prune');
   if (existsSync(checkout)) {
@@ -239,6 +272,7 @@ function prepareBaseCheckout(repo, commit, reuse) {
     mkdirSync(dirname(checkout), { recursive: true });
     git(repo, 'worktree', 'add', '--detach', checkout, commit);
   }
+  applyHarnessNeeds(repo, checkout, commit, patches);
   if (!existsSync(join(checkout, 'node_modules'))) {
     step('Cloning node_modules from the working copy');
     console.log(`    ${cloneNodeModules(repo, checkout)} trees`);
@@ -300,9 +334,13 @@ function main() {
 
   const baseRef = options.base ?? git(repo, 'merge-base', 'HEAD', 'origin/main');
   const base = git(repo, 'rev-parse', `${baseRef}^{commit}`);
-  for (const needed of HARNESS_NEEDS) {
-    if (run('git', ['cat-file', '-e', `${base}:${needed}`], { cwd: repo }).status !== 0) {
-      fail(`"before" (${base.slice(0, 12)}) is older than the harness: it lacks ${needed}. Pick a newer --base.`);
+  // What "before" lacks of the harness's needs, to be applied to its checkout.
+  const patches = HARNESS_NEEDS.filter(
+    (need) => run('git', ['cat-file', '-e', `${base}:${need.path}`], { cwd: repo }).status !== 0
+  );
+  for (const need of patches) {
+    if (run('git', ['cat-file', '-e', `${need.commit}^{commit}`], { cwd: repo }).status !== 0) {
+      fail(`"before" (${base.slice(0, 12)}) lacks ${need.path}, and ${need.commit.slice(0, 12)}, which adds it, is not in this clone`);
     }
   }
   const head = git(repo, 'rev-parse', 'HEAD');
@@ -310,7 +348,8 @@ function main() {
   const harness = digestFiles(repo, HARNESS).slice(0, 8);
   const manifest = sha256File(join(corpus, 'manifest.json')).slice(0, 8);
   console.log(
-    `diagram-corpus: before ${base.slice(0, 12)}${options.base ? ` (${options.base})` : ' (merge-base with origin/main)'}, ` +
+    `diagram-corpus: before ${base.slice(0, 12)}${options.base ? ` (${options.base})` : ' (merge-base with origin/main)'}` +
+      `${patches.length > 0 ? ` with ${patches.map((need) => need.commit.slice(0, 12)).join(', ')} applied` : ''}, ` +
       `after ${head.slice(0, 12)}${dirty ? ' + uncommitted changes' : ''}; harness ${harness}, corpus ${manifest}`
   );
 
@@ -326,6 +365,7 @@ function main() {
         cases: [...options.cases].sort(),
         withBig: options.withBig,
         bridges: BRIDGES.map(({ crate }) => (reuse.get(crate) ? sha256File(bridgeWasm(repo, crate)) : 'built-from-base')),
+        patched: patches.map((need) => need.commit),
       })
     )
     .digest('hex')
@@ -342,14 +382,16 @@ function main() {
   if (existsSync(join(before, 'results.json'))) {
     step(`Reusing "before" results: ${before}`);
   } else {
-    const checkout = prepareBaseCheckout(repo, base, reuse);
+    const checkout = prepareBaseCheckout(repo, base, reuse, patches);
     const pending = `${before}.partial`;
     rmSync(pending, { recursive: true, force: true });
     step(`Running "before" in ${checkout}`);
     const ok = vitest(checkout, SUITE, {
       ...caseEnv,
       ORI_DIAGRAM_DATASET_OUT: pending,
-      ORI_DIAGRAM_DATASET_LABEL: `before: ${base.slice(0, 12)}${options.base ? ` (${options.base})` : ''}`,
+      ORI_DIAGRAM_DATASET_LABEL:
+        `before: ${base.slice(0, 12)}${options.base ? ` (${options.base})` : ''}` +
+        `${patches.length > 0 ? ` with ${patches.map((need) => need.commit.slice(0, 12)).join(', ')} applied` : ''}`,
     });
     if (!ok || !existsSync(join(pending, 'results.json'))) fail('"before" did not finish; nothing was saved');
     renameSync(pending, before);

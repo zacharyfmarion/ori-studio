@@ -8,17 +8,17 @@
  * Phase cannot capture headless is skipped and says so; it never passes.
  */
 import type { PaperScene } from '@treemaker/origami-simulator';
-import { resolveFoldRoute } from '../../cp-workspace/folded/foldRoute';
-import { folded3dMesh } from '../../cp-workspace/folded/folded3dMesh';
 import { folded3dPaperScene, folded3dSceneCamera } from '../../cp-workspace/folded/folded3dScene';
 import { WINDOW_PARITY_BOX, compareWithWindow } from '../../cp-workspace/folded/folded3dWindowParity.testSupport';
-import { captureModel, captureStep, type CaptureStepResult } from '../capture/captureFolded';
-import { chooseStepCreases, knownCreasesOf } from '../capture/captureCreases';
+import { UnmodeledShaderError } from '../../simulator/meshRendererReplay.testSupport';
+import { captureStep, type CaptureStepResult } from '../capture/captureFolded';
+import { knownCreasesOf } from '../capture/captureCreases';
 import { spreadStartsFor, type DiagramCpSource, type DiagramDocument, type DiagramStep } from '../document/diagramDocument';
 import { diagramPaperStyle } from '../pictures/diagramPaperStyle';
 import type { SanitizeEnv } from '../upload/svgSanitize';
 import { sha256 } from './datasetCorpus';
 import type { LoadedPattern } from './datasetKernel';
+import { withFolded3d } from './datasetPose';
 import type { CaptureRecord, WindowRecord } from './datasetResults';
 import { orderFreeDigest, sceneCounts } from './sceneCompare';
 
@@ -137,31 +137,33 @@ export async function captureRecord(
 /**
  * The 3D window check on an unspread 3D step: its fold, its own aux lines and
  * camera, the scene built for the window's box and compared with the
- * window's draw passes. Null for a step that does not fold in 3D now.
+ * window's draw passes. Null for a step that does not fold in 3D now;
+ * `refused` when the window draws with shaders the replay does not read,
+ * which the window model takes its depth mode from.
  */
-export async function windowCheck(pattern: LoadedPattern, diagram: DiagramDocument, step: DiagramStep): Promise<WindowRecord | null> {
+export async function windowCheck(
+  pattern: LoadedPattern,
+  diagram: DiagramDocument,
+  step: DiagramStep
+): Promise<WindowRecord | { refused: string } | null> {
   const source = step.source;
   if (source?.kind !== 'cp' || source.render.mode !== 'folded-3d') return null;
-  // A spatial spread at 0 is drawn unspread (`settledFolded3dFigureScene`).
-  if (source.render.spread && source.render.spread.amount > 0) return null;
-  const choice = chooseStepCreases(pattern.document, source.scope, pattern.sheets, knownCreasesOf(source));
-  if (choice.status !== 'found') return null;
-  const route = resolveFoldRoute(pattern.document, choice.creases.foldLineIds);
-  if (route.kind !== 'spatial') return null;
-  const folded = await pattern.runtime.fold3d(route.lineIds, captureModel(pattern.document, 'front'));
-  if (folded.status !== 'placed') return null;
-  try {
-    const aux = await pattern.runtime.aux3d(folded.handle);
-    const built = folded3dMesh(folded.render, aux ?? undefined);
-    if (built.kind !== 'mesh') return null;
-    const camera = folded3dSceneCamera(source.render.camera, built.mesh, WINDOW_PARITY_BOX);
-    const scene = folded3dPaperScene(built.mesh, folded.render, camera, {
+  const savedCamera = source.render.camera;
+  return withFolded3d(pattern, step, ({ mesh, render, tolerances }) => {
+    const camera = folded3dSceneCamera(savedCamera, mesh, WINDOW_PARITY_BOX);
+    const scene = folded3dPaperScene(mesh, render, camera, {
       style: diagramPaperStyle(diagram.style),
       markHidden: true,
-      tolerances: folded.snapshot.diagnostics.tolerances,
+      tolerances,
       displayStyle: 'Paper5',
     });
-    const result = compareWithWindow(built.mesh, scene, camera);
+    let result: ReturnType<typeof compareWithWindow>;
+    try {
+      result = compareWithWindow(mesh, scene, camera);
+    } catch (error) {
+      if (error instanceof UnmodeledShaderError) return { refused: error.reason };
+      throw error;
+    }
     return {
       painted: result.painted,
       paper: result.paper,
@@ -169,7 +171,5 @@ export async function windowCheck(pattern: LoadedPattern, diagram: DiagramDocume
       strayInk: result.spuriousInkByRole,
       strayLines: result.linesWithSpuriousInk,
     };
-  } finally {
-    await pattern.runtime.free(folded.handle);
-  }
+  });
 }

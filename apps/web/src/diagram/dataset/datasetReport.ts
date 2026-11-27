@@ -8,7 +8,7 @@
  * highlights often mask what actually moved"). Problems a check finds on both
  * sides are not changes: they go last, under "already broken before".
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PaperScene } from '@treemaker/origami-simulator';
 import type { DiagramStyle } from '../document/diagramDocument';
@@ -19,6 +19,8 @@ import {
   type CaptureRecord,
   type CaseResult,
   type DatasetResults,
+  type PoseCameraRecord,
+  type PoseRecord,
   type StepResult,
   type WindowRecord,
 } from './datasetResults';
@@ -26,11 +28,13 @@ import {
 /**
  * What a changed step is shown by: its two captures, painted together by this
  * checkout's painter so they line up; or, when only painting changed, each
- * side's own repaint of the stored picture.
+ * side's own repaint of the stored picture; or, when only its Pose view
+ * changed, both sides' frames (PNGs) at the camera that changed most.
  */
 export type ReportPictures =
   | { kind: 'capture'; before: string | null; after: string | null }
-  | { kind: 'repaint'; before: string | null; after: string | null };
+  | { kind: 'repaint'; before: string | null; after: string | null }
+  | { kind: 'image'; before: string | null; after: string | null; label: string };
 
 export interface ReportStep {
   slug: string;
@@ -58,6 +62,14 @@ export interface ReportModel {
   steps: number;
   /** Steps not compared, by why. */
   notCompared: Record<string, number>;
+  /**
+   * Steps whose Pose view ran on both sides, and the most cameras one was
+   * checked at; and of those, the ones whose live view was not compared, by
+   * the reason the replay refused it.
+   */
+  pose: { steps: number; cameras: number; notReplayed: Record<string, number> };
+  /** Steps whose 3D window check was not compared, by the reason the replay refused one side's window. */
+  window: { notReplayed: Record<string, number> };
   /** Steps whose capture moved by no more than rounding: not listed. */
   rounding: number;
   changedSteps: ReportStep[];
@@ -70,11 +82,30 @@ export interface ReportModel {
   styles: Record<string, unknown>;
 }
 
-/** One line for the PR: how many steps changed, never which file. */
+/**
+ * One line for the PR: how many steps changed, never which file, and how
+ * many were not captured again — a step whose capture was not compared is
+ * not one that stayed the same — and how many Pose views were checked.
+ */
 export function summaryLine(model: ReportModel): string {
   const changed = model.changedSteps.length;
   const files = model.fileChanges.length + model.caseChanges.length;
-  const parts = [`diagram corpus: ${changed} of ${model.steps} steps changed`];
+  const notCompared = Object.values(model.notCompared).reduce((sum, count) => sum + count, 0);
+  const parts = [
+    `diagram corpus: ${changed} of ${model.steps} steps changed`,
+    `${model.steps - notCompared} re-captured, ${notCompared} not`,
+  ];
+  if (model.pose.steps > 0) {
+    const notReplayed = Object.values(model.pose.notReplayed).reduce((sum, count) => sum + count, 0);
+    parts.push(
+      `${model.pose.steps} Pose views at ${model.pose.cameras} cameras each` +
+        (notReplayed > 0 ? ` (${notReplayed} not replayed live: shaders the replay does not read)` : '')
+    );
+  }
+  const windowsNotReplayed = Object.values(model.window.notReplayed).reduce((sum, count) => sum + count, 0);
+  if (windowsNotReplayed > 0) {
+    parts.push(`3D window check not replayed on ${plural(windowsNotReplayed, 'step')}: shaders the replay does not read`);
+  }
   if (files > 0) parts.push(`${files} file-level change${files === 1 ? '' : 's'}`);
   if (model.alreadyBroken.length > 0) parts.push(`${model.alreadyBroken.length} problems already broken before`);
   return parts.join('; ');
@@ -161,6 +192,9 @@ function captureReasons(
   return reasons;
 }
 
+/** The window check's counts; null when it did not run, failed, or the replay refused the window. */
+const windowCounts = (record: StepResult['window']): WindowRecord | null =>
+  record && !('error' in record) && !('refused' in record) ? record : null;
 const AUX_PROBLEM = (record: WindowRecord) => record.strayInk.aux ?? 0;
 const OTHER_STRAY = (record: WindowRecord) =>
   Object.entries(record.strayInk).reduce((total, [role, px]) => (role === 'aux' ? total : total + (px ?? 0)), 0);
@@ -170,13 +204,184 @@ function windowProblem(record: WindowRecord): string {
   return `3D window check: ${AUX_PROBLEM(record)} px of aux lines drawn over the paper that covers them (${plural(lines, 'line')})`;
 }
 
+/* ------------------------------------------------------------------------
+ * Pose views
+ * --------------------------------------------------------------------- */
+
+const ROLE_NAMES: Record<string, string> = { aux: 'aux', edge: 'edge', mountain: 'mountain fold', valley: 'valley fold' };
+const FRAME_NAMES: Record<PoseRecord['frame'], string> = {
+  folded: 'its 3D fold',
+  'saved-shape': 'the shape it saved',
+  're-solved': 'a re-solve from flat',
+};
+const SHAPE_NAMES: Record<NonNullable<PoseRecord['shape']>, string> = {
+  none: 'none',
+  restored: 'put back',
+  mismatch: "another sheet's, which Pose cannot put back",
+};
+const SHAPE_PROBLEM = "Pose cannot put its saved shape back (it is another sheet's): it folds the step from flat, unsaid";
+
+/** What each count is called in a reason, by measure. */
+const POSE_MEASURES = [
+  { measure: 'foreign', name: 'ink over paper not its own', unit: ' px' },
+  { measure: 'gaps', name: 'points where a line is missing over its own paper', unit: '' },
+] as const;
+
+/** Aux lines first: the lines a buried layer pokes through with. */
+const ROLE_ORDER = ['aux', 'edge', 'mountain', 'valley'];
+const byRoleOrder = (a: string, b: string) =>
+  (ROLE_ORDER.indexOf(a) + 1 || ROLE_ORDER.length + 1) - (ROLE_ORDER.indexOf(b) + 1 || ROLE_ORDER.length + 1) || a.localeCompare(b);
+
+const POSE_PARTS = [
+  { part: 'live', name: 'Pose view' },
+  { part: 'picture', name: 'Pose picture' },
+] as const;
+
+function poseOutcome(record: StepResult['pose'] | undefined): string {
+  if (!record) return 'none';
+  if ('error' in record) return `failed: ${record.error}`;
+  if ('skipped' in record) return `skipped (${record.skipped})`;
+  return 'ran';
+}
+
+type PoseCounts = Partial<Record<string, number>>;
+
+function countsOf(camera: PoseCameraRecord, part: 'live' | 'picture', measure: 'foreign' | 'gaps'): PoseCounts {
+  const record = camera[part];
+  return !record || 'error' in record ? {} : record[measure];
+}
+
+interface PoseDiff {
+  reasons: string[];
+  broken: string[];
+  picture: Extract<ReportPictures, { kind: 'image' }> | null;
+  /** Ran on both sides, and the most cameras either side checked. */
+  ran: boolean;
+  cameras: number;
+  /** Why the live views were not compared: a side the replay refused, and why. */
+  liveNotReplayed: string | null;
+}
+
+/**
+ * What changed in a step's Pose view: how its frames were made, the live
+ * view's depth state as its draws set it, and every count, summed over the
+ * cameras both sides checked. A shape Pose cannot put back is a problem on
+ * its own; everything else is held to the other side.
+ */
+function diffPose(before: StepResult['pose'] | undefined, after: StepResult['pose'] | undefined): PoseDiff {
+  const diff: PoseDiff = { reasons: [], broken: [], picture: null, ran: false, cameras: 0, liveNotReplayed: null };
+  const was = poseOutcome(before);
+  const is = poseOutcome(after);
+  if (was !== 'ran' || is !== 'ran') {
+    if (was === is) {
+      if (was.startsWith('failed')) diff.broken.push(`Pose check ${was}`);
+    } else diff.reasons.push(`Pose check: ${was} → ${is}`);
+    return diff;
+  }
+  const x = before as PoseRecord;
+  const y = after as PoseRecord;
+  diff.ran = true;
+  diff.cameras = Math.max(x.cameras.length, y.cameras.length);
+  if (x.frame !== y.frame) diff.reasons.push(`Pose view drawn from ${FRAME_NAMES[x.frame]} → ${FRAME_NAMES[y.frame]}`);
+  if (x.shape === 'mismatch' && y.shape === 'mismatch') diff.broken.push(SHAPE_PROBLEM);
+  else if (x.shape !== y.shape) {
+    diff.reasons.push(`Its saved shape: ${SHAPE_NAMES[x.shape ?? 'none']} → ${SHAPE_NAMES[y.shape ?? 'none']}`);
+  }
+  if (x.solve && y.solve && x.solve.settled !== y.solve.settled) {
+    diff.reasons.push(`The re-solve ${y.solve.settled ? 'now settles' : 'no longer settles'} within its steps`);
+  }
+  // A side the replay refused has no live counts: its live view is not compared, for the reason it gave.
+  if (x.liveRefused !== undefined || y.liveRefused !== undefined) {
+    diff.liveNotReplayed = y.liveRefused !== undefined ? `after: ${y.liveRefused}` : `before: ${x.liveRefused}`;
+  } else {
+    const list = (values: readonly unknown[]) => values.map(String).join(' and ') || 'none';
+    const draws: Array<[string, readonly unknown[], readonly unknown[]]> = [
+      ['depth is perspective', x.draws.perspective, y.draws.perspective],
+      ['crease depth bias', x.draws.creaseBias, y.draws.creaseBias],
+      ['creases write depth', x.draws.creaseWritesDepth, y.draws.creaseWritesDepth],
+    ];
+    for (const [name, a, b] of draws) {
+      if (list(a) !== list(b)) diff.reasons.push(`The live view's draws: ${name} ${list(a)} → ${list(b)}`);
+    }
+  }
+
+  const afterByName = new Map(y.cameras.map((camera) => [camera.name, camera]));
+  const pairs = x.cameras.flatMap((camera) => {
+    const other = afterByName.get(camera.name);
+    return other ? [[camera, other] as const] : [];
+  });
+  let most: { delta: number; label: string; before: string | null; after: string | null } | null = null;
+  for (const { part, name: partName } of POSE_PARTS) {
+    if (part === 'live' && diff.liveNotReplayed !== null) continue;
+    for (const { measure, name, unit } of POSE_MEASURES) {
+      const roles = new Set(pairs.flatMap(([a, b]) => [...Object.keys(countsOf(a, part, measure)), ...Object.keys(countsOf(b, part, measure))]));
+      const changes: string[] = [];
+      for (const role of [...roles].sort(byRoleOrder)) {
+        let was = 0;
+        let is = 0;
+        for (const [a, b] of pairs) {
+          was += countsOf(a, part, measure)[role] ?? 0;
+          is += countsOf(b, part, measure)[role] ?? 0;
+        }
+        if (was === is) continue;
+        changes.push(`${ROLE_NAMES[role] ?? role} ${was.toLocaleString('en')} → ${is.toLocaleString('en')}${unit}`);
+      }
+      const differing = pairs.filter(([a, b]) => {
+        const ca = countsOf(a, part, measure);
+        const cb = countsOf(b, part, measure);
+        return [...new Set([...Object.keys(ca), ...Object.keys(cb)])].some((role) => (ca[role] ?? 0) !== (cb[role] ?? 0));
+      }).length;
+      if (changes.length > 0) diff.reasons.push(`${partName}: ${name}: ${changes.join(', ')} (${differing} of ${pairs.length} cameras)`);
+    }
+    for (const [a, b] of pairs) {
+      let delta = 0;
+      for (const { measure } of POSE_MEASURES) {
+        const ca = countsOf(a, part, measure);
+        const cb = countsOf(b, part, measure);
+        for (const role of new Set([...Object.keys(ca), ...Object.keys(cb)])) delta += Math.abs((cb[role] ?? 0) - (ca[role] ?? 0));
+      }
+      if (delta > (most?.delta ?? 0)) {
+        most = {
+          delta,
+          label: `${a.name}, ${part === 'live' ? 'the live view' : 'the picture leaving Pose saves'}`,
+          before: part === 'live' ? a.liveImage : a.pictureImage,
+          after: part === 'live' ? b.liveImage : b.pictureImage,
+        };
+      }
+    }
+  }
+  if (most) diff.picture = { kind: 'image', before: most.before, after: most.after, label: most.label };
+  else if (diff.reasons.length > 0 && pairs[0] && pairs[0][0].liveImage && pairs[0][1].liveImage) {
+    diff.picture = { kind: 'image', before: pairs[0][0].liveImage, after: pairs[0][1].liveImage, label: `${pairs[0][0].name}, the live view` };
+  }
+  return diff;
+}
+
 interface StepDiff {
   reasons: string[];
   rounding: boolean;
   notCompared: string | null;
   broken: string[];
-  /** Which pictures say the most: the captures when they changed, else the repaints. */
-  show: 'capture' | 'repaint';
+  /** Which pictures say the most: the captures when they changed, else the repaints, else the Pose frames. */
+  show: 'capture' | 'repaint' | 'pose';
+  pose: PoseDiff;
+  /** Why the 3D window check was not compared: a side whose window the replay refused, and why. */
+  windowNotReplayed: string | null;
+}
+
+/**
+ * Why neither side's capture says anything: both asked for Pose, which the
+ * harness does not run as a capture (`captureStep` answers `needs-pose` for a
+ * Simulated step above 0% and for a Defox render). Equal outcomes, but not a
+ * comparison of anything, so the step is not compared rather than unchanged.
+ * Null when either side captured, or answered anything else.
+ */
+function needsPoseOnBothSides(before: StepResult, after: StepResult): string | null {
+  const needsPose = (side: StepResult) => side.capture.outcome === 'not-captured' && side.capture.status === 'needs-pose';
+  if (!needsPose(before) || !needsPose(after)) return null;
+  return (after.render ?? before.render) === 'defox'
+    ? 'a Defox render, which needs Pose'
+    : 'Simulated above 0%, which needs Pose';
 }
 
 function diffStep(before: StepResult, after: StepResult, dirs: { before: string; after: string }): StepDiff {
@@ -189,8 +394,10 @@ function diffStep(before: StepResult, after: StepResult, dirs: { before: string;
   const timing =
     (before.capture.outcome === 'captured' && before.capture.timingSensitive) ||
     (after.capture.outcome === 'captured' && after.capture.timingSensitive);
+  const needsPose = needsPoseOnBothSides(before, after);
   if (timing) notCompared = 'over 10 s, timing-sensitive';
   else if (before.capture.outcome === 'skipped' && after.capture.outcome === 'skipped') notCompared = before.capture.reason;
+  else if (needsPose) notCompared = needsPose;
   else {
     const capture = captureReasons(before.capture, after.capture, dirs);
     if (capture === 'rounding') rounding = true;
@@ -230,23 +437,31 @@ function diffStep(before: StepResult, after: StepResult, dirs: { before: string;
   }
 
   const windowError = (record: StepResult['window']) => (record && 'error' in record ? record.error : null);
-  if (windowError(before.window) || windowError(after.window)) {
+  const windowRefused = (record: StepResult['window']) => (record && 'refused' in record ? record.refused : null);
+  let windowNotReplayed: string | null = null;
+  if (windowRefused(before.window) !== null || windowRefused(after.window) !== null) {
+    // A side whose window the replay refused has no counts: the check is not compared, for the reason it gave.
+    const refusedAfter = windowRefused(after.window);
+    windowNotReplayed = refusedAfter !== null ? `after: ${refusedAfter}` : `before: ${windowRefused(before.window)}`;
+  } else if (windowError(before.window) || windowError(after.window)) {
     if (windowError(before.window) !== windowError(after.window)) {
       reasons.push(`3D window check: ${windowError(before.window) ?? 'ran'} → ${windowError(after.window) ?? 'ran'}`);
     }
   } else if (before.window || after.window) {
-    if (!before.window || !after.window || 'error' in before.window || 'error' in after.window) {
+    const was = windowCounts(before.window);
+    const is = windowCounts(after.window);
+    if (!was || !is) {
       reasons.push(`3D window check ran ${before.window ? 'before only' : 'after only'}`);
     } else {
-      const wasAux = AUX_PROBLEM(before.window) > 0;
-      const isAux = AUX_PROBLEM(after.window) > 0;
-      if (isAux && wasAux) broken.push(windowProblem(after.window));
-      else if (isAux) reasons.push(`New problem: ${windowProblem(after.window)}`);
-      else if (wasAux) reasons.push(`Fixed: ${windowProblem(before.window)}`);
-      const more = OTHER_STRAY(after.window) - OTHER_STRAY(before.window);
+      const wasAux = AUX_PROBLEM(was) > 0;
+      const isAux = AUX_PROBLEM(is) > 0;
+      if (isAux && wasAux) broken.push(windowProblem(is));
+      else if (isAux) reasons.push(`New problem: ${windowProblem(is)}`);
+      else if (wasAux) reasons.push(`Fixed: ${windowProblem(was)}`);
+      const more = OTHER_STRAY(is) - OTHER_STRAY(was);
       if (more > 0) reasons.push(`3D window check: ${more} px more fold or edge ink over bare paper than before`);
-      if (after.window.missingInk > before.window.missingInk) {
-        reasons.push(`3D window check: ${after.window.missingInk - before.window.missingInk} px more window ink the picture leaves out`);
+      if (is.missingInk > was.missingInk) {
+        reasons.push(`3D window check: ${is.missingInk - was.missingInk} px more window ink the picture leaves out`);
       }
     }
   }
@@ -258,7 +473,12 @@ function diffStep(before: StepResult, after: StepResult, dirs: { before: string;
   else if (isProbe) reasons.push(`New problem: aux probe: ${isProbe}`);
   else if (wasProbe) reasons.push(`Fixed: aux probe: ${wasProbe}`);
 
-  return { reasons, rounding, notCompared, broken, show };
+  const pose = diffPose(before.pose, after.pose);
+  if (reasons.length === 0 && pose.picture) show = 'pose';
+  reasons.push(...pose.reasons);
+  broken.push(...pose.broken);
+
+  return { reasons, rounding, notCompared, broken, show, pose, windowNotReplayed };
 }
 
 function diffFile(before: CaseResult, after: CaseResult): { reasons: string[]; broken: string[] } {
@@ -290,14 +510,15 @@ function diffFile(before: CaseResult, after: CaseResult): { reasons: string[]; b
   return { reasons, broken };
 }
 
-/** What a changed step is shown by: its captures when either side has one, else its repaints. */
-function picturesFor(before: StepResult, after: StepResult, show: StepDiff['show']): ReportPictures | null {
+/** What a changed step is shown by: its Pose frames when only they changed, its captures when either side has one, else its repaints. */
+function picturesFor(before: StepResult, after: StepResult, diff: StepDiff): ReportPictures | null {
+  if (diff.show === 'pose' && diff.pose.picture) return diff.pose.picture;
   const scene = (side: StepResult) => (side.capture.outcome === 'captured' ? side.capture.scene : null);
   const repaint = (side: StepResult) => ('picture' in side.repaint ? (side.repaint.picture?.svg ?? null) : null);
   const captures = { kind: 'capture' as const, before: scene(before), after: scene(after) };
   const repaints = { kind: 'repaint' as const, before: repaint(before), after: repaint(after) };
   const has = (pictures: ReportPictures) => pictures.before !== null || pictures.after !== null;
-  if (show === 'repaint' && has(repaints)) return repaints;
+  if (diff.show === 'repaint' && has(repaints)) return repaints;
   if (has(captures)) return captures;
   return has(repaints) ? repaints : null;
 }
@@ -312,6 +533,8 @@ export function diffResults(before: DatasetResults, after: DatasetResults, dirs:
     files: 0,
     steps: 0,
     notCompared: {},
+    pose: { steps: 0, cameras: 0, notReplayed: {} },
+    window: { notReplayed: {} },
     rounding: 0,
     changedSteps: [],
     fileChanges: [],
@@ -360,6 +583,14 @@ export function diffResults(before: DatasetResults, after: DatasetResults, dirs:
       const diff = diffStep(step, next, dirs);
       if (diff.notCompared) model.notCompared[diff.notCompared] = (model.notCompared[diff.notCompared] ?? 0) + 1;
       if (diff.rounding) model.rounding += 1;
+      if (diff.pose.ran) {
+        model.pose.steps += 1;
+        model.pose.cameras = Math.max(model.pose.cameras, diff.pose.cameras);
+        const refused = diff.pose.liveNotReplayed;
+        if (refused !== null) model.pose.notReplayed[refused] = (model.pose.notReplayed[refused] ?? 0) + 1;
+      }
+      const windowRefused = diff.windowNotReplayed;
+      if (windowRefused !== null) model.window.notReplayed[windowRefused] = (model.window.notReplayed[windowRefused] ?? 0) + 1;
       for (const problem of diff.broken) model.alreadyBroken.push({ slug: kase.slug, step: { id: step.id, number: step.number }, problem });
       if (diff.reasons.length === 0) continue;
       model.changedSteps.push({
@@ -368,7 +599,7 @@ export function diffResults(before: DatasetResults, after: DatasetResults, dirs:
         number: step.number,
         render: next.render ?? step.render,
         reasons: diff.reasons,
-        pictures: picturesFor(step, next, diff.show),
+        pictures: picturesFor(step, next, diff),
       });
     }
     for (const step of afterSteps.values()) {
@@ -412,7 +643,7 @@ function fitted(svg: string, box: ViewBox | null): string {
 /** The two SVGs a changed step shows: captures painted together, or each side's repaint as it is. */
 function stepSvgs(step: ReportStep, model: ReportModel, dirs: { before: string; after: string }): [string | null, string | null] {
   const pictures = step.pictures;
-  if (!pictures) return [null, null];
+  if (!pictures || pictures.kind === 'image') return [null, null];
   const read = (dir: string, path: string | null) => (path ? readGz(dir, path) : null);
   const before = read(dirs.before, pictures.before);
   const after = read(dirs.after, pictures.after);
@@ -465,7 +696,14 @@ export function writeReport(model: ReportModel, dirs: { before: string; after: s
 ${model.bridges.length > 0 ? `<p>Different wasm on each side: ${model.bridges.map((bridge) => `${escape(bridge.name)} ${bridge.before} → ${bridge.after}`).join('; ')}.</p>` : ''}
 <p><strong>${model.changedSteps.length}</strong> of ${model.steps} steps in ${model.files} files changed.
 ${model.rounding > 0 ? ` ${plural(model.rounding, 'step')} moved by no more than rounding and are not listed.` : ''}</p>
-${notCompared ? `<p>Not compared: ${escape(notCompared)}.</p>` : ''}
+${notCompared ? `<p>Not captured again, so not compared as captures (their files, repaints and statuses were): ${escape(notCompared)}.</p>` : ''}
+${model.pose.steps > 0 ? `<p>Pose views checked on both sides: ${plural(model.pose.steps, 'step')}, at ${model.pose.cameras} cameras each (live and the picture leaving Pose saves).</p>` : ''}
+${Object.entries(model.pose.notReplayed)
+  .map(([why, count]) => `<p>Live views not compared, the pictures only: ${plural(count, 'step')}. The replay refused one side's shaders, ${escape(why)}.</p>`)
+  .join('\n')}
+${Object.entries(model.window.notReplayed)
+  .map(([why, count]) => `<p>3D window checks not compared: ${plural(count, 'step')}. The replay refused one side's window, ${escape(why)}.</p>`)
+  .join('\n')}
 ${model.alreadyBroken.length > 0 ? `<p>${plural(model.alreadyBroken.length, 'problem')} found on both sides, listed at the end.</p>` : ''}
 </div>`);
 
@@ -492,9 +730,16 @@ ${model.alreadyBroken.length > 0 ? `<p>${plural(model.alreadyBroken.length, 'pro
     for (const step of steps) {
       const [beforeSvg, afterSvg] = stepSvgs(step, model, dirs);
       const svgs = { before: beforeSvg, after: afterSvg };
+      const images = step.pictures?.kind === 'image' ? step.pictures : null;
       const panel = (side: 'before' | 'after') => {
         const svg = svgs[side];
         const caption = side === 'before' ? 'Before' : 'After';
+        const image = images?.[side];
+        if (image) {
+          const name = `pictures/${slug}--${step.id}--${side}.png`;
+          copyFileSync(join(dirs[side], image), join(outDir, name));
+          return `<figure><figcaption>${caption}</figcaption><div class="frame" style="aspect-ratio: 1;"><img src="${escape(name)}" alt="${side}: ${escape(images.label)}" loading="lazy"></div></figure>`;
+        }
         if (!svg) return `<figure><figcaption>${caption}</figcaption><div class="frame none">No picture</div></figure>`;
         const box = viewBoxOf(svg);
         const aspect = box ? `aspect-ratio: ${box[2]} / ${box[3]};` : 'aspect-ratio: 1;';
@@ -504,6 +749,7 @@ ${model.alreadyBroken.length > 0 ? `<p>${plural(model.alreadyBroken.length, 'pro
       };
       body.push(`<h3>Step ${step.number}${step.render ? ` (${escape(step.render)})` : ''} <code>${escape(step.id)}</code></h3>
 <ul class="reasons">${step.reasons.map((reason) => `<li>${escape(reason)}</li>`).join('')}</ul>
+${images ? `<p>Shown: ${escape(images.label)}, as the replay draws it (the paper by side, folds and edges dark, aux lines grey).</p>` : ''}
 <div class="pair">${panel('before')}${panel('after')}</div>`);
     }
   }
