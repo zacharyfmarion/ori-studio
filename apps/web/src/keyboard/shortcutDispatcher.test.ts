@@ -20,6 +20,25 @@ describe('shortcut dispatcher', () => {
     input.remove();
   });
 
+  it('claims nothing from a keydown that carries no key, such as an autofill pick', () => {
+    const menu = vi.fn();
+    const viewport = vi.fn(() => true);
+    const input = document.createElement('input');
+    document.body.append(input);
+    // Chrome's autofill sends a plain `Event` named keydown: no `key`, no modifiers.
+    const keyless = new Event('keydown', { bubbles: true, cancelable: true }) as KeyboardEvent;
+    input.dispatchEvent(keyless);
+    const options: Parameters<typeof handleShortcutKeyDown>[1] = {
+      scopeStack: ['viewport', 'crease-pattern', 'global'],
+      executors: { menu, viewport },
+    };
+    expect(handleShortcutKeyDown(keyless, options)).toBe(false);
+    expect(keyless.defaultPrevented).toBe(false);
+    expect(menu).not.toHaveBeenCalled();
+    expect(viewport).not.toHaveBeenCalled();
+    input.remove();
+  });
+
   it('runs scoped CP shortcuts before global shortcuts', () => {
     const cpAction = vi.fn();
     const menu = vi.fn();

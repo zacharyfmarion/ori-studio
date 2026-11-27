@@ -1759,7 +1759,18 @@ export function parseOrieditaKeyStroke(
   return chord.key ? normalizeKeyChord(chord) : null;
 }
 
+/**
+ * The chord a keydown carries, or null when it carries none — a bare modifier,
+ * or no key at all.
+ *
+ * "No key at all" happens despite the DOM typing. A `keydown` can be a plain
+ * `Event` with no `key`: Chrome's autofill sends one when an entry is picked,
+ * and the runtime's capture listener sees it before the field does. This is the
+ * one place the runtime reads `event.key`, so the check lives here and every
+ * caller gets null rather than a crash.
+ */
 export function keyChordFromKeyboardEvent(event: KeyboardEvent): KeyChord | null {
+  if (typeof event.key !== 'string') return null;
   const key = normalizeKey(event.key);
   if (!key || isModifierKey(key)) return null;
   const primary = event.metaKey || event.ctrlKey;
