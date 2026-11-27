@@ -1049,13 +1049,17 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     } = {}
   ) => {
     set({ status: 'loading_engine', error: null, projectMessage: null });
-    await releaseEditableCreasePattern();
     // Before the tree is installed, so the install lands on the tab that survives.
     // A tree opened on its own is a new project, so the project documents (the
     // diagram, the fold sequences) go too.
     if (source.replacesProject !== false) set({ ...discardAllDesigns(), ...discardProjectDocuments() });
     const api = await getEngine();
     const snapshot = await loadTreeFromText(api, text);
+    // The open crease pattern goes once the tree has loaded, not before: Open
+    // sends every file it does not recognise here, a picture included. Released
+    // first, a file that failed left the canvas showing a pattern the kernel no
+    // longer held, so nothing could edit or fold it or read its sheets.
+    await releaseEditableCreasePattern();
     const filename = source.filename ?? defaultNativeFilename('Untitled');
     const title = source.title ?? basenameWithoutProjectExtension(filename);
     const editCanvasState = source.preserveEditCanvas
@@ -1111,7 +1115,6 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     const filename = source.filename;
     const path = source.path ?? null;
     const format = importedCreasePatternFormat(filename);
-    await releaseEditableCreasePattern();
     let parsed: ImportedCreasePatternResult;
     let oristudioCpDocument: Awaited<
       ReturnType<typeof loadOristudioCpDocumentFromText>
@@ -1120,6 +1123,7 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
     let oristudioCpRuntimeError: string | null = null;
 
     if (format === 'ori' || format === 'orh') {
+      await releaseEditableCreasePattern();
       try {
         oristudioCpDocument = await loadOristudioCpDocumentFromText(text, {
           format,
@@ -1159,6 +1163,8 @@ export const createProjectSlice: WorkspaceSliceCreator<ProjectSlice> = (set, get
         filename,
         path,
       });
+      // Only a file that has been read replaces the open pattern (see `loadText`).
+      await releaseEditableCreasePattern();
       try {
         oristudioCpDocument = await loadOristudioCpDocumentFromText(text, {
           format,

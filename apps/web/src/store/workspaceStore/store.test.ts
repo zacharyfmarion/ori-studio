@@ -2572,6 +2572,39 @@ describe('workspace store slices', () => {
     );
   });
 
+  // Open sends every file it does not recognise to the tree loader, and a
+  // phone's picker offers any file at all. A file that cannot be read must
+  // leave the open crease pattern in the kernel as well as on the canvas, or
+  // nothing can edit it, fold it or read its sheets (ORI-STUDIO-19).
+  describe('a file that cannot be read leaves the open crease pattern loaded', () => {
+    it.each([
+      ['an unrecognised file the tree loader refuses', 'photo.png'],
+      ['a crease pattern file that does not parse', 'broken.fold'],
+    ])('%s', async (_case, name) => {
+      resetStores(seedSnapshot());
+      loadSnapshotIntoStore(seedSnapshot());
+      const open = blankCpDocumentState();
+      useWorkspaceStore.setState({
+        oristudioCpDocument: open,
+        status: 'crease_pattern_ready',
+        dirty: false,
+      });
+      engineMocks.loadTreeFromText.mockRejectedValueOnce(new Error('not a TreeMaker file'));
+      oristudioCpMocks.releaseOristudioCpDocument.mockClear();
+
+      await expect(
+        useWorkspaceStore
+          .getState()
+          .openProject(createFileService({ text: 'not a design file', name, path: null }))
+      ).resolves.toBe(false);
+
+      expect(useWorkspaceStore.getState().status).toBe('error');
+      expect(useWorkspaceStore.getState().oristudioCpDocument).toBe(open);
+      expect(oristudioCpMocks.releaseOristudioCpDocument).not.toHaveBeenCalled();
+      expect(oristudioCpMocks.loadOristudioCpDocumentFromText).not.toHaveBeenCalled();
+    });
+  });
+
   it('opens native editable CP projects through the CP runtime', async () => {
     resetStores(seedSnapshot());
     loadSnapshotIntoStore(seedSnapshot());
