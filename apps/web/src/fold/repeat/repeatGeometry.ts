@@ -10,9 +10,10 @@ import {
   polygonCentroid,
   toPair,
   toPoint,
+  transformLine,
 } from '../canvas/foldCanvasGeometry';
 import type { FoldModelLine, SheetPoint } from '../document/foldSequenceDocument';
-import type { FoldIsometry, FoldRefusalBody, FoldScene } from '../engine/foldEngineWire';
+import type { FoldAnalysis, FoldIsometry, FoldRefusalBody, FoldScene } from '../engine/foldEngineWire';
 
 export const REPEAT_TOL = 1e-6;
 /**
@@ -144,6 +145,70 @@ function mirroredFaceAt(
   }
   return best;
 }
+
+/**
+ * Paper a source step moves, as its mirror names it: the sheet point the
+ * step's own fold named it by (`witness`), and the convex sheet polygons it
+ * covers (`pieces`), which hold that point.
+ */
+export interface RepeatMaterial {
+  witness: SheetPoint;
+  pieces: readonly (readonly Point[])[];
+}
+
+/**
+ * The flaps a plain fold moves, from the analysis of its source step on
+ * `before`: the ones its seed named and the ones its closure added, each by
+ * its witness and its faces' parts on the side that moves.
+ */
+export function flapMaterial(before: FoldScene, analysis: FoldAnalysis): RepeatMaterial[] {
+  const position = new Map(before.lineage.map((face, index) => [face.id, index]));
+  const keep = analysis.side === 'positive' ? 1 : -1;
+  return [...new Set([...analysis.picked, ...analysis.added])].map((f) => {
+    const flap = analysis.flaps[f]!;
+    const pieces = flap.faces.flatMap((id) => {
+      const face = position.get(id);
+      if (face === undefined) return [];
+      // The fold line on this face's paper: the model line taken back through the face's pose.
+      const line = transformLine(invertIsometry(modelMap(before, face)), analysis.line);
+      const piece = clipConvex(sheetRing(before, face), line, keep);
+      return polygonArea(piece) > SHARED_AREA ? [piece] : [];
+    });
+    return { witness: flap.witness, pieces };
+  });
+}
+
+/**
+ * Where a step's mirror names a piece of moved paper on the paper it folds,
+ * `target`: the mirror of the piece's witness while one face of the target
+ * holds it; else the middle of the largest part of the piece's mirror that
+ * one face holds. A witness is the middle of its piece, so it lies on any
+ * line the piece is symmetric about, and the mirror can take that line onto
+ * a crease the target has: the two diagonals of a square are each other's
+ * mirror across a center line, so the middle of a half the first diagonal
+ * moves lands, mirrored, on the first diagonal itself — a spot the engine
+ * refuses, as no one layer lies there.
+ */
+export function mirroredWitness(material: RepeatMaterial, target: FoldScene, map: FoldIsometry): SheetPoint {
+  const at = mappedPoint(map, material.witness);
+  const holding = target.faces.filter((_, i) => insideConvex(sheetRing(target, i), toPoint(at), REPEAT_TOL));
+  if (holding.length === 1) return at;
+  let best: Point | null = null;
+  let most = SHARED_AREA;
+  for (const piece of material.pieces) {
+    const mirrored = piece.map((p) => applyIsometry(map, p));
+    for (let j = 0; j < target.faces.length; j++) {
+      const part = overlap(mirrored, sheetRing(target, j));
+      const area = polygonArea(part);
+      if (area > most) {
+        most = area;
+        best = polygonCentroid(part);
+      }
+    }
+  }
+  return best ? toPair(best) : at;
+}
+
 export function sameImages(a: FoldIsometry, b: FoldIsometry, points: readonly Point[]): boolean {
   return points.every((p) => {
     const x = applyIsometry(a, p),

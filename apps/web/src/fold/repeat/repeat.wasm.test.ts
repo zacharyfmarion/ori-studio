@@ -6,7 +6,8 @@ import { createFoldEngineCalls } from '../engine/foldEngineCalls';
 import { createFoldEngineCompoundCalls } from '../engine/foldEngineCompoundCalls';
 import type { FoldOp } from '../document/foldSequenceDocument';
 import { prepareRepeat, type RepeatSourceStep } from './repeatPreparation';
-import { faceAt, mappedPoint, modelMap, repeatSymmetries, verifiedSymmetry } from './repeatGeometry';
+import { faceAt, mappedPoint, modelMap, reflection, repeatSymmetries, sheetRing, verifiedSymmetry } from './repeatGeometry';
+import { insideConvex, toPoint } from '../canvas/foldCanvasGeometry';
 import { appendFoldStep, appendFoldSteps } from '../document/foldSequenceEdits';
 import { readFoldSequence, writeFoldSequence } from '../document/foldSequenceFile';
 import { resolveFoldReturn } from '../document/foldReturn';
@@ -476,6 +477,51 @@ describe('sequential Repeat through the public engine', () => {
       },
     });
     expect(e.step(one.state, prepared.op)).toMatchObject({ status: 'ok' });
+  });
+
+  // A precrease through the sheet's middle names the half it folds by that
+  // half's middle, which lies on the line through the middle at right angles
+  // to the precrease. A mirror that takes the precrease onto that line takes
+  // the half's middle onto the precrease: a crease of the paper the mirror
+  // folds, where no one layer lies.
+  it.each([
+    ['the vertical book fold across the diagonal y = x', [[0.5, 0], [0.5, 1]], [0.25, 0.5], { n: [-Math.SQRT1_2, Math.SQRT1_2], d: 0 }],
+    ['the vertical book fold across the diagonal x + y = 1', [[0.5, 0], [0.5, 1]], [0.25, 0.5], { n: [Math.SQRT1_2, Math.SQRT1_2], d: Math.SQRT1_2 }],
+    ['the horizontal book fold across the diagonal y = x', [[0, 0.5], [1, 0.5]], [0.5, 0.25], { n: [-Math.SQRT1_2, Math.SQRT1_2], d: 0 }],
+    ['the diagonal y = x across the vertical center line', [[0, 0], [1, 1]], [0.75, 0.25], { n: [1, 0], d: 0.5 }],
+  ] as const)('repeats %s onto the perpendicular precrease', async (_label, through, moving, mirrorAxis) => {
+    const e = await engine();
+    const sheet = e.sheet({ shape: { kind: 'square' }, startSide: 'front' });
+    if (sheet.status !== 'ok') throw new Error('sheet');
+    const mirror = (p: readonly [number, number]) => mappedPoint(reflection(mirrorAxis), p);
+    const precrease = (line: readonly (readonly [number, number])[], toward: readonly [number, number]): FoldOp => ({
+      kind: 'precrease',
+      direction: 'valley',
+      line: { via: 'free', through: [line[0]!, line[1]!] },
+      moving: toward,
+      seed: { scope: 'all' },
+    });
+    const op = precrease(through, moving);
+    const one = e.step(sheet.state, op);
+    if (one.status !== 'ok') throw new Error(JSON.stringify(one));
+    const prepared = prepareRepeat(e, {
+      parent: one.state,
+      axis: mirrorAxis,
+      source: { first: 'a', last: 'a', revision: 'test' },
+      steps: [{ id: 'a', before: sheet.state, after: one.state, op }],
+    });
+    if (prepared.status !== 'ready') throw new Error(JSON.stringify(prepared));
+    expect(prepared.matched).toEqual([0]);
+    const [mirrored] = prepared.op.steps;
+    if (mirrored?.op.kind !== 'precrease' || mirrored.op.seed.scope !== 'flaps') throw new Error(JSON.stringify(mirrored));
+    // It names the half it folds at a point one face holds.
+    const scene = e.scene(one.state);
+    for (const at of mirrored.op.seed.at)
+      expect(scene.faces.filter((_, i) => insideConvex(sheetRing(scene, i), toPoint(at), 1e-6)), at.join(', ')).toHaveLength(1);
+    // The same state as the mirror precreased by hand.
+    const byHand = e.step(one.state, precrease(through.map(mirror), mirror(moving)));
+    if (byHand.status !== 'ok') throw new Error(JSON.stringify(byHand));
+    expect(mirrored.expect).toBe(byHand.fingerprint);
   });
 
   // A kite base mirrored across its diagonal. The axiom's first input starts

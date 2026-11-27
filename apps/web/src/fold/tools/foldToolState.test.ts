@@ -602,6 +602,23 @@ describe('the sequence tools in hand', () => {
     });
   });
 
+  it("end Repeat's range at the start chosen, until a later end is", () => {
+    const tools = createFoldTools();
+    tools.selectTool('repeat');
+    // An end chosen alone, the start left to the default.
+    tools.setRepeatLast('s3');
+    expect(tools.store.getState()).toMatchObject({ repeatFirst: null, repeatLast: 's3' });
+    // A new start is the end too: a range of one, which a later end lengthens.
+    tools.setRepeatFirst('s1');
+    expect(tools.store.getState()).toMatchObject({ repeatFirst: 's1', repeatLast: 's1' });
+    tools.setRepeatLast('s2');
+    // The same start again keeps the end chosen for it; another ends there.
+    tools.setRepeatFirst('s1');
+    expect(tools.store.getState()).toMatchObject({ repeatFirst: 's1', repeatLast: 's2' });
+    tools.setRepeatFirst('s2');
+    expect(tools.store.getState()).toMatchObject({ repeatFirst: 's2', repeatLast: 's2' });
+  });
+
   it('rebuild a saved step with its own settings, let go once another tool is taken', () => {
     const tools = createFoldTools();
     tools.rebuildStep({

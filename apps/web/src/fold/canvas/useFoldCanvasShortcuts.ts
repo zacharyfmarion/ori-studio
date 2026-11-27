@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { focusOwnsArrowKeys } from '../../keyboard/arrowKeyOwners';
+import { focusedByPointer } from '../../keyboard/focusOrigin';
 import type { FoldShortcutId, ViewportShortcutId } from '../../keyboard/shortcuts';
 import { registerFoldCancel, registerFoldKeyHandler, registerFoldViewCamera } from '../sequence/foldKeys';
 import { focusInFoldLayerPick } from '../sequence/foldLayerPickFocus';
@@ -17,13 +18,17 @@ export const FOLD_PANE_ATTRIBUTE = 'data-fold-pane';
 
 /**
  * Whether Enter at this focus is the canvas's: focus on nothing, on a pane
- * (a press focuses it), or in the layer controls, the step before Enter.
- * Anything else that holds focus — a button, a tab, a field — keeps its own
- * Enter, as the Diagram's steps leave it.
+ * (a press focuses it), in the layer controls, the step before Enter, or on a
+ * control a pointer pressed (`focusedByPointer`) — the rail button that took
+ * Repeat or opened the workspace, which Chromium focuses. Anything else that
+ * holds focus — a button or a tab the keyboard reached — keeps its own Enter,
+ * as the Diagram's steps leave it. A field keeps it before the canvas is asked.
  */
 export function focusLeavesEnterToFold(element: Element | null): boolean {
   if (element === null || element === element.ownerDocument.body) return true;
-  return element.closest(`[${FOLD_PANE_ATTRIBUTE}]`) !== null || focusInFoldLayerPick(element);
+  return (
+    element.closest(`[${FOLD_PANE_ATTRIBUTE}]`) !== null || focusInFoldLayerPick(element) || focusedByPointer(element)
+  );
 }
 
 const TOOL_BY_SHORTCUT = new Map<FoldShortcutId, FoldToolId>(

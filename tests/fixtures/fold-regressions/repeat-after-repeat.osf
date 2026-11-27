@@ -1,0 +1,590 @@
+{
+  "format": "oristudio.project",
+  "schemaVersion": 8,
+  "minimumReaderSchemaVersion": 11,
+  "createdBy": {
+    "app": "Ori Studio",
+    "version": "0.10.0",
+    "savedAt": "2026-11-26T16:07:52.365Z"
+  },
+  "modifiedBy": {
+    "app": "Ori Studio",
+    "version": "0.10.0",
+    "savedAt": "2026-11-26T16:07:52.365Z"
+  },
+  "workspace": {
+    "id": "workspace",
+    "title": "Repeat a repeated corner fold across another axis",
+    "activeDocumentId": "crease-pattern",
+    "designs": [],
+    "creasePattern": {
+      "id": "crease-pattern",
+      "kind": "crease-pattern",
+      "title": "Untitled CP",
+      "source": {
+        "format": "osf",
+        "filename": "repeat_a_repeat.osf",
+        "path": null
+      },
+      "creasePattern": {
+        "engine": "oristudio-cp",
+        "document": {
+          "crease_pattern": {
+            "line_segments": [
+              {
+                "a": {
+                  "x": -200,
+                  "y": 200
+                },
+                "b": {
+                  "x": 200,
+                  "y": 200
+                },
+                "color": "Black0",
+                "active": "Inactive0",
+                "selected": 0,
+                "customized": 0,
+                "customized_color": {
+                  "red": 100,
+                  "green": 200,
+                  "blue": 200
+                }
+              },
+              {
+                "a": {
+                  "x": 200,
+                  "y": 200
+                },
+                "b": {
+                  "x": 200,
+                  "y": -200
+                },
+                "color": "Black0",
+                "active": "Inactive0",
+                "selected": 0,
+                "customized": 0,
+                "customized_color": {
+                  "red": 100,
+                  "green": 200,
+                  "blue": 200
+                }
+              },
+              {
+                "a": {
+                  "x": 200,
+                  "y": -200
+                },
+                "b": {
+                  "x": -200,
+                  "y": -200
+                },
+                "color": "Black0",
+                "active": "Inactive0",
+                "selected": 0,
+                "customized": 0,
+                "customized_color": {
+                  "red": 100,
+                  "green": 200,
+                  "blue": 200
+                }
+              },
+              {
+                "a": {
+                  "x": -200,
+                  "y": -200
+                },
+                "b": {
+                  "x": -200,
+                  "y": 200
+                },
+                "color": "Black0",
+                "active": "Inactive0",
+                "selected": 0,
+                "customized": 0,
+                "customized_color": {
+                  "red": 100,
+                  "green": 200,
+                  "blue": 200
+                }
+              }
+            ],
+            "circles": [],
+            "points": [],
+            "aux_line_segments": [],
+            "texts": [],
+            "grid": {
+              "interval_grid_size": 2,
+              "grid_size": 8,
+              "grid_xa": 1,
+              "grid_xb": 0,
+              "grid_xc": 1,
+              "grid_ya": 1,
+              "grid_yb": 0,
+              "grid_yc": 1,
+              "grid_angle": 90,
+              "base_state": "WithinPaper",
+              "vertical_scale_position": 0,
+              "horizontal_scale_position": 0,
+              "draw_diagonal_gridlines": false
+            }
+          },
+          "operation_frame": {
+            "active": false,
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 0
+              }
+            ]
+          },
+          "metadata": {},
+          "title": "Untitled CP"
+        },
+        "source": {
+          "format": "osf",
+          "filename": "repeat_a_repeat.osf",
+          "path": null
+        },
+        "foldProjection": {
+          "file_spec": 1.1,
+          "file_creator": "oriedita",
+          "frame_title": "Untitled CP",
+          "vertices_coords": [
+            [
+              -200,
+              200
+            ],
+            [
+              200,
+              200
+            ],
+            [
+              200,
+              -200
+            ],
+            [
+              -200,
+              -200
+            ]
+          ],
+          "edges_vertices": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "edges_assignment": [
+            "B",
+            "B",
+            "B",
+            "B"
+          ],
+          "edges_foldAngle": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "faces_vertices": [
+            [
+              0,
+              1,
+              2,
+              3
+            ]
+          ],
+          "faces_edges": [
+            [
+              3,
+              0,
+              1,
+              2
+            ]
+          ],
+          "oriedita:edges_colors": [
+            "",
+            "",
+            "",
+            ""
+          ],
+          "oriedita:grid_size": 8,
+          "oriedita:grid_style": 1,
+          "oriedita:version": "dev",
+          "oristudio:edges_line_colors": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "sourceFold": null,
+        "lineage": {
+          "kind": "blank",
+          "manualEditCount": 0,
+          "stale": false
+        },
+        "images": [],
+        "textAnnotations": [],
+        "inlineSimulations": [],
+        "suppressionRegions": []
+      },
+      "viewState": {
+        "creaseColorMode": "mvf",
+        "selection": {
+          "lines": [],
+          "points": [],
+          "circles": [],
+          "texts": [],
+          "faces": []
+        },
+        "viewport": {
+          "gridVisible": true,
+          "snapToGrid": true,
+          "snapToVertices": true,
+          "snapToLines": true,
+          "camvIssuesVisible": true,
+          "foldAngleDisplay": "opacity",
+          "lineStyle": "color",
+          "lineWidth": 1,
+          "pointSize": 1
+        },
+        "camera": {
+          "centerX": 360,
+          "centerY": 348,
+          "zoom": 2.2857142857142856,
+          "rotation": 0
+        },
+        "foldedFigures": [],
+        "activeFoldedFigureId": null,
+        "references": null
+      },
+      "extensions": {}
+    },
+    "unknownDesigns": [],
+    "foldSequences": [
+      {
+        "formatVersion": 2,
+        "id": "fold-3d71aadb-5798-4b3f-9d8a-19ea2f99374c",
+        "title": "Repeat a repeated corner fold across another axis",
+        "paper": {
+          "shape": {
+            "kind": "square"
+          },
+          "startSide": "front"
+        },
+        "style": {
+          "preset": "diagram",
+          "style": {
+            "version": 1,
+            "paper": {
+              "front": "#ffffff",
+              "back": "#b3b3b3"
+            },
+            "edges": {
+              "width": 0.5,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "valleyFolds": {
+              "width": 0.25,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "butt"
+            },
+            "mountainDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                8,
+                2,
+                1,
+                2
+              ],
+              "cap": "butt"
+            },
+            "valleyDiagramCreases": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": [
+                4,
+                2
+              ],
+              "cap": "butt"
+            },
+            "foldsAsEdges": false,
+            "auxCreases": {
+              "visible": true,
+              "pen": {
+                "width": 0.25,
+                "color": "#231f20",
+                "dash": null,
+                "cap": "butt"
+              }
+            },
+            "arrows": {
+              "width": 0.75,
+              "color": "#231f20",
+              "dash": null,
+              "cap": "round"
+            },
+            "erode": 0.005,
+            "light": {
+              "enabled": true,
+              "azimuth": 322.19347,
+              "elevation": 42.80915
+            }
+          }
+        },
+        "defaultSpread": "off",
+        "steps": [
+          {
+            "id": "fstep-3b9f258c-6362-45d5-a839-651aed96b126",
+            "parent": null,
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  -0.7071067811865475
+                ],
+                "d": 0
+              }
+            },
+            "expect": "fs1:90e1e44c76b3127f",
+            "note": "Precrease the diagonal y = x, from the bottom left corner to the top right: a valley through every layer (Axiom 2, the bottom right corner onto the top left)."
+          },
+          {
+            "id": "fstep-6111e1f1-a0f4-402e-acb1-4d1efb525794",
+            "parent": "fstep-3b9f258c-6362-45d5-a839-651aed96b126",
+            "op": {
+              "kind": "precrease",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      0,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      1
+                    ]
+                  }
+                ]
+              },
+              "direction": "valley",
+              "seed": {
+                "scope": "all"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  0.7071067811865475
+                ],
+                "d": 0.7071067811865475
+              }
+            },
+            "expect": "fs1:5d18ea77f4a7b5c2",
+            "note": "Precrease the other diagonal, x + y = 1, from the top left corner to the bottom right: a valley through every layer (Axiom 2, the bottom left corner onto the top right)."
+          },
+          {
+            "id": "fstep-84954182-949b-4820-b551-d2569e2c299a",
+            "parent": "fstep-6111e1f1-a0f4-402e-acb1-4d1efb525794",
+            "op": {
+              "kind": "valley",
+              "line": {
+                "via": "axiom",
+                "axiom": 2,
+                "inputs": [
+                  {
+                    "kind": "point",
+                    "at": [
+                      1,
+                      0
+                    ]
+                  },
+                  {
+                    "kind": "point",
+                    "at": [
+                      0.5,
+                      0.5
+                    ]
+                  }
+                ]
+              },
+              "seed": {
+                "scope": "all"
+              },
+              "landing": {
+                "kind": "outer"
+              }
+            },
+            "choices": {
+              "root": {
+                "n": [
+                  0.7071067811865475,
+                  -0.7071067811865475
+                ],
+                "d": 0.35355339059327373
+              }
+            },
+            "expect": "fs1:8b9829144f67e6e3",
+            "note": "Valley fold the bottom right corner onto the center, along x − y = 1/2 (Axiom 2)."
+          },
+          {
+            "id": "fstep-6889b509-da0c-4675-a9f1-fcb228168745",
+            "parent": "fstep-84954182-949b-4820-b551-d2569e2c299a",
+            "op": {
+              "kind": "repeat",
+              "source": {
+                "first": "fstep-84954182-949b-4820-b551-d2569e2c299a",
+                "last": "fstep-84954182-949b-4820-b551-d2569e2c299a",
+                "revision": "fh1:3c8a67516536e660"
+              },
+              "parentState": "fs1:8b9829144f67e6e3",
+              "axis": {
+                "n": [
+                  -0.7071067811865475,
+                  0.7071067811865475
+                ],
+                "d": 0
+              },
+              "steps": [
+                {
+                  "op": {
+                    "kind": "valley",
+                    "line": {
+                      "via": "axiom",
+                      "axiom": 2,
+                      "inputs": [
+                        {
+                          "kind": "point",
+                          "at": [
+                            2.220446049250313e-16,
+                            0.9999999999999998
+                          ]
+                        },
+                        {
+                          "kind": "point",
+                          "at": [
+                            0.5,
+                            0.5
+                          ]
+                        }
+                      ]
+                    },
+                    "seed": {
+                      "scope": "flaps",
+                      "at": [
+                        [
+                          0.08333333333333348,
+                          0.7499999999999998
+                        ]
+                      ]
+                    },
+                    "landing": {
+                      "kind": "outer"
+                    }
+                  },
+                  "choices": {
+                    "root": {
+                      "n": [
+                        -0.7071067811865472,
+                        0.7071067811865472
+                      ],
+                      "d": 0.3535533905932734
+                    }
+                  },
+                  "expect": "fs1:2ca00397f4122f5a",
+                  "sourceStep": "fstep-84954182-949b-4820-b551-d2569e2c299a"
+                }
+              ]
+            },
+            "expect": "fs1:2ca00397f4122f5a",
+            "note": "Repeat step 3 across the diagonal y = x: the top left corner onto the center, along y − x = 1/2. With this step on screen, Repeat repeats step 3 again: the bottom left corner across the vertical center line, or the top right across the horizontal one."
+          }
+        ]
+      }
+    ],
+    "viewState": {
+      "fold": {
+        "v": 1,
+        "sequenceId": "fold-3d71aadb-5798-4b3f-9d8a-19ea2f99374c",
+        "cursor": "fstep-6889b509-da0c-4675-a9f1-fcb228168745",
+        "activeChild": {
+          "": "fstep-3b9f258c-6362-45d5-a839-651aed96b126",
+          "fstep-3b9f258c-6362-45d5-a839-651aed96b126": "fstep-6111e1f1-a0f4-402e-acb1-4d1efb525794",
+          "fstep-6111e1f1-a0f4-402e-acb1-4d1efb525794": "fstep-84954182-949b-4820-b551-d2569e2c299a",
+          "fstep-84954182-949b-4820-b551-d2569e2c299a": "fstep-6889b509-da0c-4675-a9f1-fcb228168745"
+        }
+      }
+    }
+  },
+  "artifacts": {},
+  "extensions": {}
+}

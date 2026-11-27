@@ -24,6 +24,7 @@ import { TooltipProvider } from './components/ui/Tooltip';
 import { handleMenuAction } from './commands/menuActions';
 import { useTauriOpenedFiles } from './hooks/useTauriOpenedFiles';
 import { useWindowTitle } from './hooks/useWindowTitle';
+import { installFocusOriginTracker } from './keyboard/focusOrigin';
 import { installHeldModifierTracker } from './keyboard/heldModifiers';
 import { installAppKeyboardListener } from './lib/appKeyboard';
 import { registerWorkerFailureSink, workerErrorCode } from './lib/workerDiagnostics';
@@ -159,6 +160,9 @@ export default function App() {
   // sample, not an event they handle -- so they track alongside the shortcut
   // dispatcher rather than through it.
   useEffect(() => installHeldModifierTracker(), []);
+  // How focus arrived, for a surface that leaves a key to the focused control
+  // only when the keyboard put focus there (Fold's Enter).
+  useEffect(() => installFocusOriginTracker(), []);
 
   const handleOpenedFilePath = useCallback(
     async (path: string) => {

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { installFocusOriginTracker } from '../../keyboard/focusOrigin';
 import { handleShortcutRuntimeKeyDown, registerConditionalScopeExecutor } from '../../keyboard/shortcutRuntime';
 import { getResolvedShortcuts, shortcutLabelForAction, SHORTCUT_DEFINITIONS } from '../../keyboard/shortcuts';
 import { FOLD_LINE_MODE_SHORTCUTS, FOLD_TOOL_SHORTCUTS } from '../tools/foldToolCatalog';
@@ -139,6 +140,31 @@ describe('the Fold canvas’s keys', () => {
     expect(runFoldCanvasShortcut('fold.commit', chip)).toBe(true);
     // Off the layer controls a declined commit lets the key go.
     expect(runFoldCanvasShortcut('fold.commit', document.body)).toBe(false);
+  });
+
+  it('commits on Enter from a button a pointer pressed, and leaves Enter to one the keyboard reached', () => {
+    const bound = verbs();
+    release = registerFoldCanvasVerbs(bound);
+    const offOrigin = installFocusOriginTracker(window);
+    // The workspace rail's Fold, or the tool rail's Repeat: Chromium focuses the button pressed.
+    const rail = document.createElement('button');
+    const tabbed = document.createElement('button');
+    document.body.append(rail, tabbed);
+    try {
+      rail.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      rail.focus();
+      expect(focusLeavesEnterToFold(rail)).toBe(true);
+      expect(runFoldCanvasShortcut('fold.commit', rail)).toBe(true);
+      expect(bound.commit).toHaveBeenCalledTimes(1);
+      // Nothing to commit: the key goes on to the button, which presses.
+      vi.mocked(bound.commit).mockReturnValue(false);
+      expect(runFoldCanvasShortcut('fold.commit', rail)).toBe(false);
+      rail.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+      tabbed.focus();
+      expect(focusLeavesEnterToFold(tabbed)).toBe(false);
+    } finally {
+      offOrigin();
+    }
   });
 
   it('steps the chooser on Shift+arrows while it has several, and leaves the keys to a control that uses them', () => {
