@@ -3,6 +3,8 @@
 //!
 //! - two fold examples' Fold sequences fold far under it, step by step, and
 //!   their last states import under it;
+//! - a generated accordion forty layers deep (9,880 triples at its last
+//!   fold) folds and imports under it;
 //! - the fixtures' real crease patterns import under it, the deepest a
 //!   box-pleated iguana component that stacks 250 layers deep (10.2 million
 //!   triples), which the cap of 4 million refused before the solver's
@@ -161,6 +163,49 @@ fn the_fixture_sequences_fold_far_under_the_cap() {
             println!("{name}: at most {most} triples a step; imported, {weighed:?}");
         }
     }
+}
+
+/// An accordion `layers` deep, folded from the square's right edge: each
+/// fold carries every layer right of a line one strip further left, valley
+/// and mountain in turn.
+fn accordion(layers: usize) -> Value {
+    let w = 1.0 / layers as f64;
+    let steps: Vec<Value> = (1..layers)
+        .map(|k| {
+            let x = 1.0 - k as f64 * w;
+            json!({
+                "id": format!("pleat-{k}"),
+                "parent": if k == 1 { Value::Null } else { json!(format!("pleat-{}", k - 1)) },
+                "op": {
+                    "kind": if k % 2 == 1 { "valley" } else { "mountain" },
+                    "line": {"via": "free", "through": [[x, 0.2], [x, 0.8]]},
+                    "moving": [x + w / 2.0, 0.5],
+                    "seed": {"scope": "all"},
+                    "landing": {"kind": "outer"},
+                },
+            })
+        })
+        .collect();
+    json!({"paper": {"shape": {"kind": "square"}, "startSide": "front"}, "steps": steps})
+}
+
+#[test]
+fn an_accordion_forty_layers_deep_folds_under_the_cap() {
+    // Forty layers over one strip: C(40, 3) = 9,880 triples at its last fold.
+    let t = Instant::now();
+    let (most, last) = replay("accordion", &accordion(40));
+    assert_eq!(most, 9_880);
+    assert!(most <= CAP / 100, "{most} triples");
+    let text = send_to_edit_text(&last, None).unwrap_or_else(|e| panic!("{e:?}"));
+    let weighed = weigh(CpFormat::Fold, text.as_bytes());
+    assert!(
+        weighed.as_ref().is_ok_and(|&(_, t)| t == most),
+        "{weighed:?}"
+    );
+    println!(
+        "accordion: at most {most} triples a step; imported, {weighed:?}; {:.0} ms",
+        t.elapsed().as_secs_f64() * 1e3
+    );
 }
 
 #[test]

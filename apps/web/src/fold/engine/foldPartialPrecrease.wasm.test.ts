@@ -110,6 +110,23 @@ describe.skipIf(!available)('partial precreases over the real bridge', () => {
     }
   });
 
+  it('accepts a precrease along two existing creases, one in each layer, without moving its material', async () => {
+    const { calls } = await engine();
+    // A square folded in half, both layers precreased along x = 0.5: one line, a crease in each layer.
+    const across: FoldPrecreaseOp = { ...precrease(), line: { via: 'free', through: [[0.5, 0.1], [0.5, 0.4]] }, moving: [0.9, 0.25] };
+    let state = landed(calls.sheet(SQUARE)).state;
+    state = landed(calls.step(state, { kind: 'valley', line: { via: 'free', through: [[0, 0.5], [1, 0.5]] }, moving: [0.5, 0.9], seed: { scope: 'all' }, landing: { kind: 'outer' } })).state;
+    state = landed(calls.step(state, across)).state;
+    const before = calls.scene(state);
+    const after = landed(calls.step(state, { ...across, direction: 'mountain' }));
+    const scene = calls.scene(after.state);
+    expect(scene.faces).toEqual(before.faces);
+    expect(scene.face_transforms).toEqual(before.face_transforms);
+    expect(scene.subfaces).toEqual(before.subfaces);
+    expect(scene.crease_marks).toBeUndefined();
+    expect(landed(calls.stepSummary(after.state)).summary?.diff.reversed).toHaveLength(2);
+  });
+
   it('lands a pinch whose marks every query carries', async () => {
     const { calls } = await engine();
     const sheet = landed(calls.sheet(SQUARE));

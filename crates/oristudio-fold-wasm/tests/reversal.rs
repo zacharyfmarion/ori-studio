@@ -52,6 +52,10 @@ fn every_compound_fixture_can_return_each_step_and_the_whole_range() {
         "fold-examples/swivel-inside",
         "fold-examples/swivel-on-edge",
         "fold-regressions/rabbit-ear-folded-corner",
+        "fold-examples/rabbit-ear-precreased",
+        "fold-examples/squash-precreased-flap",
+        "fold-examples/kite-outside-reverse",
+        "fold-examples/tuck-under-two-flaps",
     ] {
         let file: Value = serde_json::from_str(
             &std::fs::read_to_string(root.join(format!("{name}.osf"))).unwrap(),
@@ -84,7 +88,12 @@ fn every_compound_fixture_can_return_each_step_and_the_whole_range() {
                 };
                 states.push(a.state);
                 paths.insert(step["id"].as_str().unwrap().to_string(), states.clone());
-                kinds.insert(step["op"]["kind"].as_str().unwrap().to_string());
+                // A tuck is saved as a plain fold landing against its targets.
+                kinds.insert(if step["op"]["landing"]["kind"] == "against" {
+                    "tuck".to_string()
+                } else {
+                    step["op"]["kind"].as_str().unwrap().to_string()
+                });
                 let r = returned(&mut b, a.state, parent, &states);
                 pose(b.state(r).unwrap(), b.state(parent).unwrap());
                 // Every current crease remains physically represented, including its interior.
@@ -128,7 +137,15 @@ fn every_compound_fixture_can_return_each_step_and_the_whole_range() {
             }
         }
     }
-    for kind in ["inside-reverse", "petal", "squash", "swivel", "rabbit-ear"] {
+    for kind in [
+        "tuck",
+        "outside-reverse",
+        "inside-reverse",
+        "petal",
+        "squash",
+        "swivel",
+        "rabbit-ear",
+    ] {
         assert!(kinds.contains(kind), "missing {kind}: {kinds:?}");
     }
 }
