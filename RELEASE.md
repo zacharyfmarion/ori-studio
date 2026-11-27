@@ -200,8 +200,12 @@ starts at the merge and takes 15–20 minutes, and the tagged build refuses a
 commit without a successful run (see below). `--no-wait` skips the wait.
 
 The pushed tag triggers the same build, which additionally uploads to a GitHub
-Release created as a **draft**. From there it is four steps, and the order
-matters:
+Release created as a **draft prerelease**. Publishing that draft, from the web
+UI or with `gh`, keeps it a prerelease, so it cannot become `releases/latest`
+before its manifest is attached; only step 4 does that. (The draft used to be a
+full release, where the web UI's "Publish release" button would have made a
+release with no `latest.json` the latest one.) From there it is four steps, and
+the order matters:
 
 ```sh
 # 1. Publish the draft as a PRERELEASE.

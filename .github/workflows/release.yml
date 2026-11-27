@@ -311,13 +311,18 @@ jobs:
               core.notice(`reusing existing draft ${existing.id} for ${tag}`);
               return existing.id;
             }
+            // A prerelease from the start, as the header says, so publishing the
+            // draft — from the web UI's "Publish release" or `gh release edit
+            // --draft=false` — cannot make it `releases/latest`. A latest
+            // release with no `latest.json` 404s the updater on every install;
+            // only arming, after the manifest is attached, should make it latest.
             const { data } = await github.rest.repos.createRelease({
               ...context.repo,
               tag_name: tag,
               name: `Ori Studio ${process.env.VERSION}`,
               body: fs.readFileSync('release-notes.md', 'utf8'),
               draft: true,
-              prerelease: false,
+              prerelease: true,
             });
             return data.id;
 
