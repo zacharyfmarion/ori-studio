@@ -5,6 +5,7 @@ import { AnalyticsRuntimeProvider, type PostHogClientLike } from '../analytics';
 import {
   formatKeyChord,
   getResolvedShortcuts,
+  isShortcutBindable,
   keyChordId,
   SHORTCUT_DEFINITIONS,
   type KeyChord,
@@ -1233,10 +1234,34 @@ describe('SettingsModal', () => {
     expect(useSettingsStore.getState().isSettingsOpen).toBe(false);
   });
 
+  it('lists only the actions that can take a shortcut', () => {
+    // Clicking one of these and pressing a key only ever answered "cannot take a
+    // shortcut yet": a not-implemented stub, a tool with no button, and Undo,
+    // whose overrides add to Cmd+Z rather than replace it.
+    renderModal('shortcuts');
+    const listed = Array.from(
+      container?.querySelectorAll('.settings-shortcuts__copy span') ?? []
+    ).map((element) => element.textContent);
+
+    expect(listed).not.toContain('Pan viewport');
+    expect(listed).not.toContain('Move background');
+    expect(listed).not.toContain('Move calculated shape');
+    expect(listed).not.toContain('Undo');
+    expect(listed).toHaveLength(
+      SHORTCUT_DEFINITIONS.filter((definition) => isShortcutBindable(definition.id)).length
+    );
+  });
+
   it('refuses to bind a not-implemented action, exactly as an import does', () => {
     // The two entry points must answer "can this action hold a chord" the same
     // way; they did not. Capture applied no bindability check at all, so this
     // row would unbind whatever held A and then assign a stub that does nothing.
+    //
+    // Such a row is listed only while it still holds an override from those
+    // days, which is also what keeps that old chord clearable.
+    useShortcutStore.setState({
+      overrides: { 'cp.action.move-calculated-shape': [{ key: 'q', shift: true }] },
+    });
     const rendered = renderModal('shortcuts');
     const before = { ...useShortcutStore.getState().overrides };
 
