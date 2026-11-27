@@ -13,6 +13,7 @@ import {
   CP_EXACT_SOLVE_REASONS,
   classifyCpExactSolve,
   cpExactSolveAngleFamily,
+  cpExactSolveGridSnap,
   cpExactSolvePleats,
   cpExactSolveResiduals,
   isCpExactSolveAccepted,
@@ -104,6 +105,7 @@ describe("classifyCpExactSolve", () => {
       residuals: null,
       angleFamily: null,
       pleats: null,
+      gridSnap: null,
       polishAdopted: true,
     });
     expect(primaryCpExactSolveReason(outcome)).toBeNull();
@@ -612,6 +614,60 @@ describe("cpExactSolveAngleFamily", () => {
     expect(family?.adopted).toBe(true);
     expect(family?.stopReason).toBe("adopted");
     expect(family?.refusals).toEqual([]);
+  });
+});
+
+describe("cpExactSolveGridSnap", () => {
+  const solvedWith = (
+    movement_report: CpExactSolveMovementReport,
+  ): CpExactSolvedGraph =>
+    ({
+      schema: "test",
+      vertices_exact: [],
+      edges_exact: [],
+      movement_report,
+      theorem_residual_report: {},
+      status: "solved",
+    }) as CpExactSolvedGraph;
+
+  it("is null when the snap was not asked for", () => {
+    expect(cpExactSolveGridSnap(solvedWith({}))).toBeNull();
+  });
+
+  it("reads an adopted snap and a refused one", () => {
+    expect(
+      cpExactSolveGridSnap(
+        solvedWith({
+          grid_snap: { adopted: true, stop_reason: "adopted", cells: 32, snapped_cells: 96 },
+        }),
+      ),
+    ).toEqual({ adopted: true, stopReason: "adopted", cells: 32 });
+    expect(
+      cpExactSolveGridSnap(
+        solvedWith({ grid_snap: { adopted: false, stop_reason: "not_exact_on_grid", cells: 48 } }),
+      ),
+    ).toEqual({ adopted: false, stopReason: "not_exact_on_grid", cells: 48 });
+  });
+
+  it("says no grid rather than inventing one", () => {
+    expect(
+      cpExactSolveGridSnap(solvedWith({ grid_snap: { adopted: false, stop_reason: "no_grid" } })),
+    ).toEqual({ adopted: false, stopReason: "no_grid", cells: null });
+  });
+
+  it("rides on an accepted outcome", () => {
+    const outcome = classifyCpExactSolve(
+      {
+        ...solvedWith({
+          accepted: true,
+          grid_snap: { adopted: true, stop_reason: "adopted", cells: 16 },
+        }),
+      },
+      "refinement",
+    );
+    expect(outcome.kind).toBe("solved");
+    if (outcome.kind !== "solved") return;
+    expect(outcome.gridSnap).toEqual({ adopted: true, stopReason: "adopted", cells: 16 });
   });
 });
 

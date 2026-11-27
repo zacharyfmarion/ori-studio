@@ -18,6 +18,7 @@ import {
   cpDetectCandidateSourceFromFold,
   cpDetectSolveInput,
   cpDetectSolveState,
+  cpDetectBoxPleatGrid,
   cpDetectTopologyDiagnostics,
   type CpDetectFoldResult,
   type CpDetectModelManifest,
@@ -247,6 +248,7 @@ export function nativeCpDetectClient(
         solve,
         solveInput: cpDetectSolveInput(decoded.report),
         topologyDiagnostics: cpDetectTopologyDiagnostics(decoded.report),
+        boxPleatGrid: cpDetectBoxPleatGrid(decoded.report),
       };
     },
     async solveExact(inputJson: string, optionsJson = ''): Promise<CpExactSolvedGraph> {

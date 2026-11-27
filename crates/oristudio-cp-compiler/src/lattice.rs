@@ -184,6 +184,67 @@ pub fn detect_square_lattice(
     None
 }
 
+/// The coarsest lattice most of a detection sits on.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DominantLattice {
+    /// Cells per paper edge.
+    pub cells: u32,
+    /// The share of the coordinates within the tolerance of a lattice line.
+    pub support: f64,
+}
+
+/// The finest lattice [`dominant_square_lattice`] looks at. Its bands stop it
+/// long before this at any tolerance a detection is read with.
+const MAX_DOMINANT_CELLS: u32 = 512;
+
+/// The coarsest lattice, from [`MIN_CELLS`] cells up, that at least
+/// `min_support` of `coordinates` (unit-square values) sit within `tolerance`
+/// of; `None` when there is none.
+///
+/// The question a detection asks, where [`detect_square_lattice`] is the one a
+/// converged answer asks: a detection is right to a pixel or so at nearly every
+/// vertex and off by more at a few, so it can only say where *most* of the
+/// pattern lies. The few it leaves out are what a finer lattice must not be
+/// allowed to absorb, which is why the coarsest supported one is taken. A band
+/// may cover at most [`MAX_BAND`] of the edge, so the support is evidence of a
+/// lattice by itself; the distinct supported values must still be at least
+/// [`MIN_COORDINATES`], and their chance below [`MAX_CHANCE`].
+pub fn dominant_square_lattice(
+    coordinates: &[f64],
+    tolerance: f64,
+    min_support: f64,
+) -> Option<DominantLattice> {
+    if coordinates.is_empty() || !(tolerance.is_finite() && tolerance > 0.0) {
+        return None;
+    }
+    for cells in MIN_CELLS..=MAX_DOMINANT_CELLS {
+        let band = 2.0 * tolerance * f64::from(cells);
+        if band >= MAX_BAND {
+            break;
+        }
+        let mut support = 0usize;
+        let mut distinct = std::collections::BTreeSet::new();
+        for &value in coordinates {
+            if (value - snap_to(value, cells)).abs() <= tolerance {
+                support += 1;
+                distinct.insert((value * 1e6).round() as i64);
+            }
+        }
+        let fraction = support as f64 / coordinates.len() as f64;
+        if fraction < min_support
+            || distinct.len() < MIN_COORDINATES
+            || band.powf(distinct.len() as f64) > MAX_CHANCE
+        {
+            continue;
+        }
+        return Some(DominantLattice {
+            cells,
+            support: fraction,
+        });
+    }
+    None
+}
+
 /// How many distinct values `coordinates` holds, to
 /// [`DISTINCT_COORDINATE_EPSILON`].
 fn distinct_count(coordinates: &[f64]) -> usize {

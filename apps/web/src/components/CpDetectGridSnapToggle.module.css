@@ -1,0 +1,5 @@
+/* The grid's size, quieter than the action it qualifies. */
+.size {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}

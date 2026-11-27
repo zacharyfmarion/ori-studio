@@ -73,6 +73,7 @@
     "detected": "Detectado",
     "dropImageHere": "Suelta la imagen aquí",
     "editCrop": "Editar recorte",
+    "gridSize": "{{cells}} × {{cells}}",
     "inferred": "Inferido",
     "model": {
       "deviceGpu": "Este dispositivo tiene GPU, así que la detección tarda segundos.",
@@ -100,6 +101,7 @@
       "lead": "Los patrones de pliegues son obra de sus diseñadores. Detecte solo un patrón que tenga derecho a usar: uno que haya diseñado usted, uno que se haya publicado para que otros lo plieguen, o uno cuyo diseñador le haya dado permiso. La imagen se procesa en este dispositivo y nunca se sube."
     },
     "runningModel": "Ejecutando el modelo",
+    "snapToGrid": "Ajustar a la cuadrícula",
     "stopping": "Deteniendo…",
     "stopSolve": "Detener",
     "title": "Detectar CP desde imagen",
@@ -109,6 +111,8 @@
       "cancelled": "Detuviste la resolución, así que no se cambió nada: este es el patrón tal como se reconoció. «Revisar y corregir» lo añade con la imagen de origen detrás y conserva los datos del solucionador, para que puedas volver a resolverlo en el documento.",
       "exact": "Añadirlo junto a tu trabajo deja intacto el resto del documento.",
       "exactReview": "«Revisar y corregir» añade en su lugar el patrón tal como se reconoció, con la imagen de origen detrás y conservando los datos del solucionador, para que puedas fijar o mover vértices antes de volver a resolverlo tú mismo.",
+      "gridSnapOutOfTime": "Se agotó el tiempo antes de poder ajustarlo a la cuadrícula de {{cells}} × {{cells}}.",
+      "gridSnapRefused": "No se ajustó a la cuadrícula de {{cells}} × {{cells}}: sobre la cuadrícula dejaría de plegarse en plano.",
       "improved": "«Revisar y corregir» lo añade con la imagen de origen detrás y conserva los datos del solucionador, para que puedas reparar lo que queda y volver a resolverlo, o añadir el resultado mejorado tal como está.",
       "improvedNoFold": "«Revisar y corregir» lo añade con la imagen de origen detrás y conserva los datos del solucionador, para que puedas reparar lo que queda y volver a resolverlo.",
       "repairable_one": "Reconocido, con 1 lugar que reparar, así que la resolución no se ejecutó: habría gastado todo su tiempo en una geometría que estás a punto de cambiar. «Revisar y corregir» añade el candidato con la imagen de origen detrás, para que puedas corregirlo y resolverlo.",

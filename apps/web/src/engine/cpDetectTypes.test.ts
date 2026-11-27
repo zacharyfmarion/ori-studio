@@ -9,6 +9,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  cpDetectBoxPleatGrid,
   cpDetectCandidateSourceFromFold,
   cpDetectSolveInput,
   cpDetectSolveState,
@@ -112,6 +113,46 @@ describe('cpDetectSolveInput and cpDetectTopologyDiagnostics', () => {
   it('are null on a report that carries neither', () => {
     expect(cpDetectSolveInput(report({}))).toBeNull();
     expect(cpDetectTopologyDiagnostics(report({}))).toBeNull();
+  });
+});
+
+describe('cpDetectBoxPleatGrid', () => {
+  it('reads the grid and the candidate moves recognition reported', () => {
+    const grid = cpDetectBoxPleatGrid(
+      report({
+        box_pleat_grid: {
+          cells: 16,
+          coordinate_support: 0.99,
+          family_fraction: 0.97,
+          tolerance_px: 1.5,
+          snapped_vertices: [{ vertex_id: 7, before: { x: 0.499, y: 0.5 }, after: { x: 0.5, y: 0.5 } }],
+        },
+      })
+    );
+    expect(grid).toEqual({ cells: 16, snappedVertices: [{ vertex_id: 7, after: { x: 0.5, y: 0.5 } }] });
+  });
+
+  it('is null for a pattern that is not box-pleated, or a report that predates it', () => {
+    expect(cpDetectBoxPleatGrid(report({ box_pleat_grid: null }))).toBeNull();
+    expect(cpDetectBoxPleatGrid(report({}))).toBeNull();
+    expect(cpDetectBoxPleatGrid(report({ box_pleat_grid: { cells: 0 } }))).toBeNull();
+  });
+
+  it('drops a move it cannot trust instead of writing NaN into the pattern', () => {
+    const grid = cpDetectBoxPleatGrid(
+      report({
+        box_pleat_grid: {
+          cells: 8,
+          snapped_vertices: [
+            { vertex_id: 1, after: { x: 0.25, y: 0.5 } },
+            { vertex_id: 2, after: { x: 'a', y: 0.5 } },
+            { vertex_id: 2.5, after: { x: 0.25, y: 0.5 } },
+            { after: { x: 0.25, y: 0.5 } },
+          ],
+        },
+      })
+    );
+    expect(grid?.snappedVertices).toEqual([{ vertex_id: 1, after: { x: 0.25, y: 0.5 } }]);
   });
 });
 

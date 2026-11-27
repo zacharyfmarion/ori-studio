@@ -8,6 +8,7 @@ pub mod arrangement;
 pub mod arrangement_v2;
 pub mod assignments;
 pub mod border;
+pub mod box_pleat_grid;
 pub mod candidate_graph;
 pub mod candidates;
 mod carrier_lines;
@@ -32,6 +33,9 @@ pub mod verify;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub use box_pleat_grid::{
+    BoxPleatGrid, BoxPleatGridSnap, SnappedVertex, read_box_pleat_grid, snap_to_box_pleat_grid,
+};
 pub use candidate_graph::{
     ArrangementCandidateAdapter, AssignmentEvidence, AssignmentEvidenceSource, BoundaryModel,
     BoundarySide, CandidateConflict, CandidateConflictKind, CandidateCreaseSourceKind,
@@ -49,10 +53,10 @@ pub use evidence::{EvidenceSource, Provenance};
 pub use exact_solve::{
     AngleDependentTopologyFindings, AngleFamilyMode, CamvCounts, CombinatorialTopologyFindings,
     ConstructionRecoveryMode, DEFAULT_EXACT_SOLVE_TIMEOUT_SECONDS, ExactSolveOptions,
-    ExactSolveOptionsWithExemptions, LatticeSnapMode, LinearSolver, TopologyDiagnostics,
-    TopologyVertexDiagnostic, analyze_candidate_topology, camv_violation_counts,
-    exact_solve_options_from_json, parse_exact_solve_request, solve_exact, solve_exact_on_lattice,
-    solve_exact_with_exemptions, with_cancellation,
+    ExactSolveOptionsWithExemptions, GridSnapMode, LatticeSnapMode, LinearSolver,
+    TopologyDiagnostics, TopologyVertexDiagnostic, analyze_candidate_topology,
+    camv_violation_counts, exact_solve_options_from_json, parse_exact_solve_request, solve_exact,
+    solve_exact_on_lattice, solve_exact_with_exemptions, with_cancellation,
 };
 pub use fold_exactize::{
     ExactizeOutcome, ExactizeStatus, Similarity, exact_solve_input_from_fold, exactize_fold,

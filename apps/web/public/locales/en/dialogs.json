@@ -73,6 +73,7 @@
     "detected": "Detected",
     "dropImageHere": "Drop image here",
     "editCrop": "Edit Crop",
+    "gridSize": "{{cells}} × {{cells}}",
     "inferred": "Inferred",
     "model": {
       "deviceGpu": "This device has a GPU, so detection takes seconds.",
@@ -100,6 +101,7 @@
       "lead": "Crease patterns are their designers’ work. Detect only a pattern you have the right to use: one you designed, one that was published for others to fold, or one whose designer gave you permission. The image is processed on this device and is never uploaded."
     },
     "runningModel": "Running model",
+    "snapToGrid": "Snap to grid",
     "stopping": "Stopping…",
     "stopSolve": "Stop",
     "title": "Detect CP from Image",
@@ -109,6 +111,8 @@
       "cancelled": "You stopped the solve, so nothing was changed — this is the pattern exactly as it was recognized. Review & Fix adds it with the source image behind it and keeps the solver data, so you can solve it again in the document.",
       "exact": "Adding it beside your work leaves the rest of the document untouched.",
       "exactReview": "Review & Fix adds the pattern as recognized instead, with the source image behind it and the solver data kept, so you can pin or move vertices before solving it again yourself.",
+      "gridSnapOutOfTime": "It ran out of time before it could be snapped to the {{cells}} × {{cells}} grid.",
+      "gridSnapRefused": "It is not snapped to the {{cells}} × {{cells}} grid: on the grid it would no longer fold flat.",
       "improved": "Review & Fix adds it with the source image behind it and keeps the solver data, so you can repair what is left and solve again — or add the improved result as it stands.",
       "improvedNoFold": "Review & Fix adds it with the source image behind it and keeps the solver data, so you can repair what is left and solve again.",
       "repairable_one": "Recognized, with 1 place to repair — so the solve was not run: it would have spent its whole budget on geometry you are about to change. Review & Fix adds the candidate with the source image behind it, so you can fix it and solve.",

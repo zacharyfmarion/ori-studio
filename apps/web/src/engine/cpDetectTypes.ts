@@ -480,6 +480,33 @@ export interface CpDetectRecognizeResult {
   solveInput: unknown;
   /** `compiler_report.topology_diagnostics`; null if the report omits it. */
   topologyDiagnostics: CpDetectTopologyDiagnostics | null;
+  /**
+   * `compiler_report.box_pleat_grid`: the grid the candidate reads as
+   * box-pleated on, with its snap. Null (or absent, from a decoder that
+   * predates it) when the pattern is not box-pleated.
+   */
+  boxPleatGrid?: CpDetectBoxPleatGrid | null;
+}
+
+/**
+ * The square grid a box-pleated candidate sits on
+ * (`crates/oristudio-cp-compiler/src/box_pleat_grid.rs`), and what snapping
+ * the candidate to it moves.
+ */
+export interface CpDetectBoxPleatGrid {
+  /** Cells per paper edge. */
+  cells: number;
+  /**
+   * Every vertex of the candidate within the snap tolerance of a grid line,
+   * moved onto it — by `ExactSolveInput` vertex id, the space
+   * `cp_detector.vertex_original_ids` maps the FOLD's vertices into.
+   */
+  snappedVertices: readonly CpDetectSnappedVertex[];
+}
+
+export interface CpDetectSnappedVertex {
+  vertex_id: number;
+  after: { x: number; y: number };
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -535,6 +562,39 @@ function cpDetectSolveBudget(budget: Record<string, unknown>): CpDetectSolveBudg
 /** The pre-solve `ExactSolveInput`, or null when the report carries none. */
 export function cpDetectSolveInput(report: CpDetectDecodeReport | null | undefined): unknown {
   return cpDetectCompilerReport(report)?.exact_solve_input ?? null;
+}
+
+/**
+ * The box-pleat grid, or null when the report reads none. A malformed entry is
+ * dropped rather than trusted: an id or a coordinate that is not a number would
+ * write NaN into the pattern the snap is meant to clean up.
+ */
+export function cpDetectBoxPleatGrid(
+  report: CpDetectDecodeReport | null | undefined
+): CpDetectBoxPleatGrid | null {
+  const grid = asRecord(cpDetectCompilerReport(report)?.box_pleat_grid);
+  const cells = grid?.cells;
+  if (typeof cells !== 'number' || !Number.isInteger(cells) || cells <= 0) return null;
+  const snapped = Array.isArray(grid?.snapped_vertices) ? grid.snapped_vertices : [];
+  const snappedVertices: CpDetectSnappedVertex[] = [];
+  for (const entry of snapped) {
+    const record = asRecord(entry);
+    const after = asRecord(record?.after);
+    const id = record?.vertex_id;
+    const x = after?.x;
+    const y = after?.y;
+    if (
+      typeof id === 'number' &&
+      Number.isInteger(id) &&
+      typeof x === 'number' &&
+      Number.isFinite(x) &&
+      typeof y === 'number' &&
+      Number.isFinite(y)
+    ) {
+      snappedVertices.push({ vertex_id: id, after: { x, y } });
+    }
+  }
+  return { cells, snappedVertices };
 }
 
 /** The repair worklist, or null when the report carries none. */

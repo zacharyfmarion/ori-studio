@@ -876,6 +876,7 @@ fn recognized_candidate_fold(
     let mut fold_document =
         oristudio_cp_compiler::fold_export::export_candidate_to_fold_document(&exact_input)?;
     let topology_diagnostics = oristudio_cp_compiler::analyze_candidate_topology(&exact_input);
+    let box_pleat_grid = box_pleat_grid_report(&exact_input);
     let summary = exact_export_summary(&exact_input);
     let weak_selected_spans = weak_selected_span_count(&exact_input);
     let dropped_legacy_spans = dropped_legacy_span_count(&candidate_graph, &selected_span_set);
@@ -932,6 +933,10 @@ fn recognized_candidate_fold(
         // ones are large by construction on an unsolved candidate and say
         // nothing about whether the topology is right.
         "topology_diagnostics": topology_diagnostics,
+        // The box-pleat grid the candidate sits on, and the candidate's
+        // coordinates near it moved onto it: what "Snap to grid" adds when no
+        // solve answers. Null when the pattern is not box-pleated.
+        "box_pleat_grid": box_pleat_grid,
         "solve": solve_not_attempted_report(config),
         "summary": summary,
         "topology": {
@@ -1079,7 +1084,33 @@ fn fold_compiler_report(compiler_report: &serde_json::Value) -> serde_json::Valu
             serde_json::json!("report.quality_report.compiler_report.exact_solve_input"),
         );
     }
+    // A vertex per snapped coordinate, which the FOLD has no use for: the
+    // grid's size stays, the moves are the report's.
+    if let Some(grid) = trimmed
+        .get_mut("box_pleat_grid")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        grid.remove("snapped_vertices");
+    }
     trimmed
+}
+
+/// `compiler_report.box_pleat_grid`: the grid `input` reads as box-pleated on
+/// (`oristudio_cp_compiler::box_pleat_grid`) with the candidate's snap, or
+/// null. The moves are by `ExactSolveInput` vertex id, the space
+/// `cp_detector.vertex_original_ids` maps the FOLD's vertices into.
+fn box_pleat_grid_report(input: &oristudio_cp_compiler::ExactSolveInput) -> serde_json::Value {
+    let Some(grid) = oristudio_cp_compiler::read_box_pleat_grid(input) else {
+        return serde_json::Value::Null;
+    };
+    let snap = oristudio_cp_compiler::snap_to_box_pleat_grid(input, &grid);
+    serde_json::json!({
+        "cells": grid.cells,
+        "coordinate_support": grid.coordinate_support,
+        "family_fraction": grid.family_fraction,
+        "tolerance_px": oristudio_cp_compiler::box_pleat_grid::SNAP_TOLERANCE_PX,
+        "snapped_vertices": snap.moved_vertices,
+    })
 }
 
 pub(crate) fn apply_refined_vertex_evidence_override(
@@ -2316,6 +2347,23 @@ mod tests {
     }
 
     #[test]
+    fn the_fold_keeps_the_grid_size_and_not_the_snapped_vertices() {
+        let report = serde_json::json!({
+            "exact_solve_input": {"vertices": []},
+            "box_pleat_grid": {"cells": 16, "snapped_vertices": [{"vertex_id": 4}]},
+        });
+        let trimmed = fold_compiler_report(&report);
+        assert_eq!(trimmed["box_pleat_grid"]["cells"], 16);
+        assert!(trimmed["box_pleat_grid"].get("snapped_vertices").is_none());
+        assert!(trimmed.get("exact_solve_input").is_none());
+        // The report itself keeps them: the dialog reads them from there.
+        assert_eq!(
+            report["box_pleat_grid"]["snapped_vertices"][0]["vertex_id"],
+            4
+        );
+    }
+
+    #[test]
     fn recognize_only_reports_topology_diagnostics_and_an_unattempted_solve() {
         let (outputs, config) = solvable_cross_fixture();
         let timeout_seconds = config.exact_solve_timeout_seconds;
@@ -2354,6 +2402,10 @@ mod tests {
             "candidate was too malformed to analyze: {:?}",
             diagnostics.blockers
         );
+
+        // Said, not omitted: a cross of a few creases is no box-pleat design.
+        assert!(compiler_report.get("box_pleat_grid").is_some());
+        assert!(compiler_report["box_pleat_grid"].is_null());
 
         // Not attempted, and said so positively rather than by omission. This
         // is the distinction `exact_solve_timeout_seconds: 0.0` would have
