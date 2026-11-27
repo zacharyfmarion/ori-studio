@@ -19,3 +19,15 @@ export function trackFoldEngineCrashed({ cause, attempt, outcome }: FoldEngineRe
     restart_count_bucket: bucketCount(attempt, FOLD_ENGINE_RESTART_BUCKETS),
   });
 }
+
+/**
+ * The Fold engine's worker did not load (`store/workspaceStore/foldSequenceRuntime.ts`):
+ * the browser could not fetch or parse its script. Not a crash, so not
+ * `fold engine crashed` and not Sentry: how often the network, or a tab
+ * older than the deploys the site still carries, keeps people from folding.
+ * `offline` is whether the browser said it was offline then.
+ */
+export function trackFoldEngineLoadFailed(): void {
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  track(ANALYTICS_EVENTS.foldEngineLoadFailed, { offline: offline ? 'yes' : 'no' });
+}

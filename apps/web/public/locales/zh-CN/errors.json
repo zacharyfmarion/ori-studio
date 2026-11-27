@@ -84,6 +84,8 @@
     "foldSequence": "折叠引擎意外停止。您的步骤不会丢失；如果折叠没有恢复，请重新加载 Ori Studio。",
     "foldSequenceKeptStopping": "折叠引擎反复停止，因此折叠已暂停。您的步骤不会丢失：请撤销上一次更改，或重新加载 Ori Studio。",
     "foldSequenceLost": "折叠引擎在完成该步骤前停止了。请重新折叠。",
+    "foldSequenceUnloaded": "折叠引擎未能加载，因此折叠已暂停。您的步骤不会丢失：请重新加载 Ori Studio 以继续折叠。",
+    "foldSequenceUnloadedOffline": "离线时折叠引擎未能加载，因此折叠已暂停。您的步骤不会丢失：请恢复网络连接，然后重新加载 Ori Studio。",
     "oristudioBp": "箱形褶皱引擎意外停止。请重新加载 Ori Studio 以继续处理此设计。",
     "oristudioCp": "折痕图引擎意外停止。请重新加载 Ori Studio——上次保存后的编辑可能会丢失。",
     "precrease": "预折痕规划器意外停止。请重新打开参考工作区以重新启动。",

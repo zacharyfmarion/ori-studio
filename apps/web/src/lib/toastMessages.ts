@@ -165,6 +165,19 @@ export function humanizeError(error: unknown, t: TFunction): string {
         'errors:worker.foldSequenceKeptStopping',
         'The fold engine kept stopping, so folding is paused. Your steps are safe: undo your last change, or reload Ori Studio.'
       );
+    // The engine's worker never loaded (offline, or a tab older than the
+    // deploys the site still carries). The browser keeps that failure until
+    // the page reloads, so a reload is the way back, after reconnecting.
+    case 'fold_engine_unloaded':
+      return typeof navigator !== 'undefined' && navigator.onLine === false
+        ? t(
+            'errors:worker.foldSequenceUnloadedOffline',
+            'The fold engine didn’t load while offline, so folding is paused. Your steps are safe: reconnect, then reload Ori Studio.'
+          )
+        : t(
+            'errors:worker.foldSequenceUnloaded',
+            'The fold engine didn’t load, so folding is paused. Your steps are safe: reload Ori Studio to fold again.'
+          );
     // Project files we read and rejected (see lib/projectFileError.ts). Their
     // own messages are precise but internal ("field workspace.documents must be
     // an array"); all the user can act on is which of these three it is.

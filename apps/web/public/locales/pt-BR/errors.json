@@ -84,6 +84,8 @@
     "foldSequence": "O motor de dobra parou inesperadamente. Seus passos estão seguros; se a dobra não for retomada, recarregue o Ori Studio.",
     "foldSequenceKeptStopping": "O motor de dobra parou repetidas vezes, então a dobra está pausada. Seus passos estão seguros: desfaça sua última alteração ou recarregue o Ori Studio.",
     "foldSequenceLost": "O motor de dobra parou antes de concluir esse passo. Tente a dobra novamente.",
+    "foldSequenceUnloaded": "O motor de dobra não carregou, então a dobra está pausada. Seus passos estão seguros: recarregue o Ori Studio para voltar a dobrar.",
+    "foldSequenceUnloadedOffline": "O motor de dobra não carregou offline, então a dobra está pausada. Seus passos estão seguros: reconecte-se e recarregue o Ori Studio.",
     "oristudioBp": "O motor de box pleating parou inesperadamente. Recarregue o Ori Studio para continuar trabalhando neste design.",
     "oristudioCp": "O motor de padrões de vincos parou inesperadamente. Recarregue o Ori Studio — as edições feitas após o último salvamento podem ser perdidas.",
     "precrease": "O planejador de pré-dobras parou inesperadamente. Reabra o workspace de referências para reiniciá-lo.",

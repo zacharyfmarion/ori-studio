@@ -1,6 +1,7 @@
 import { wrap, type Remote } from 'comlink';
 import type { FoldSequenceWorkerApi } from '../../workers/foldSequenceWorker';
 import type { WasmErrorEnvelope } from '../../engine/types';
+import { trackFoldEngineLoadFailed } from '../../analytics/trackFoldEngine';
 import { createLatestWinsChannel, type LatestWinsChannel, type LatestWinsResult } from '../../lib/latestWinsChannel';
 import { attachWorkerDiagnostics } from '../../lib/workerDiagnostics';
 import { reportError } from '../../monitoring';
@@ -20,10 +21,12 @@ import type {
 export type FoldSequenceClient = Remote<FoldSequenceWorkerApi>;
 
 /**
- * Why the worker went away: it crashed, the last holder released it, or
+ * Why the worker went away: it crashed, it never ran (`unloaded`: the browser
+ * did not load its script or a module it imports — offline, or a tab older
+ * than the deploys the site still carries), the last holder released it, or
  * {@link stopFoldSequenceWork} terminated it to stop what it was doing.
  */
-export type FoldSequenceClientLossReason = 'crashed' | 'released' | 'stopped';
+export type FoldSequenceClientLossReason = 'crashed' | 'unloaded' | 'released' | 'stopped';
 
 /** Hears the worker go away: why, and for a crash, what crashed it. */
 export type FoldSequenceClientLossListener = (
@@ -56,6 +59,11 @@ export type FoldSequenceClientLossListener = (
 //   `fold_engine_trapped` (`fold/engine/foldEngineTrap.ts`) and the worker
 //   answers nothing more, so the first such answer drops the worker as its
 //   `error` event would. Either way the crash is reported to Sentry, once.
+// - **A worker that never loaded is not a crash.** Its `error` is a plain
+//   event (`WorkerFailure.loadFailed`): the browser did not fetch or parse
+//   its script, so no engine ever ran. That is the network or a stale tab,
+//   not a defect: it goes as `unloaded`, unreported, and the session says so
+//   rather than restarting into the same failure (ORI-STUDIO-18).
 
 let worker: Worker | null = null;
 let client: FoldSequenceClient | null = null;
@@ -75,6 +83,7 @@ export function onFoldSequenceClientLost(listener: FoldSequenceClientLossListene
 function lostError(reason: FoldSequenceClientLossReason): WasmErrorEnvelope {
   const message = {
     crashed: 'The fold engine stopped while it was running.',
+    unloaded: 'The fold engine did not load.',
     released: 'The fold engine was released while it was running.',
     stopped: 'The fold engine was stopped while it was running.',
   }[reason];
@@ -105,7 +114,15 @@ function spawn(): FoldSequenceClient {
   detachDiagnostics = attachWorkerDiagnostics(spawned, 'fold-sequence', (failure) => {
     // Guarded on identity so a late event from a worker already replaced
     // cannot drop the replacement.
-    if (worker === spawned) dropWorker('crashed', { cause: 'worker_error', message: failure.message });
+    if (worker !== spawned) return undefined;
+    if (failure.loadFailed) {
+      dropWorker('unloaded');
+      trackFoldEngineLoadFailed();
+      // The session tells the user, in its own words, not the app's worker toast.
+      return 'handled';
+    }
+    dropWorker('crashed', { cause: 'worker_error', message: failure.message });
+    return undefined;
   });
   client = wrap<FoldSequenceWorkerApi>(spawned);
   return client;

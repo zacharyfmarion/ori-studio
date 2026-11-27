@@ -1883,6 +1883,8 @@ export const ANALYTICS_EVENTS = {
    * often, why, and whether the steps came back (`trackFoldEngine.ts`).
    */
   foldEngineCrashed: 'fold engine crashed',
+  /** The Fold engine's worker did not load at all, offline or not: no crash, nothing for Sentry (`trackFoldEngine.ts`). */
+  foldEngineLoadFailed: 'fold engine load failed',
   /**
    * One file of an upload into the Diagram, and what became of it: whether
    * people's own drawings survive the sanitizer, and how big they are.
