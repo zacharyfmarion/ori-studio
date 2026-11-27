@@ -81,11 +81,23 @@ window's reserved message line and marks its vertex.
 
 - [x] Engine: derived pattern, stretch matching, vertex checks, `made_at`
 - [x] Wasm: op, landing, `collapse_open`, `collapse_op`, held source
-- [ ] Rust tests (engine and wasm), fmt, clippy
-- [ ] Corpus: the 18 cp-jump cases swapped, 0 differ, check-model OK
-- [ ] Corpus: all 113 models replay as on main
-- [ ] Web: document op, reader/writer, words, sentence, Diagram, Repeat
-- [ ] Web: rail tool, glyph, key, window, picks and marks, preview, orders
-- [ ] Web: analytics
-- [ ] Web: lint, typecheck, vitest
-- [ ] Browser walkthrough and draft PR
+- [x] Rust tests (engine and wasm), fmt, clippy
+- [x] Corpus: 17 of the 18 cp-jump cases swapped, 0 differ, check-model OK
+      (6 of them need Precreases first). The 18th, the owner's model, lands
+      the same paper (its regression test), but a later tuck on its branch
+      refuses on the Collapse's paper: the Collapse keeps the sheet's earlier
+      flat precreases, one of which runs through the tuck's seed
+- [x] Corpus: all 113 models replay as on main (every node's status and
+      fingerprint)
+- [x] Web: document op, reader/writer, words, sentence, Diagram, Repeat
+- [x] Web: rail tool, glyph, key, window, picks and marks, preview, orders
+- [x] Web: analytics
+- [x] Web: lint, typecheck, vitest
+- [x] Browser walkthrough and draft PR
+
+Follow-ups, not in this change:
+
+- The Layer order dialog on a Collapse step (`import_layer_unavailable`).
+- Repeat of a Collapse (`repeat_unsupported`).
+- A tuck seeded on a flat precrease the paper keeps refuses
+  (`tuck_target_moves`) where the same paper without that precrease folds.
