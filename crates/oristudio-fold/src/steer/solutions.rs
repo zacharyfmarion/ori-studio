@@ -94,6 +94,7 @@
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::{HashMap, VecDeque};
+use std::hash::BuildHasher;
 use std::sync::Arc;
 
 use oristudio_layer_order::{FacePair, LayerOrder};
@@ -122,6 +123,10 @@ const BACK: usize = 1;
 const NO_COMPONENT: u32 = u32::MAX;
 /// In a view's sorted keys: the view's own target, not a counted key.
 const TARGET: u32 = u32::MAX;
+/// In a group's keys by hash: no earlier key with the same hash.
+const NO_KEY: u32 = u32::MAX;
+/// What a group's key costs beside its own words: its entry by hash.
+const KEY_ENTRY_BITS: u64 = 256;
 
 fn side_index(side: ViewSide) -> usize {
     match side {
@@ -140,6 +145,13 @@ pub struct SolutionCaps {
     pub orders_per_component: u64,
     /// Combinations of its members' projections a look group walks.
     pub combinations_per_group: u64,
+    /// Bits of distinct pictures kept per side, across its look groups:
+    /// each is a group's tops and the combination that first gave it, a word
+    /// each, and its entry by hash. A group whose next new picture would
+    /// pass it stops there, as at `combinations_per_group`. The other caps
+    /// bound the count's work; this one bounds its memory, which a million
+    /// combinations of wide pictures can take more of than a browser gives.
+    pub key_bits: u64,
     /// Bits of whole component orders kept, across components, for the
     /// order a step falls back on and for X-ray stepping. A component past
     /// it is still counted; X-ray then steps through the orders kept. What
@@ -167,9 +179,17 @@ pub struct SolutionCaps {
 ///   counts became "at least".
 /// - **Combinations per group, 1,000,000** (kept): look groups of more than
 ///   one component are rare (4 in the corpus), and none came near it.
+/// - **Key bits, 32 MiB a side**: a group's walk kept every distinct
+///   picture it met, so a wide group could ask more memory of the dialog's
+///   worker than the browser had (ORI-STUDIO-1K, an allocation that failed
+///   in the walk). On all 485 designs the census admits, the count grew the
+///   dialog's memory by at most 12.4 MiB in all, and every count it
+///   finished came out the same under the cap.
 impl SolutionCaps {
     pub const DEFAULT_ORDERS_PER_COMPONENT: u64 = 100_000;
     pub const DEFAULT_COMBINATIONS_PER_GROUP: u64 = 1_000_000;
+    /// 32 MiB a side.
+    pub const DEFAULT_KEY_BITS: u64 = 1 << 28;
     /// 4 MiB.
     pub const DEFAULT_STORED_BITS: u64 = 1 << 25;
 }
@@ -179,6 +199,7 @@ impl Default for SolutionCaps {
         SolutionCaps {
             orders_per_component: Self::DEFAULT_ORDERS_PER_COMPONENT,
             combinations_per_group: Self::DEFAULT_COMBINATIONS_PER_GROUP,
+            key_bits: Self::DEFAULT_KEY_BITS,
             stored_bits: Self::DEFAULT_STORED_BITS,
             count_in_steps: true,
         }
@@ -358,14 +379,19 @@ struct Group {
     /// Its distinct keys (each spot's top), `spots.len()` per key, in the
     /// order found.
     keys: Vec<u32>,
-    index: HashMap<Vec<u32>, u32>,
-    /// Per key, the members' projections that first gave it.
-    reps: Vec<Vec<u32>>,
+    /// Per key, the members' projections that first gave it,
+    /// `members.len()` per key.
+    reps: Vec<u32>,
+    /// Its keys by hash, so each is stored once, in `keys`: the last key
+    /// with a hash, and per key the one before it with the same hash, or
+    /// [`NO_KEY`].
+    by_hash: HashMap<u64, u32>,
+    same_hash: Vec<u32>,
     /// Once walked: the keys in lexicographic order.
     sorted: Vec<u32>,
     combinations: u64,
     /// A group of one component is keyed as its projections are found, and
-    /// stops at its cap there.
+    /// stops at its caps there.
     capped: bool,
     walked: bool,
     /// Walked to the end over members counted to the end.
@@ -373,33 +399,60 @@ struct Group {
 }
 
 impl Group {
-    /// The key combination `at` gives, counted once.
-    fn insert(&mut self, key: Vec<u32>, at: &[u32]) {
-        if !self.index.contains_key(&key) {
-            self.index.insert(key.clone(), self.reps.len() as u32);
-            self.keys.extend_from_slice(&key);
-            self.reps.push(at.to_vec());
+    /// How many distinct keys it has.
+    fn len(&self) -> usize {
+        self.same_hash.len()
+    }
+
+    fn key(&self, i: usize) -> &[u32] {
+        let width = self.spots.len();
+        &self.keys[i * width..(i + 1) * width]
+    }
+
+    /// The members' projections that first gave key `i`.
+    fn rep(&self, i: usize) -> &[u32] {
+        let per = self.members.len();
+        &self.reps[i * per..(i + 1) * per]
+    }
+
+    /// The key combination `at` gives, counted once, where the bits of keys
+    /// its side's groups already keep (`kept`) leave room for it within
+    /// `cap`: false, with nothing kept or counted, for a new key that would
+    /// pass it.
+    fn insert(&mut self, key: &[u32], at: &[u32], kept: &mut u64, cap: u64) -> bool {
+        let hash = self.by_hash.hasher().hash_one(key);
+        let mut found = self.by_hash.get(&hash).copied().unwrap_or(NO_KEY);
+        while found != NO_KEY && self.key(found as usize) != key {
+            found = self.same_hash[found as usize];
+        }
+        if found == NO_KEY {
+            let cost = 32 * (key.len() + at.len()) as u64 + KEY_ENTRY_BITS;
+            if kept.saturating_add(cost) > cap {
+                return false;
+            }
+            *kept += cost;
+            let i = self.len() as u32;
+            let before = self.by_hash.insert(hash, i).unwrap_or(NO_KEY);
+            self.same_hash.push(before);
+            self.keys.extend_from_slice(key);
+            self.reps.extend_from_slice(at);
         }
         self.combinations += 1;
+        true
     }
 
     /// Every combination walked, or a cap reached: sort the keys.
     fn close(&mut self, capped: bool, members_complete: bool) {
         self.walked = true;
         self.complete = !capped && members_complete;
-        let width = self.spots.len();
-        let keys = &self.keys;
-        let mut sorted: Vec<u32> = (0..self.reps.len() as u32).collect();
-        sorted.sort_by(|&a, &b| {
-            keys[a as usize * width..(a as usize + 1) * width]
-                .cmp(&keys[b as usize * width..(b as usize + 1) * width])
-        });
+        let mut sorted: Vec<u32> = (0..self.len() as u32).collect();
+        sorted.sort_by(|&a, &b| self.key(a as usize).cmp(self.key(b as usize)));
         self.sorted = sorted;
     }
 }
 
 /// The key (each of its spots' top) of `group`'s combination `at`, one
-/// projection per member.
+/// projection per member, written to `key`.
 fn key_at(
     spots: &[OpenSpot],
     group: &Group,
@@ -407,23 +460,21 @@ fn key_at(
     s: usize,
     at: &[u32],
     wins: &mut Vec<u32>,
-) -> Vec<u32> {
-    group
-        .spots
-        .iter()
-        .map(|&i| {
-            top_of(
-                &spots[i as usize],
-                s,
-                |pair| {
-                    let m = pair.member as usize;
-                    let member = &components[group.members[m] as usize].projections[s];
-                    !get_bit(member.get(at[m] as usize), pair.bit as usize)
-                },
-                wins,
-            )
-        })
-        .collect()
+    key: &mut Vec<u32>,
+) {
+    key.clear();
+    key.extend(group.spots.iter().map(|&i| {
+        top_of(
+            &spots[i as usize],
+            s,
+            |pair| {
+                let m = pair.member as usize;
+                let member = &components[group.members[m] as usize].projections[s];
+                !get_bit(member.get(at[m] as usize), pair.bit as usize)
+            },
+            wins,
+        )
+    }));
 }
 
 #[derive(Debug, Clone, Default)]
@@ -680,6 +731,9 @@ pub struct Solutions {
     /// The combination the front group's walk is at.
     digits: Option<Vec<u32>>,
     kept_bits: u64,
+    /// Per side, what its look groups' keys cost
+    /// ([`SolutionCaps::key_bits`]).
+    keyed_bits: [u64; 2],
     nodes: u64,
     done: bool,
     /// The seeds the committed constraints counted are, for a search of
@@ -940,6 +994,7 @@ impl Solutions {
             queue: VecDeque::new(),
             digits: None,
             kept_bits: 0,
+            keyed_bits: [0; 2],
             nodes: 0,
             done: false,
             seeds: seeds.to_vec(),
@@ -999,7 +1054,7 @@ impl Solutions {
                 self.sides[s]
                     .groups
                     .iter()
-                    .map(|g| ((g.reps.len() as u64).max(1), g.walked && g.complete)),
+                    .map(|g| ((g.len() as u64).max(1), g.walked && g.complete)),
             )
         };
         SolutionCount {
@@ -1231,20 +1286,27 @@ impl Solutions {
             let Some(group) = self.sides[s].groups.get_mut(g as usize) else {
                 continue;
             };
+            if group.capped {
+                continue;
+            }
             if group.combinations >= self.caps.combinations_per_group {
                 group.capped = true;
                 continue;
             }
-            let mut wins = Vec::new();
-            let key = key_at(
+            let (mut wins, mut key) = (Vec::new(), Vec::new());
+            key_at(
                 &self.sides[s].spots,
                 group,
                 &self.components,
                 s,
                 &[i],
                 &mut wins,
+                &mut key,
             );
-            group.insert(key, &[i]);
+            if !group.insert(&key, &[i], &mut self.keyed_bits[s], self.caps.key_bits) {
+                group.capped = true;
+                continue;
+            }
             self.nodes += 1;
         }
     }
@@ -1285,6 +1347,7 @@ impl Solutions {
             components,
             caps,
             digits,
+            keyed_bits,
             nodes,
             ..
         } = self;
@@ -1296,7 +1359,7 @@ impl Solutions {
             .map(|&m| components[m as usize].projections[s].len() as u32)
             .collect();
         let mut at = digits.take().unwrap_or_else(|| vec![0; radix.len()]);
-        let mut wins = Vec::new();
+        let (mut wins, mut key) = (Vec::new(), Vec::new());
         let mut since_clock = 0u32;
         // A member with no order counted (a cap of none) leaves no picture
         // counted, and not every one.
@@ -1317,8 +1380,10 @@ impl Solutions {
                         return false;
                     }
                 }
-                let key = key_at(&side.spots, group, components, s, &at, &mut wins);
-                group.insert(key, &at);
+                key_at(&side.spots, group, components, s, &at, &mut wins, &mut key);
+                if !group.insert(&key, &at, &mut keyed_bits[s], caps.key_bits) {
+                    break true;
+                }
                 *nodes += 1;
                 if let Some(left) = left.as_mut() {
                     *left = left.saturating_sub(1);
@@ -1490,7 +1555,7 @@ impl Solutions {
                         && let Some(order) = fallback.as_mut()
                     {
                         let mut kept_all = true;
-                        for (&m, &p) in group.members.iter().zip(&group.reps[i as usize]) {
+                        for (&m, &p) in group.members.iter().zip(group.rep(i as usize)) {
                             let component = &self.components[m as usize];
                             match component.projections[s].representative[p as usize] {
                                 Some(r) => {
@@ -2072,15 +2137,20 @@ mod tests {
             assert!(calls < 1_000_000);
         }
         assert_eq!(sliced.nodes(), whole.nodes());
-        // Capped: at least, never more.
+        // Capped: at least, never more; and the same however it is sliced.
         let caps = SolutionCaps {
             orders_per_component: 1 + rng.below(3) as u64,
             combinations_per_group: 1 + rng.below(4) as u64,
+            key_bits: 128 * rng.below(12) as u64,
             stored_bits: 64 * rng.below(6) as u64,
             ..SolutionCaps::default()
         };
-        let capped = start(caps).advance_on(search, &UNLIMITED).expect("capped");
+        let mut capped_whole = start(caps);
+        let capped = capped_whole.advance_on(search, &UNLIMITED).expect("capped");
         assert!(capped.done);
+        for kept in capped_whole.keyed_bits {
+            assert!(kept <= caps.key_bits, "{kept} bits");
+        }
         for (tally, truth) in [
             (capped.front, truth.pictures[FRONT].len()),
             (capped.back, truth.pictures[BACK].len()),
@@ -2089,6 +2159,16 @@ mod tests {
             assert!(tally.n >= 1 && tally.n <= truth as u64, "{capped:?}");
             assert!(!tally.exact || tally.n == truth as u64);
         }
+        let mut capped_sliced = start(caps);
+        for calls in 0.. {
+            let so_far = capped_sliced.advance_on(search, &slice).expect("slice");
+            if so_far.done {
+                break;
+            }
+            assert!(calls < 1_000_000);
+        }
+        assert_eq!(capped_sliced.count(), capped);
+        assert_eq!(capped_sliced.nodes(), capped_whole.nodes());
         whole
     }
 
@@ -3086,5 +3166,108 @@ mod tests {
             sent(3, 12),
             serde_json::json!({ "index": 3, "total": { "n": 12, "exact": true } })
         );
+    }
+
+    /// One look group of three components: faces 0–5 share a cell (720
+    /// orders), faces 1 and 6–9 another (120), and faces 0 and 6 one of
+    /// their own (2), joined by the spot {0, 1, 6}, which reads a pair of
+    /// each. Every pair of a cell is a spot too, `repeat` times over (a
+    /// scene's subfaces repeat a stack), so each of the walk's 720 × 120 × 2
+    /// combinations is a picture of its own, `1 + 26 × repeat` tops wide.
+    fn joined_group(repeat: usize) -> (Box<Search>, Arc<[FacePair]>, Spots, Vec<PairOrder>) {
+        let cells: Vec<Vec<usize>> = vec![(0..6).collect(), vec![1, 6, 7, 8, 9], vec![0, 6]];
+        let n = 10;
+        let mut pairs = BTreeSet::new();
+        let mut faces_cells = vec![Vec::new(); n];
+        for (c, cell) in cells.iter().enumerate() {
+            for (i, &a) in cell.iter().enumerate() {
+                faces_cells[a].push(c);
+                for &b in &cell[i + 1..] {
+                    pairs.insert([a.min(b), a.max(b)]);
+                }
+            }
+        }
+        let variables: Vec<[usize; 2]> = pairs.into_iter().collect();
+        let mut lists = vec![vec![0, 1, 6]];
+        for _ in 0..repeat {
+            lists.extend(variables.iter().map(|&[a, b]| vec![a as u32, b as u32]));
+        }
+        let face_pairs: Arc<[FacePair]> = variables
+            .iter()
+            .map(|&[a, b]| FacePair::new(FaceId(a as u32), FaceId(b as u32)).expect("pair"))
+            .collect();
+        let problem = CompletionProblem {
+            constraints: vec![VariableConstraints::default(); variables.len()],
+            variables,
+            faces_cells,
+            cells_faces: cells,
+            fixed: Vec::new(),
+        };
+        let Ok(SessionStart::Open(search)) = Search::open(problem, SearchBudget::default()) else {
+            panic!("the problem opens");
+        };
+        let Ok(Deduction::Deduced(deduced)) = search.deduce(&[], None) else {
+            panic!("nothing to deduce");
+        };
+        let mut cursor = search.enumerate(&deduced).expect("enumerate");
+        let hold = match cursor.next(&search, SearchBudget::default()) {
+            Ok(EnumerationStep::Order) => cursor.order().expect("order"),
+            other => panic!("{other:?}"),
+        };
+        (search, face_pairs, Spots::from_lists(&lists, n), hold)
+    }
+
+    /// ORI-STUDIO-1K: a look group's walk kept every distinct picture it
+    /// met, up to a million combinations whatever their size, until the
+    /// browser had no more memory to give the count. A group whose pictures
+    /// would pass the default key bits stops there, with what it kept within
+    /// them, and reads "at least"; the layer orders are still counted
+    /// exactly, and the stepper steps through the pictures kept.
+    #[test]
+    fn a_look_group_stops_at_the_key_bits_and_reads_at_least() {
+        let combinations = 720 * 120 * 2;
+        let (search, variables, spots, hold) = joined_group(4);
+        let mut solutions = Solutions::start(
+            &search,
+            variables,
+            &spots,
+            &[],
+            hold.clone(),
+            Vec::new(),
+            SolutionCaps::default(),
+        )
+        .expect("start");
+        assert_eq!(solutions.shape().joined_groups, [1, 1]);
+        let count = solutions.advance_on(&search, &UNLIMITED).expect("count");
+        assert!(count.done, "{count:?}");
+        for pictures in [count.front, count.back] {
+            assert!(!pictures.exact, "{count:?}");
+            assert!(pictures.n > 1 && pictures.n < combinations, "{count:?}");
+        }
+        assert_eq!(count.orders, exact(combinations as usize));
+        // Each side full: within its bits, and the next picture would not
+        // have fitted.
+        let key_bits = SolutionCaps::DEFAULT_KEY_BITS;
+        for s in [FRONT, BACK] {
+            let cost = 32 * (solutions.sides[s].spots.len() + 3) as u64 + KEY_ENTRY_BITS;
+            let kept = solutions.keyed_bits[s];
+            assert!(kept <= key_bits && kept + cost > key_bits, "{kept} bits");
+        }
+        // The stepper goes from the order held to the pictures kept beside
+        // it, and numbers them among those.
+        let by = StepBy::Picture(ViewSide::Front);
+        let at = solutions.position_values(by, &hold);
+        assert_eq!(at.total, count.front);
+        let mut moved = 0;
+        for (direction, index) in [
+            (StepDirection::Next, at.index + 1),
+            (StepDirection::Previous, at.index - 1),
+        ] {
+            if let Some(order) = stepped(&solutions, by, &hold, direction) {
+                moved += 1;
+                assert_eq!(solutions.position_values(by, &order).index, index);
+            }
+        }
+        assert!(moved > 0);
     }
 }

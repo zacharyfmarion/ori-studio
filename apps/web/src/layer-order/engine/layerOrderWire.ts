@@ -327,6 +327,8 @@ export interface LayerSolutionCaps {
   ordersPerComponent?: number;
   /** Combinations a look group walks; default 1,000,000. */
   combinationsPerGroup?: number;
+  /** Bits of distinct pictures the look groups keep, per side; default 2²⁸ (32 MiB). What bounds the count's memory. */
+  keyBits?: number;
   /** Bits of whole orders kept for the stepper; default 2²⁵ (4 MiB). The stepper's own finds are held within as many again. */
   storedBits?: number;
   /**
