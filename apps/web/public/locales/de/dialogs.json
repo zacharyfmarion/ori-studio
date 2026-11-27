@@ -71,6 +71,7 @@
     "crop": "Zuschneiden",
     "detect": "Erkennen",
     "detected": "Erkannt",
+    "didNotLoad": "Die Faltmuster-Erkennung konnte nicht geladen werden. Prüfe deine Verbindung und versuche es dann erneut.",
     "dropImageHere": "Bild hier ablegen",
     "editCrop": "Zuschnitt bearbeiten",
     "inferred": "Abgeleitet",
@@ -103,6 +104,7 @@
     "stopping": "Wird gestoppt…",
     "stopSolve": "Stoppen",
     "title": "CP aus Bild erkennen",
+    "tryAgain": "Erneut versuchen",
     "verdict": {
       "afterFailure": "„Prüfen und korrigieren“ fügt den Kandidaten mit dem Quellbild dahinter ein und behält die Solver-Daten, damit Sie ihn korrigieren und erneut lösen können.",
       "blocked": "Der Solver konnte diesen Kandidatengraphen nicht lesen, es gibt also nichts von Hand zu korrigieren. Unverändert hinzufügen ist weiterhin möglich.",

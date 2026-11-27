@@ -4,6 +4,7 @@ import type { CpImage } from '../images/cpImage';
 import { cpSolveFramePoint, type CpSolveFrameTransform } from '../../engine/cpExactSolveTypes';
 import type { CpDetectQuad } from '../../engine/cpDetectTypes';
 import { reportError } from '../../monitoring';
+import { isCpDetectLoadFailure, trackCpDetectLoadFailed } from '../images/cpDetectLoadFailure';
 
 /** Map the current solver paper into the current reference image, including
  * document rotation, reflection, scale, image rotation and image cropping. */
@@ -36,6 +37,9 @@ export async function measureRegionSourceImage(
   const quad = image && regionSourceQuad(image, frame);
   if (!image || !quad) return { input, seconds: 0 };
   const started = performance.now();
+  // Set once the image is read: only the detector's failures can be its not
+  // loading. The image is a data URL, so a fetch of it that fails is a defect.
+  let askedDetector = false;
   try {
     const bitmap = await createImageBitmap(await (await fetch(image.src)).blob());
     let pixels: ImageData;
@@ -47,6 +51,7 @@ export async function measureRegionSourceImage(
       context.drawImage(bitmap, 0, 0);
       pixels = context.getImageData(0, 0, bitmap.width, bitmap.height);
     } finally { bitmap.close(); }
+    askedDetector = true;
     const { getCpDetectClient, whileCpDetectClientAlive } = await import('../../store/workspaceStore/cpDetectRuntime');
     const client = await getCpDetectClient();
     const previous = region.solveInput ? {
@@ -57,12 +62,19 @@ export async function measureRegionSourceImage(
         bottom_right: { x: image.naturalWidth - 32, y: image.naturalHeight - 32 },
         bottom_left: { x: 32, y: image.naturalHeight - 32 } },
     } : undefined;
-    // Raced with the worker's loss, which otherwise leaves the solve waiting forever.
-    const measured = await whileCpDetectClientAlive(client.measureSourceImage(input, pixels, quad, previous));
+    // Raced with the worker's loss, which otherwise leaves the solve waiting
+    // forever. Background: the solve goes on without the image whatever
+    // happens here, so a lost worker is not the app's error toast's to announce.
+    const measured = await whileCpDetectClientAlive(client.measureSourceImage(input, pixels, quad, previous), {
+      background: true,
+    });
     return { input: measured, seconds: (performance.now() - started) / 1000 };
   } catch (error) {
     // An unavailable reference image must not disable ordinary graph solving.
-    reportError(error, { surface: 'cp_region_source_image' });
+    // A detector that did not load is the connection, not a defect: counted,
+    // not reported.
+    if (askedDetector && isCpDetectLoadFailure(error)) trackCpDetectLoadFailed('region_solve');
+    else reportError(error, { surface: 'cp_region_source_image' });
     return { input, seconds: (performance.now() - started) / 1000 };
   }
 }

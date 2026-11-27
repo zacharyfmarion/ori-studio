@@ -15,6 +15,7 @@ import { sourceSizeForRectification } from './cpDetectCropLoupe';
 import { track } from '../analytics';
 import { CP_DETECT_OPEN_EVENT, isCpDetectCanvasImageDetail, type CpDetectCanvasImageDetail } from '../lib/cpDetectEntry';
 import { useCpDetectSuggestionStore } from '../cp-workspace/images/cpDetectSuggestionStore';
+import { isCpDetectLoadFailure, trackCpDetectLoadFailed } from '../cp-workspace/images/cpDetectLoadFailure';
 import type { CpDetectFailureReason, CpDetectImageSource } from '../analytics/events';
 import { proxy } from 'comlink';
 import { CpDetectModelLine } from './CpDetectModelLine';
@@ -103,6 +104,20 @@ function detectFailureReason(code: string): CpDetectFailureReason {
     default:
       return 'inference';
   }
+}
+
+/**
+ * What the dialog says for a detector call that failed: the failure's own
+ * words, unless the detector did not load (its worker never ran, or the
+ * network refused or cut off its wasm, the model registry or the model;
+ * `cpDetectLoadFailure.ts`). That is said plainly, with what to do, and
+ * counted as `cp detect load failed`, where the raw words were the browser's
+ * English ("The worker stopped unexpectedly.", "Load failed").
+ */
+function detectorFailureMessage(caught: unknown, t: TFunction): string {
+  if (!isCpDetectLoadFailure(caught)) return cpDetectError(caught).message;
+  trackCpDetectLoadFailed('import');
+  return t('dialogs:cpDetectImport.didNotLoad', 'The detector couldn’t load. Check your connection, then try again.');
 }
 
 /**
@@ -316,6 +331,8 @@ export function CpDetectImportModal() {
    */
   const [canvasImage, setCanvasImage] = useState<{ annotationId: string } | null>(null);
   const [model, setModel] = useState<DetectorModelState | null>(null);
+  /** Bumped by Try again, to read the model once more after a read that failed. */
+  const [modelAttempt, setModelAttempt] = useState(0);
   const [modelProgress, setModelProgress] = useState<CpDetectModelDownloadProgress | null>(null);
   const [modelUpdating, setModelUpdating] = useState(false);
   const [busy, setBusy] = useState<BusyState>(null);
@@ -366,6 +383,8 @@ export function CpDetectImportModal() {
   // What the registry points at, what is installed, whether an update is on
   // offer — read on open, before any image, so the dialog can say what a
   // Detect will download. Nothing is fetched but the registry and a manifest.
+  // Until it lands there is no image to choose, so a read that failed is read
+  // again by Try again (`modelAttempt`), not only by reopening the dialog.
   useEffect(() => {
     if (!open || model) return;
     let cancelled = false;
@@ -377,7 +396,7 @@ export function CpDetectImportModal() {
         if (!cancelled) setModel(state);
       })
       .catch((caught) => {
-        if (!cancelled) setError(cpDetectError(caught).message);
+        if (!cancelled) setError(detectorFailureMessage(caught, t));
       })
       .finally(() => {
         if (!cancelled) {
@@ -387,7 +406,7 @@ export function CpDetectImportModal() {
     return () => {
       cancelled = true;
     };
-  }, [model, open]);
+  }, [model, open, modelAttempt, t]);
 
   /**
    * Take the offered update: install the newer version through the worker (so
@@ -413,13 +432,13 @@ export function CpDetectImportModal() {
       track('cp detect model downloaded', { source: 'update' });
     } catch (caught) {
       const failure = cpDetectError(caught);
-      setError(failure.message);
+      setError(detectorFailureMessage(caught, t));
       track('cp detect model download failed', { source: 'update', code: failure.code });
     } finally {
       setModelUpdating(false);
       setModelProgress(null);
     }
-  }, [model, modelUpdating]);
+  }, [model, modelUpdating, t]);
 
   useEffect(() => {
     return () => {
@@ -534,7 +553,7 @@ export function CpDetectImportModal() {
       });
       if (file) await loadImageFile(file, 'picker');
     } catch (caught) {
-      setError(cpDetectError(caught).message);
+      setError(detectorFailureMessage(caught, t));
     } finally {
       setBusy(null);
     }
@@ -550,7 +569,7 @@ export function CpDetectImportModal() {
         }
         await loadImageFile(await openBinaryFileFromBrowserFile(file), 'drop');
       } catch (caught) {
-        setError(cpDetectError(caught).message);
+        setError(detectorFailureMessage(caught, t));
       } finally {
         setBusy(null);
       }
@@ -573,7 +592,7 @@ export function CpDetectImportModal() {
         await loadImageFile(file, 'canvas-suggestion');
       } catch (caught) {
         useCpDetectSuggestionStore.getState().setSuggestionState(detail.annotationId, 'pending');
-        setError(cpDetectError(caught).message);
+        setError(detectorFailureMessage(caught, t));
       } finally {
         setBusy(null);
       }
@@ -648,12 +667,12 @@ export function CpDetectImportModal() {
         );
         if (request === rectifyRequestRef.current) setRectified(result);
       } catch (caught) {
-        if (request === rectifyRequestRef.current) setError(cpDetectError(caught).message);
+        if (request === rectifyRequestRef.current) setError(detectorFailureMessage(caught, t));
       } finally {
         if (request === rectifyRequestRef.current) setBusy(null);
       }
     },
-    [quad, source]
+    [quad, source, t]
   );
 
   /** Compact recognition and automatic refinement share a one-minute budget. */
@@ -684,14 +703,14 @@ export function CpDetectImportModal() {
           publishDetectionResult(source, recognized, recognized.foldJson);
           return;
         }
-        setError(cpDetectError(caught).message);
+        setError(detectorFailureMessage(caught, t));
         setPhase({ kind: 'errored' });
         publishDetectionResult(source, recognized, recognized.foldJson);
       } finally {
         setBusy(null);
       }
     },
-    [source]
+    [source, t]
   );
 
   /**
@@ -746,7 +765,7 @@ export function CpDetectImportModal() {
       track('cp detect completed', { succeeded: true, ...detectRuntimeProperties(recognized.runtime) });
     } catch (caught) {
       const failure = cpDetectError(caught);
-      setError(failure.message);
+      setError(detectorFailureMessage(caught, t));
       track('cp detect completed', { succeeded: false, reason: detectFailureReason(failure.code) });
       setBusy(null);
       return;
@@ -760,7 +779,7 @@ export function CpDetectImportModal() {
       return;
     }
     await solveRecognized(recognized, startedAt);
-  }, [model, rectified, solveRecognized, source]);
+  }, [model, rectified, solveRecognized, source, t]);
 
   const topology = useMemo(
     () => (recognition ? candidateTopology(recognition) : null),
@@ -1071,6 +1090,14 @@ export function CpDetectImportModal() {
                 land silently: the message was only ever drawn on the later
                 stages. */}
             {error && <div className="cp-detect-modal__error">{error}</div>}
+            {/* No image can be chosen until the model is read, so a read that
+                failed — the detector that did not load, most often — offers
+                its own way on rather than leaving only a close and reopen. */}
+            {!model && busy === null && error && (
+              <Button size="sm" onClick={() => setModelAttempt((attempt) => attempt + 1)}>
+                {t('dialogs:cpDetectImport.tryAgain', 'Try again')}
+              </Button>
+            )}
           </div>
         )}
 

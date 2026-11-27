@@ -71,6 +71,7 @@
     "crop": "Recadrer",
     "detect": "Détecter",
     "detected": "Détecté",
+    "didNotLoad": "Le détecteur n’a pas pu se charger. Vérifiez votre connexion, puis réessayez.",
     "dropImageHere": "Déposez l'image ici",
     "editCrop": "Modifier le recadrage",
     "inferred": "Déduit",
@@ -103,6 +104,7 @@
     "stopping": "Arrêt…",
     "stopSolve": "Arrêter",
     "title": "Détecter le CP depuis une image",
+    "tryAgain": "Réessayer",
     "verdict": {
       "afterFailure": "« Vérifier et corriger » ajoute le candidat avec l’image source derrière et conserve les données du solveur, pour le corriger puis le résoudre à nouveau.",
       "blocked": "Le solveur n'a pas pu lire ce graphe candidat : il n'y a donc rien à corriger à la main. Vous pouvez tout de même l'ajouter tel quel.",

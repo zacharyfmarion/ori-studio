@@ -1138,12 +1138,19 @@ export type CpDetectLikelihoodVerdict = 'likely' | 'unlikely';
 
 /**
  * Why the likelihood gate could not score an image added to the canvas.
- * `unloaded` is the detect worker never running because its code did not
- * load (offline, a dropped connection), which is not reported to Sentry;
- * `worker_lost` is the worker going away under the call, and `error` is the
- * gate itself failing. The first of those two in a session is reported.
+ * `unloaded` is the detector not loading (offline, a dropped connection): its
+ * worker never ran, or its wasm did not arrive (since 2026-11-26), which is
+ * not reported to Sentry; `worker_lost` is the worker going away under the
+ * call, and `error` is the gate itself failing. The first of those two in a
+ * session is reported.
  */
 export type CpDetectScoreFailureReason = 'unloaded' | 'worker_lost' | 'error';
+
+/**
+ * What asked for the detector when it did not load (`cp detect load failed`):
+ * the Detect dialog, or a region solve measuring its source image.
+ */
+export type CpDetectLoadFailureSurface = 'import' | 'region_solve';
 
 /**
  * The gate's probability, bucketed. The operating threshold is 0.8, so the
@@ -1540,6 +1547,15 @@ export const ANALYTICS_EVENTS = {
    * worker that did not load on a user's connection, which Sentry never sees.
    */
   cpDetectImageScoreFailed: 'cp detect image score failed',
+  /**
+   * The detector did not load for something someone asked of it: the Detect
+   * dialog (`import`) or a region solve measuring its source image
+   * (`region_solve`), with `offline`. Its worker or its wasm did not arrive,
+   * which is the connection, not the detector: said where they acted, never
+   * reported to Sentry. The gate's own are `cp detect image score failed`,
+   * reason `unloaded`.
+   */
+  cpDetectLoadFailed: 'cp detect load failed',
   cpDetectSuggested: 'cp detect suggested',
   cpDetectSuggestionAccepted: 'cp detect suggestion accepted',
   cpDetectSuggestionDismissed: 'cp detect suggestion dismissed',

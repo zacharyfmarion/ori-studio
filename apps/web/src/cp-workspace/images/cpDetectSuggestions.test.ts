@@ -126,6 +126,25 @@ describe('noteAddedCanvasImage', () => {
     expect(track).toHaveBeenLastCalledWith('cp detect image score failed', { reason: 'worker_lost' });
   });
 
+  // ORI-STUDIO-15: the worker ran, and the download of its wasm was cut off
+  // inside `init()`. That rejects the call rather than killing the worker, and
+  // comlink hands the worker's TypeError over as an Error named TypeError.
+  it('counts a detector whose wasm download was cut off without reporting it', async () => {
+    const aborted = Object.assign(
+      new Error('WebAssembly compilation aborted: Network error: Response body loading was aborted'),
+      { name: 'TypeError' }
+    );
+    const refused = Object.assign(new Error('Load failed'), { name: 'TypeError' });
+    await noteAddedCanvasImage(image, deps({ score: vi.fn(async () => Promise.reject(aborted)) }));
+    await noteAddedCanvasImage({ ...image, id: 'image-2' }, deps({ score: vi.fn(async () => Promise.reject(refused)) }));
+
+    expect(reportError).not.toHaveBeenCalled();
+    expect(track.mock.calls).toEqual([
+      ['cp detect image score failed', { reason: 'unloaded' }],
+      ['cp detect image score failed', { reason: 'unloaded' }],
+    ]);
+  });
+
   // The worker rejects with `{ code, message }`, not an `Error`. Wrapped as
   // `new Error(String(error))` that reached Sentry as "[object Object]"
   // (ORI-STUDIO-J); handed over as it is, monitoring names it by its code.

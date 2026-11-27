@@ -32,22 +32,27 @@
 import type { TFunction } from 'i18next';
 import { toast } from 'sonner';
 import { isChunkLoadError } from '../../lib/importOrReload';
+import { isNetworkFailureMessage } from '../../lib/networkFailure';
 // The leaf, not the contract: the gateway imports this with the page.
 import { LAYER_ORDER_CALL_FAILURES, isLayerOrderEngineTrapped } from './layerOrderCallFailures';
 
 /**
- * How browsers word a fetch that did not happen, and a response that was not
- * the wasm asked for (an HTML page served in its place):
- * - a refused fetch: Chromium's "Failed to fetch", Firefox's "NetworkError
- *   when attempting to fetch resource", WebKit's "Load failed", "The network
- *   connection was lost" and "The Internet connection appears to be offline";
- * - not wasm: `instantiateStreaming` refusing the response's status or type,
- *   then the compile of what came finding no wasm header (Chromium "expected
- *   magic word", Firefox "failed to match magic number", WebKit "doesn't start
- *   with '\0asm'").
+ * How browsers word a response that was not the wasm asked for (an HTML page
+ * served in its place): `instantiateStreaming` refusing the response's status
+ * or type, then the compile of what came finding no wasm header (Chromium
+ * "expected magic word", Firefox "failed to match magic number", WebKit
+ * "doesn't start with '\0asm'").
  */
-const FETCH_FAILURE =
-  /Failed to fetch|NetworkError when attempting to fetch|Load failed|network connection was lost|Internet connection appears to be offline|HTTP status code is not ok|Incorrect response MIME type|expected magic word|failed to match magic number|doesn't start with '\\0asm'/i;
+const NOT_WASM =
+  /HTTP status code is not ok|Incorrect response MIME type|expected magic word|failed to match magic number|doesn't start with '\\0asm'/i;
+
+/**
+ * A fetch that did not happen or was cut off, in the words the detector and
+ * References share (`lib/networkFailure.ts`), or a response that was not wasm.
+ */
+function isFetchFailure(message: string): boolean {
+  return isNetworkFailureMessage(message) || NOT_WASM.test(message);
+}
 
 /** Whether the browser says it is offline: a load failure's toast says to reconnect first. */
 export function layerOrderOffline(): boolean {
@@ -111,11 +116,11 @@ export function isLayerOrderLoadFailure(failure: unknown): boolean {
   if ((failure as { loadFailed?: unknown }).loadFailed === true) return true;
   // The worker ran and its engine did not start: the wasm did not arrive.
   if ((failure as { code?: unknown }).code === LAYER_ORDER_CALL_FAILURES.unavailable) {
-    return layerOrderOffline() || FETCH_FAILURE.test(messageOf(failure));
+    return layerOrderOffline() || isFetchFailure(messageOf(failure));
   }
   // A lazy chunk's import.
   if (failure instanceof Error) {
-    return layerOrderOffline() || isChunkLoadError(failure) || FETCH_FAILURE.test(failure.message);
+    return layerOrderOffline() || isChunkLoadError(failure) || isFetchFailure(failure.message);
   }
   return false;
 }

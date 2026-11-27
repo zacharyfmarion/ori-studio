@@ -95,6 +95,10 @@ vi.mock('../store/workspaceStore/cpDetectRuntime', () => ({
     code: 'cp_detect',
     message: error instanceof Error ? error.message : String(error),
   }),
+  // The runtime's own predicate, which `cpDetectLoadFailure.ts` reads.
+  isCpDetectClientUnloaded: (error: unknown) =>
+    (error as { code?: unknown } | null)?.code === 'cp_detect_client_lost' &&
+    (error as { loadFailed?: unknown }).loadFailed === true,
 }));
 
 vi.mock('./cpDetectModelState', async (importOriginal) => {
@@ -895,6 +899,76 @@ describe('CpDetectImportModal failure reporting', () => {
     expect(button('Review & Fix')).not.toBeNull();
     expect(bodyText()).toMatch(/37 places to repair/);
     expect(bodyText()).not.toMatch(/not practical|out of hand-repair range/);
+  });
+});
+
+/**
+ * A detector that did not load: its worker never ran, or the network refused
+ * or cut off its wasm. The dialog used to print the browser's English ("The
+ * worker stopped unexpectedly.", "Load failed") and, when that happened as it
+ * opened, left no way on but closing it.
+ */
+describe('CpDetectImportModal a detector that did not load', () => {
+  const DID_NOT_LOAD = 'The detector couldn’t load. Check your connection, then try again.';
+
+  async function openModal(): Promise<void> {
+    await act(async () => {
+      root?.render(
+        <TooltipProvider>
+          <CpDetectImportModal />
+        </TooltipProvider>
+      );
+    });
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('ori-studio:detect-cp-image'));
+    });
+    await settle();
+  }
+
+  it('says so plainly as it opens, counts it, and reads the model again on Try again', async () => {
+    detectClient.modelStatus.mockRejectedValueOnce({
+      code: 'cp_detect_client_lost',
+      message: 'The worker stopped unexpectedly.',
+      loadFailed: true,
+    });
+    await openModal();
+
+    expect(bodyText()).toContain(DID_NOT_LOAD);
+    expect(bodyText()).not.toContain('The worker stopped unexpectedly.');
+    expect(button('Choose Image')?.disabled).toBe(true);
+    expect(track).toHaveBeenCalledWith('cp detect load failed', { surface: 'import', offline: 'no' });
+
+    click('Try again');
+    await settle();
+
+    expect(detectClient.modelStatus).toHaveBeenCalledTimes(2);
+    expect(bodyText()).not.toContain(DID_NOT_LOAD);
+    expect(button('Try again')).toBeNull();
+    expect(button('Choose Image')?.disabled).toBe(false);
+  });
+
+  it('says the same when the wasm download was cut off under Detect', async () => {
+    detectClient.recognizeRectifiedFold.mockRejectedValueOnce(
+      Object.assign(new Error('WebAssembly compilation aborted: Network error: Response body loading was aborted'), {
+        name: 'TypeError',
+      })
+    );
+    await reachReviewStage();
+
+    expect(bodyText()).toContain(DID_NOT_LOAD);
+    expect(bodyText()).not.toContain('Response body loading was aborted');
+    expect(button('Detect')).not.toBeNull();
+  });
+
+  it('keeps any other failure’s own words, uncounted', async () => {
+    detectClient.modelStatus.mockRejectedValueOnce(new Error('The model registry names no detector'));
+    await openModal();
+
+    expect(bodyText()).toContain('The model registry names no detector');
+    expect(bodyText()).not.toContain(DID_NOT_LOAD);
+    expect(track).not.toHaveBeenCalledWith('cp detect load failed', expect.anything());
+    // A read that failed can still be tried again: nothing else gets past it.
+    expect(button('Try again')).not.toBeNull();
   });
 });
 
