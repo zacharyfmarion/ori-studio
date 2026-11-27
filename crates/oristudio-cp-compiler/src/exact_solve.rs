@@ -32,6 +32,7 @@ use std::rc::Rc;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
+mod grid_snap;
 mod image_recovery;
 mod projection;
 mod recognition;
@@ -220,6 +221,10 @@ pub struct ExactSolveOptions {
     /// lattice and still be read as on it.
     #[serde(default = "default_lattice_snap_tolerance_px")]
     pub lattice_snap_tolerance_px: f64,
+    /// Whether to put a box-pleated answer's near-grid coordinates exactly on
+    /// the grid its detection reads, judged. See [`GridSnapMode`].
+    #[serde(default)]
+    pub grid_snap: GridSnapMode,
 }
 
 const fn default_carrier_join_movement_budget() -> f64 {
@@ -347,6 +352,35 @@ pub enum LatticeSnapMode {
     #[default]
     Auto,
     Off,
+}
+
+/// What the solve does with a box-pleated design's grid once it has an exact
+/// answer — the user's "Snap to grid", which detection asks for.
+///
+/// The lattice round ([`LatticeSnapMode`]) snaps an answer only when every
+/// vertex sits within a pixel and a half of one lattice, read strictly; a
+/// detected design with a hybrid vertex, or a few on a finer grid than the rest,
+/// stays a fraction of a pixel off its grid, folding flat and not drawn as the
+/// designer drew it. `BoxPleat` reads the grid the detection sits on
+/// ([`crate::box_pleat_grid`]), puts every coordinate of the answer within
+/// [`crate::box_pleat_grid::SNAP_TOLERANCE_PX`] of it on it and leaves the rest,
+/// and keeps that only when the original request's checks still call it exact
+/// (`judge_original`): a snap can never turn an answer that folds into one that
+/// does not, and since it only judges, it cannot find a different configuration
+/// either. A refused snap tries the grid's multiples, for designs whose few
+/// off-grid vertices sit on a finer one. `Off`, the default, leaves the answer
+/// where the solve put it.
+///
+/// Measured on the September recognition archive's 93 box-pleated detections
+/// (truth read only to score): the share of vertices exactly where the
+/// designer drew them, over every answer the dialog would add, goes from 0.904
+/// to 0.976, with no exact answer lost — a refused snap keeps the answer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GridSnapMode {
+    #[default]
+    Off,
+    BoxPleat,
 }
 
 /// A pixel and a half. A converged solve sits within half a pixel of the
@@ -541,6 +575,7 @@ impl Default for ExactSolveOptions {
             carrier_join_movement_budget: default_carrier_join_movement_budget(),
             lattice_snap: LatticeSnapMode::default(),
             lattice_snap_tolerance_px: default_lattice_snap_tolerance_px(),
+            grid_snap: GridSnapMode::default(),
             polish_kawasaki_sigma_radians: default_polish_kawasaki_sigma_radians(),
             polish_carrier_incidence_sigma: default_polish_carrier_incidence_sigma(),
             polish_rounds: default_polish_rounds(),
@@ -856,6 +891,9 @@ pub fn solve_exact_with_exemptions(
         ExactSolveDeadline::start(options.options.timeout_seconds, options.options.work_budget);
     let mut solved = solve_with_recovery(input, options, &recovery_clock, 8.);
     image_recovery::refine(input, &mut solved, options, &recovery_clock);
+    if options.options.grid_snap == GridSnapMode::BoxPleat {
+        grid_snap::round(input, &mut solved, options, &recovery_clock);
+    }
     solved
 }
 

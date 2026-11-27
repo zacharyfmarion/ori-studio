@@ -286,62 +286,50 @@ fn propose_at_noise(
         return None;
     }
     let tolerance = noise_px / pixels;
-    for cells in 4..=512 {
-        let band = 2.0 * tolerance * f64::from(cells);
-        if band >= 0.5 {
-            break;
-        }
-        let mut support = 0usize;
-        let mut distinct = BTreeSet::new();
-        for vertex in &input.vertices {
-            for value in [vertex.point.x, vertex.point.y] {
-                if (value - crate::lattice::snap_to(value, cells)).abs() <= tolerance {
-                    support += 1;
-                    distinct.insert((value * 1e6).round() as i64);
-                }
-            }
-        }
-        let fraction = support as f64 / (2 * input.vertices.len()) as f64;
-        if fraction < 0.95 || distinct.len() < 8 || band.powf(distinct.len() as f64) > 1e-6 {
+    let coordinates = input
+        .vertices
+        .iter()
+        .flat_map(|vertex| [vertex.point.x, vertex.point.y])
+        .collect::<Vec<_>>();
+    let crate::lattice::DominantLattice {
+        cells,
+        support: fraction,
+    } = crate::lattice::dominant_square_lattice(&coordinates, tolerance, 0.95)?;
+    let mut proposal = input.clone();
+    let mut locked = 0usize;
+    for vertex in &mut proposal.vertices {
+        // Never move a user pin or an already locked vertex. Corners remain
+        // the original boundary model's fixed anchors as in the base solve.
+        if pinned.contains(&vertex.id)
+            || vertex.movement_policy == CandidateVertexMovementPolicy::Locked
+            || input.boundary.corners.contains(&vertex.id)
+        {
             continue;
         }
-        let mut proposal = input.clone();
-        let mut locked = 0usize;
-        for vertex in &mut proposal.vertices {
-            // Never move a user pin or an already locked vertex. Corners remain
-            // the original boundary model's fixed anchors as in the base solve.
-            if pinned.contains(&vertex.id)
-                || vertex.movement_policy == CandidateVertexMovementPolicy::Locked
-                || input.boundary.corners.contains(&vertex.id)
-            {
-                continue;
-            }
-            let snapped = Point2::new(
-                crate::lattice::snap_to(vertex.point.x, cells),
-                crate::lattice::snap_to(vertex.point.y, cells),
-            );
-            if (snapped.x - vertex.point.x).abs() <= tolerance
-                && (snapped.y - vertex.point.y).abs() <= tolerance
-                && distance(snapped, vertex.point) * pixels <= noise_px * 2.0
-            {
-                vertex.point = snapped;
-                vertex.movement_policy = CandidateVertexMovementPolicy::Locked;
-                locked += 1;
-            }
+        let snapped = Point2::new(
+            crate::lattice::snap_to(vertex.point.x, cells),
+            crate::lattice::snap_to(vertex.point.y, cells),
+        );
+        if (snapped.x - vertex.point.x).abs() <= tolerance
+            && (snapped.y - vertex.point.y).abs() <= tolerance
+            && distance(snapped, vertex.point) * pixels <= noise_px * 2.0
+        {
+            vertex.point = snapped;
+            vertex.movement_policy = CandidateVertexMovementPolicy::Locked;
+            locked += 1;
         }
-        if locked == 0 {
-            return None;
-        }
-        refresh_carriers(&mut proposal);
-        return Some(GridProposal {
-            input: proposal,
-            grid: projection::Grid { cells, tolerance },
-            report: json!({"cells": cells, "coordinate_support": fraction,
+    }
+    if locked == 0 {
+        return None;
+    }
+    refresh_carriers(&mut proposal);
+    Some(GridProposal {
+        input: proposal,
+        grid: projection::Grid { cells, tolerance },
+        report: json!({"cells": cells, "coordinate_support": fraction,
                            "noise_px": noise_px, "pixels_per_unit": pixels,
                            "locked_vertices": locked}),
-        });
-    }
-    None
+    })
 }
 
 pub(super) fn refresh_carriers(input: &mut ExactSolveInput) {
