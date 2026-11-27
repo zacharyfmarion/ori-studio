@@ -64,6 +64,7 @@ function view(last: boolean | FoldSessionNode = false, failed = false) {
   const entries = foldPathEntries(SEQUENCE, NODES.map((node) => node.id), landed(0), nodes, FOLD_PENDING_NODE);
   return {
     entries,
+    frames: entries.map(() => null),
     document: SEQUENCE,
     words: entries.map((entry) =>
       entry.node ? foldNodeSentenceStep(entry.node, { parent: null, child: null, report: null }) : { op: 'unknown' as const }
@@ -190,6 +191,7 @@ describe('the Fold browser’s cards (D17)', () => {
     const cards = foldBrowserCards(t, {
       document: turnOnly,
       entries,
+      frames: entries.map(() => null),
       words: entries.map(() => ({ op: 'unknown' as const })),
       failed: false,
     });

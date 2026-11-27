@@ -41,7 +41,7 @@ import { turnClockwise, type Point } from '../../lib/geometry';
 import type { PaperLineRole, PaperScene, ScenePoint } from '../../lib/paper/paperScene';
 import { storedSheetThumbnail, type SheetThumbnail } from '../../cp-workspace/sheets/sheetThumbnail';
 import { withCarriedAnnotations } from '../annotate/annotationCarry';
-import { arrowApex, createAnnotation, MAX_BEHIND_LAYERS, type PictureFrame, type PicturePoint } from '../annotate/annotationModel';
+import { arrowApex, bendAwayFrom, createAnnotation, MAX_BEHIND_LAYERS, type PictureFrame, type PicturePoint } from '../annotate/annotationModel';
 import { flatScenePicture, storeScene, type CapturedPicture } from '../capture/captureFolded';
 import { CAPTURE_PX_PER_UNIT } from '../capture/captureGeometry';
 import {
@@ -367,12 +367,19 @@ export function foldStepMarks(
     const behind = back ? 0 : Math.min(ring.behind, MAX_BEHIND_LAYERS);
     marks.push(behind > 0 ? { ...circle, behind: { from: behind } } : circle);
   }
-  if (action.grip) {
-    const { at, image, hidden_at: over, hidden_image: overImage } = action.grip;
+  const lines = marks.filter((each) => each.kind.endsWith('-line')).map((each) => [each.from, each.to] as const);
+  const grips = [action.grip, action.secondGrip];
+  for (const [index, grip] of grips.entries()) {
+    if (!grip) continue;
+    const { at, image, hidden_at: over, hidden_image: overImage } = grip;
     const kind: DiagramAnnotationKind =
       action.kind === 'precrease' ? 'fold-unfold-arrow' : valley ? 'valley-arrow' : 'mountain-arrow';
-    const lines = marks.filter((each) => each.kind.endsWith('-line')).map((each) => [each.from, each.to] as const);
-    const arrow = bowedOverPaper(mark(kind, at, image), onPaper, lines);
+    const drawn = mark(kind, at, image);
+    // The paired Axiom 6 arrows bow apart so each alignment can be followed on its own.
+    const other = grips[1 - index];
+    const arrow = other
+      ? { ...drawn, bend: bendAwayFrom(drawn.from, drawn.to, toPicture(other.at)) }
+      : bowedOverPaper(drawn, onPaper, lines);
     const from = back ? 0 : Math.min(over, MAX_BEHIND_LAYERS);
     const to = back || overImage === null ? 0 : Math.min(overImage, MAX_BEHIND_LAYERS);
     marks.push(from > 0 || to > 0 ? { ...arrow, behind: { ...(from > 0 ? { from } : {}), ...(to > 0 ? { to } : {}) } } : arrow);

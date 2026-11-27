@@ -1172,6 +1172,7 @@
         "mountainAllPlaces_many": "Dobra monte nos {{count}} lugares.",
         "mountainAllPlaces_other": "Dobra monte nos {{count}} lugares.",
         "mountainBothSides": "Dobra monte dos dois lados.",
+        "mountainPointsOntoLines": "Faça uma dobra monte levando os pontos até as duas linhas indicadas.",
         "mountainPrecrease": "Dobre em monte e desdobre.",
         "mountainPrecreaseAllPlaces_one": "Dobre em monte e desdobre em {{count}} lugar.",
         "mountainPrecreaseAllPlaces_many": "Dobre em monte e desdobre nos {{count}} lugares.",
@@ -1217,10 +1218,11 @@
         "unfoldToStep": "Desdobre até a etapa {{number}}.",
         "unsink": "Desfazer afundamento.",
         "valley": "Dobra vale.",
-        "valleyAllPlaces_one": "Dobra vale em {{count}} lugar.",
         "valleyAllPlaces_many": "Dobra vale nos {{count}} lugares.",
+        "valleyAllPlaces_one": "Dobra vale em {{count}} lugar.",
         "valleyAllPlaces_other": "Dobra vale nos {{count}} lugares.",
-        "valleyBothSides": "Dobra vale dos dois lados."
+        "valleyBothSides": "Dobra vale dos dois lados.",
+        "valleyPointsOntoLines": "Faça uma dobra vale levando os pontos até as duas linhas indicadas."
       },
       "join": "Unir o passo {{first}} e o passo {{next}}",
       "joinMirror": "Unir os passos {{first}} e {{next}} em um só passo: são a imagem espelhada um do outro.",

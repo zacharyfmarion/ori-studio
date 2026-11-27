@@ -6809,6 +6809,8 @@
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89",
     "errors:file.inUse": "d2ad9d0c43a8"
   },
   "es": {
@@ -13621,6 +13623,8 @@
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89",
     "errors:file.inUse": "d2ad9d0c43a8"
   },
   "fr": {
@@ -20435,6 +20439,8 @@
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89",
     "errors:file.inUse": "d2ad9d0c43a8"
   },
   "ja": {
@@ -26859,6 +26865,8 @@
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89",
     "errors:file.inUse": "d2ad9d0c43a8"
   },
   "ko": {
@@ -33283,6 +33291,8 @@
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89",
     "errors:file.inUse": "d2ad9d0c43a8"
   },
   "pt-BR": {
@@ -40095,6 +40105,8 @@
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89",
     "errors:file.inUse": "d2ad9d0c43a8"
   },
   "ru": {
@@ -46907,6 +46919,8 @@
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89",
     "errors:file.inUse": "d2ad9d0c43a8"
   },
   "zh-CN": {
@@ -53331,6 +53345,8 @@
     "toasts:diagram.titleBlockPattern.noFolds": "b0f963e12ec3",
     "toasts:diagram.titleBlockPattern.trimmed": "e9f310329220",
     "toasts:diagram.titleBlockPattern.unreadable": "319775a00c18",
+    "panels:diagram.fold.instruction.mountainPointsOntoLines": "2b032199f4f4",
+    "panels:diagram.fold.instruction.valleyPointsOntoLines": "d300e0d50f89",
     "errors:file.inUse": "d2ad9d0c43a8"
   }
 }

@@ -605,10 +605,11 @@ jobs:
             echo
             if [ "$IS_RELEASE" = "true" ]; then
               echo "The GitHub Release is still a **draft**. Publish it as a *prerelease*,"
+              echo "attach the updater manifest with \`./scripts/publish-updater-manifest.sh ${VERSION}\`,"
               echo "install it, then arm it with:"
               echo
               echo '```'
-              echo "gh release edit v${VERSION} --prerelease=false"
+              echo "gh release edit v${VERSION} --prerelease=false --latest"
               echo '```'
             else
               echo "Artifacts are attached to this workflow run — download them from the"
