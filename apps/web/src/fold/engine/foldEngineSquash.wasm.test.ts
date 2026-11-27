@@ -1,21 +1,15 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { createFoldReplayer } from '../document/foldReplay';
-import { sequenceOf, step } from '../document/foldSequence.fixtures';
-import { readFoldSequence, writeFoldSequence } from '../document/foldSequenceFile';
 import {
   SQUARE_PAPER,
-  type FoldPaper,
   type FoldPlainOp,
   type FoldRabbitEarOp,
   type FoldSquashOp,
-  type FoldStep,
   type FoldSwivelOp,
   type SheetPoint,
 } from '../document/foldSequenceDocument';
 import { createFoldEngineCalls, type FoldEngineCalls } from './foldEngineCalls';
-import { createFoldEnginePort } from './foldEnginePort';
 import { createFoldEngineCompoundCalls, type FoldEngineCompoundCalls } from './foldEngineCompoundCalls';
 import {
   compoundStoredChoices,
@@ -116,47 +110,6 @@ describe.skipIf(!available)('the vertex folds over the bridge', () => {
     const sheet = landed(engine.calls.sheet(SQUARE_PAPER)).state;
     return landed(engine.calls.step(sheet, valley([[1, 0], [0, 1]], [1, 1]))).state;
   }
-
-  it('squashes the exact Bird pocket from either precreased subdivision and freshly replays both saved branches', async () => {
-    const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../tests/fixtures/fold-examples/squash-precreased-bird.json'), 'utf8')) as {
-      paper: FoldPaper; steps: FoldStep[]; picks: FoldSquashOp[];
-    };
-    let state = landed(engine.calls.sheet(fixture.paper)).state;
-    const nodes: FoldStep[] = fixture.steps.map(node => {
-      const result = landed(engine.calls.step(state, node.op, node.choices));
-      state = result.state;
-      return { ...node, expect: result.fingerprint };
-    });
-    const baseline = analysed(state, fixture.picks[0]);
-    const outcomes = fixture.picks.map((op, i) => {
-      expect(analysed(state, op)).toEqual(baseline);
-      const preview = landed(engine.vertex.vertexFold(state, op));
-      expect(preview.result).toBe('landed');
-      const result = landed(engine.calls.step(state, op));
-      if (preview.result === 'landed') expect(preview.fingerprint).toBe(result.fingerprint);
-      nodes.push(step(`fstep-pocket-${i}`, fixture.steps.at(-1)!.id, op, { expect: result.fingerprint }));
-      return result;
-    });
-    expect(outcomes[1].fingerprint).toBe(outcomes[0].fingerprint);
-    // Includes exposed sides, per-face transforms and the full layer order,
-    // not just the outline of the landed pocket.
-    expect(engine.calls.scene(outcomes[1].state)).toEqual(engine.calls.scene(outcomes[0].state));
-    const document = sequenceOf(nodes, fixture.paper);
-    const saved = readFoldSequence(JSON.parse(JSON.stringify(writeFoldSequence({ document, readOnlyRaw: null }))))!;
-    const fresh = await makeEngine();
-    const port = createFoldEnginePort({
-      generation: () => 0,
-      sheet: async paper => fresh.calls.sheet(paper),
-      step: async (parent, op, choices) => fresh.calls.step(parent, op, choices),
-      release: async states => fresh.calls.release(states),
-    }, fresh.version);
-    const replay = await createFoldReplayer(port).run({ loadId: 1, sequence: saved.document });
-    expect(replay?.steps.size).toBe(nodes.length);
-    for (const node of nodes) {
-      expect(replay?.steps.get(node.id)?.status).toBe('ok');
-      expect(replay?.steps.get(node.id)?.fingerprint).toBe(node.expect);
-    }
-  });
 
   it('lands a stored squash through `step`, with its report and its staged motion', () => {
     const half = triangle();

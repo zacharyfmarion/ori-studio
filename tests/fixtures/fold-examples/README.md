@@ -26,14 +26,6 @@ with these clicks and checks each against the step the file stores.
 way the app reads a project and replays every step through the real engine.
 Every step must come back `ok`: none broken, locked or changed.
 
-The five `.json` files beside them are regression cases, not example
-projects: fold sequences that reach one step of a traditional design (the
-squirrel, whale, dove, bird and witch hat tutorials on origami.me, each named
-in the file's `source` field or first step's note) where a tool once failed.
-They hold only the fold operations, authored in Ori Studio; no tutorial text or
-picture is copied. Engine and web tests replay them; search for a file's name
-to find which.
-
 Positions are as seen on the folded pane when the click is made. "Enter"
 commits the fold the window previews; the window's own button does the same.
 

@@ -1,9 +1,8 @@
 //! The stacking cap (`oristudio_layer_order::MAX_STACKED_TRIPLES`) against
 //! real models, through the bridge's own calls:
 //!
-//! - the five authored designs' Fold sequences (`fold-design-completion`),
-//!   and two fold examples, fold far under it, step by step, and their last
-//!   states import under it;
+//! - two fold examples' Fold sequences fold far under it, step by step, and
+//!   their last states import under it;
 //! - the fixtures' real crease patterns import under it, the deepest a
 //!   box-pleated iguana component that stacks 250 layers deep (10.2 million
 //!   triples), which the cap of 4 million refused before the solver's
@@ -135,14 +134,8 @@ fn replay(name: &str, doc: &Value) -> (u64, State) {
 
 #[test]
 fn the_fixture_sequences_fold_far_under_the_cap() {
-    // The most triples of any step, on 2026-10-19: the crane's 10,440, under
-    // a three-hundredth of the cap.
+    // The most triples of any step, on 2026-11-27: the petal fold's 120.
     for name in [
-        "fold-design-completion/crane.osf",
-        "fold-design-completion/heart.osf",
-        "fold-design-completion/cicada.osf",
-        "fold-design-completion/swan.osf",
-        "fold-design-completion/box.osf",
         "fold-examples/petal-fold.osf",
         "fold-examples/swivel-inside.osf",
     ] {

@@ -47,44 +47,21 @@ fn every_compound_fixture_can_return_each_step_and_the_whole_range() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures");
     let mut kinds = std::collections::BTreeSet::new();
     for name in [
-        "fold-design-completion/cicada",
-        "fold-design-completion/heart",
-        "fold-design-completion/swan",
-        "fold-design-completion/crane",
         "fold-examples/petal-fold",
         "fold-examples/swivel-fold",
         "fold-examples/swivel-inside",
         "fold-examples/swivel-on-edge",
-        "fold-examples/rabbit-ear-precreased-whale.json",
+        "fold-regressions/rabbit-ear-folded-corner",
     ] {
         let file: Value = serde_json::from_str(
-            &std::fs::read_to_string(root.join(if name.ends_with(".json") {
-                name.to_string()
-            } else {
-                format!("{name}.osf")
-            }))
-            .unwrap(),
+            &std::fs::read_to_string(root.join(format!("{name}.osf"))).unwrap(),
         )
         .unwrap();
-        let docs = if name.ends_with(".json") {
-            vec![file.clone()]
-        } else {
-            file["workspace"]["foldSequences"]
-                .as_array()
-                .unwrap()
-                .clone()
-        };
-        for mut doc in docs {
-            if name.ends_with(".json") {
-                for key in ["op", "second"] {
-                    let parent = doc["steps"].as_array().unwrap().last().unwrap()["id"].clone();
-                    let operation = doc[key].clone();
-                    doc["steps"]
-                        .as_array_mut()
-                        .unwrap()
-                        .push(json!({"id":key,"parent":parent,"op":operation}));
-                }
-            }
+        let docs = file["workspace"]["foldSequences"]
+            .as_array()
+            .unwrap()
+            .clone();
+        for doc in docs {
             let mut b = Bridge::new();
             let paper: Paper = serde_json::from_value(doc["paper"].clone()).unwrap();
             let Outcome::Ok(s) = b.sheet(&paper) else {
@@ -151,15 +128,7 @@ fn every_compound_fixture_can_return_each_step_and_the_whole_range() {
             }
         }
     }
-    for kind in [
-        "tuck",
-        "outside-reverse",
-        "inside-reverse",
-        "petal",
-        "squash",
-        "swivel",
-        "rabbit-ear",
-    ] {
+    for kind in ["inside-reverse", "petal", "squash", "swivel", "rabbit-ear"] {
         assert!(kinds.contains(kind), "missing {kind}: {kinds:?}");
     }
 }

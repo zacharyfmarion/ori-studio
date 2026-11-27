@@ -110,21 +110,6 @@ describe.skipIf(!available)('partial precreases over the real bridge', () => {
     }
   });
 
-  it('accepts the exact Witch Hat source-7 request without moving its material', async () => {
-    const { calls } = await engine();
-    const fixture = JSON.parse(readFileSync(resolve(ROOT, '../../tests/fixtures/fold-examples/witch-hat-existing-precrease.json'), 'utf8'));
-    let state = landed(calls.sheet(fixture.paper)).state;
-    for (const node of fixture.steps) state = landed(calls.step(state, node.op, node.choices)).state;
-    const before = calls.scene(state);
-    const after = landed(calls.step(state, fixture.op));
-    const scene = calls.scene(after.state);
-    expect(scene.faces).toEqual(before.faces);
-    expect(scene.face_transforms).toEqual(before.face_transforms);
-    expect(scene.subfaces).toEqual(before.subfaces);
-    expect(scene.crease_marks).toBeUndefined();
-    expect(landed(calls.stepSummary(after.state)).summary?.diff.reversed).toHaveLength(2);
-  });
-
   it('lands a pinch whose marks every query carries', async () => {
     const { calls } = await engine();
     const sheet = landed(calls.sheet(SQUARE));

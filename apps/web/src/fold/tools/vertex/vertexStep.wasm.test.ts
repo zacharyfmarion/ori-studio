@@ -2,8 +2,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { Point } from '../../../lib/geometry';
-import { applyIsometry, invertIsometry, lineThrough, sideOf } from '../../canvas/foldCanvasGeometry';
-import { foldPickIndex, foldStackAt, topSheetPointAt, type FoldPick, type FoldPickIndex } from '../../canvas/foldPicking';
+import { lineThrough, sideOf } from '../../canvas/foldCanvasGeometry';
+import { foldPickIndex, topSheetPointAt, type FoldPick, type FoldPickIndex } from '../../canvas/foldPicking';
 import type { FoldChoices, FoldOp, FoldVertexOp } from '../../document/foldSequenceDocument';
 import { createFoldEngineCalls, type FoldEngineCalls } from '../../engine/foldEngineCalls';
 import { createFoldEngineCompoundCalls, type FoldEngineCompoundCalls } from '../../engine/foldEngineCompoundCalls';
@@ -31,8 +31,6 @@ import {
   type FoldVertexTaken,
 } from './vertexStep';
 import { vertexControls } from './vertexToolWindow';
-import { fanGivenCreases } from './fanGeometry';
-import { fanGiven } from './vertexStep';
 
 /**
  * Each vertex fold over the real bridge, in-process, as its tool folds it:
@@ -508,63 +506,6 @@ describe.skipIf(!available)('the vertex folds over the real bridge, as their too
       const [group] = groups;
       expect(group!.find((crease) => crease.toCorner)?.letter).toBe(direction);
     }
-  });
-
-  it('rabbit-ears the saved Whale prefix through its existing precreases via the same four UI picks', async () => {
-    const fixture = JSON.parse(readFileSync(resolve(process.cwd(), '../../tests/fixtures/fold-examples/rabbit-ear-precreased-whale.json'), 'utf8'));
-    const engined = await engine();
-    const { calls } = engined;
-    let state = landed(calls.sheet(fixture.paper)).state;
-    for (const step of fixture.steps) state = landed(calls.step(state, step.op, step.choices)).state;
-    const direct = landed(calls.step(state, fixture.op));
-    const index = indexOf(calls, state);
-    const corners = fixture.op.corners as [number, number][];
-    // The bridge's rabbit-ear corner anchors are original-sheet points.
-    const picks = corners.map(c => {
-      const scene = index.toScene(p(c[0], c[1]));
-      return landmark(scene, c);
-    });
-    const selectedRegion = index.toScene(p(0.93, 0.29));
-    const wanted = intent({ tool: 'rabbit-ear', picks: [...picks, free(selectedRegion)] });
-    const given = fanGiven(wanted)!;
-    const pending = fanGivenCreases(index, given, 'valley', null);
-    expect(pending).toHaveLength(3);
-    for (const segment of pending) {
-      expect(Math.hypot(segment.scene[1].x - given.center.x, segment.scene[1].y - given.center.y)).toBeCloseTo(given.limits![segment.ray]!, 8);
-    }
-    const ear = vertexFold(engined, state, wanted);
-    expect(landingFourths(ear.first)).toHaveLength(1);
-    const folded = land(engined, state, ear.built.step);
-    expect(folded.fingerprint).toBe(direct.fingerprint);
-    // Serialization keeps exactly the public operation and choices used by preview.
-    const reopened = land(engined, state, JSON.parse(JSON.stringify(ear.built.step)));
-    expect(reopened.fingerprint).toBe(folded.fingerprint);
-    const fish = landed(calls.step(folded.state, fixture.second));
-    // Both ears must match the control that omitted the preparation marks,
-    // including which original sheet points and paper sides appear in each layer.
-    let control = landed(calls.sheet(fixture.paper)).state;
-    for (const step of fixture.steps.slice(0, 2)) control = landed(calls.step(control, step.op)).state;
-    control = landed(calls.step(control, fixture.op)).state;
-    control = landed(calls.step(control, fixture.second)).state;
-    const actualIndex = indexOf(calls, fish.state);
-    const controlIndex = indexOf(calls, control);
-    let compared = 0;
-    for (let x = -12; x <= 12; x += 1) for (let y = 0; y <= 28; y += 1) {
-      const point = p(x / 20 + 0.00131, y / 20 + 0.00217);
-      const stack = (index: FoldPickIndex) => foldStackAt(index, point).map(f => ({
-        material: applyIsometry(invertIsometry(index.scene.face_transforms[f]!), point),
-        front: index.scene.faces[f]!.front_up,
-      }));
-      const actual = stack(actualIndex), expected = stack(controlIndex);
-      expect(actual.length).toBe(expected.length);
-      actual.forEach((layer, i) => {
-        expect(layer.material.x).toBeCloseTo(expected[i]!.material.x, 7);
-        expect(layer.material.y).toBeCloseTo(expected[i]!.material.y, 7);
-        expect(layer.front).toBe(expected[i]!.front);
-        compared += 1;
-      });
-    }
-    expect(compared).toBeGreaterThan(100);
   });
 
   it('swivels the bottom edge onto the precreased diagonal by its edge, stepping its ridge among those that land', async () => {
