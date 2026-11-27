@@ -37,7 +37,7 @@ describe('foldRailGroups', () => {
       ['open-sink', 'closed-sink', 'unsink'],
       ['divide-line'],
       ['axiom-1', 'axiom-2', 'axiom-3', 'axiom-4', 'axiom-5', 'axiom-6', 'axiom-7', 'free', 'crease'],
-      ['turn-over', 'rotate', 'adjust-order'],
+      ['turn-over', 'rotate', 'adjust-order', 'collapse'],
       ['unfold-to', 'repeat'],
     ]);
     // Only usable tool groups are shown, all open initially.
@@ -94,6 +94,27 @@ describe('foldRailGroups', () => {
     });
     // A locked step refuses it as it refuses every tool.
     expect(item(foldRailGroups(t, view({ readOnly: 'locked' }), calls), 'adjust-order').available).toBe(false);
+  });
+
+  it('takes Collapse as a tool of the model, on Shift+D, refused at the flat sheet and while read-only', () => {
+    const calls = verbs();
+    expect(item(foldRailGroups(t, view(), calls), 'collapse')).toMatchObject({
+      kind: 'tool',
+      label: 'Collapse',
+      description: 'Fold the model along creases it already has: set each to valley, mountain or open.',
+      shortcut: 'fold.toolCollapse',
+      available: true,
+      active: false,
+    });
+    item(foldRailGroups(t, view(), calls), 'collapse').select();
+    expect(calls.selectTool).toHaveBeenCalledWith('collapse');
+    expect(item(foldRailGroups(t, view({ tool: 'collapse' }), calls), 'collapse').active).toBe(true);
+    // The flat sheet has no crease to collapse along.
+    expect(item(foldRailGroups(t, view({ atSheet: true }), calls), 'collapse')).toMatchObject({
+      available: false,
+      reason: 'Fold a step first.',
+    });
+    expect(item(foldRailGroups(t, view({ readOnly: 'locked' }), calls), 'collapse').available).toBe(false);
   });
 
   it('takes Unfold to step and Repeat as tools, keyless, refused at the flat sheet and while read-only', () => {

@@ -2189,6 +2189,7 @@
       },
       "closedSink": "Afunde a ponta em afundamento fechado: empurre-a para dentro com as camadas juntas.",
       "collapse": "Colapse seguindo o padrão de dobras salvo.",
+      "collapseCreases": "Colapse seguindo as dobras existentes.",
       "cpJump": "Dobre o papel segundo o padrão de vincos importado.",
       "crimp": {
         "inside": {

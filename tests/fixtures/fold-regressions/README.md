@@ -106,3 +106,12 @@ precrease and the folded-corner rabbit ear through the canvas tools.
   `apps/web/src/fold/orders/independentSidesOrders.wasm.test.ts` checks the seven
   today and holds the nine as an expected failure until each side's reachable
   orders are combined. Built by a script over the engine on 2026-10-21.
+- `collapse-person-step-28.osf`: the owner's own model, the one real file he
+  allowed as a fixture (2026-11-26): its fold sequence through step 28, an
+  Import CP that collapses the paper along creases it already has, with one
+  short line the Import CP drew. The Edit document and the diagrams are left
+  out; the step replays from its stored pattern.
+  `apps/web/src/fold/creaseCollapse/creaseCollapse.wasm.test.ts` makes the
+  missing line with a Precrease and the rest with a Collapse, and checks the
+  Collapse lands the same paper as the Import CP: every folded line, and the
+  same layers at every cell.

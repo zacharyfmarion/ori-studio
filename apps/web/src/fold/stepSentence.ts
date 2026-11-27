@@ -176,6 +176,8 @@ export type FoldSentenceStep =
   | { op: 'cp-jump'; collapse?: boolean }
   /** Adjust order: the same paper, its layers in another order, with no new crease. */
   | { op: 'adjust-order' }
+  /** Collapse: the paper collapsed along creases it already has, some of their letters changed. */
+  | { op: 'collapse' }
   /** A reverse fold along a line (plan Phase 9), its layers the tip's anchor, counted from the top. */
   | { op: 'reverse'; kind: 'inside' | 'outside'; line: FoldSentenceLine; scope: FoldLayerScope }
   /**
@@ -383,6 +385,8 @@ export function foldStepSentence(t: TFunction, step: FoldSentenceStep): string {
       return step.collapse ? t('panels:fold.sentence.collapse', 'Collapse along the saved crease pattern.') : t('panels:fold.sentence.cpJump', 'Collapse into the imported crease pattern.');
     case 'adjust-order':
       return t('panels:fold.sentence.adjustOrder', 'Adjust the layer order, with no new crease.');
+    case 'collapse':
+      return t('panels:fold.sentence.collapseCreases', 'Collapse along existing creases.');
     case 'reverse':
       return reverseFoldSentence(t, step.kind, lineClause(t, step.line), step.scope);
     case 'pleat':

@@ -21,9 +21,11 @@ import { sameTurnRotation, type TurnRotation } from '../../lib/steps/turn';
 import type { OristudioCpRatioExpression } from '../../lib/oristudioCpToolSettings';
 import { ratioExpressionFromHalves } from '../../lib/oristudioCpToolSettings';
 import type { FoldPick, FoldPointPick } from '../canvas/foldPicking';
+import type { FoldCollapsePick } from '../creaseCollapse/creaseCollapsePicks';
 import {
   FOLD_MARK_MAX_PARTS,
   type FoldChoices,
+  type FoldCollapseTo,
   type FoldDirection,
   type FoldLocatedLine,
   type FoldModelLine,
@@ -296,6 +298,11 @@ export interface FoldToolState {
   repeatIndividual: boolean;
   /** A saved step its tool is rebuilding in place; null while the tool adds a step. */
   rebuild: FoldToolRebuild | null;
+  // Collapse's (`fold/creaseCollapse`).
+  /** The letter a click sets a crease to: kept from one Collapse to the next. */
+  collapseTo: FoldCollapseTo;
+  /** The creases set so far, on the step on screen; let go as every pick is. */
+  collapsePicks: readonly FoldCollapsePick[];
 }
 
 /** A line a construction took: as a step stores it, and on the folded pane. */
@@ -344,6 +351,8 @@ export const FOLD_TOOL_INITIAL: FoldToolState = {
   repeatAxisSource: 'listed',
   repeatIndividual: false,
   rebuild: null,
+  collapseTo: 'valley',
+  collapsePicks: [],
 };
 
 /** What a new locate starts from: the tool, the line mode, the extent and the Divide settings stay. */
@@ -361,6 +370,7 @@ function located(state: FoldToolState): FoldToolState {
     override: null,
     hoveredFlap: null,
     compound: FOLD_COMPOUND_CHOICES_INITIAL,
+    collapsePicks: [],
   };
 }
 
@@ -472,6 +482,7 @@ export function isLocated(state: FoldToolState): boolean {
 export function hasToolInput(state: FoldToolState): boolean {
   return (
     state.picks.length > 0 ||
+    state.collapsePicks.length > 0 ||
     state.extentPicks.length > 0 ||
     state.override !== null ||
     state.takenLine !== undefined ||
@@ -619,6 +630,11 @@ export interface FoldTools {
   rebuildStep(rebuild: FoldToolRebuild): void;
   /** Let go of a rebuild under way: the tool goes on adding a step. */
   dropRebuild(): void;
+  // Collapse's (`fold/creaseCollapse`).
+  /** Set creases to this letter with the next clicks. */
+  setCollapseTo(to: FoldCollapseTo): void;
+  /** The creases set, as a click leaves them (`clickPiece`). */
+  setCollapsePicks(picks: readonly FoldCollapsePick[]): void;
 }
 
 /**
@@ -1079,6 +1095,15 @@ export function createFoldTools(initial: FoldToolState = FOLD_TOOL_INITIAL): Fol
 
     dropRebuild() {
       set((state) => (state.rebuild === null ? state : { ...state, rebuild: null }));
+    },
+
+    // Collapse's.
+    setCollapseTo(collapseTo) {
+      set((state) => (state.collapseTo === collapseTo ? state : { ...state, collapseTo }));
+    },
+
+    setCollapsePicks(collapsePicks) {
+      set((state) => (state.collapsePicks === collapsePicks ? state : { ...state, collapsePicks }));
     },
   };
   return api;

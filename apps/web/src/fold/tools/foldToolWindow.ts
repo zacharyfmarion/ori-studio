@@ -93,6 +93,12 @@ import {
 } from '../repeat/repeatToolWindow';
 import { unfoldToolWindow, type FoldUnfoldWindowVerbs, type FoldUnfoldWindowView } from '../return/unfoldToolWindow';
 import { adjustOrderToolWindow, type FoldAdjustOrderWindowView } from '../order/adjustOrderToolWindow';
+import {
+  creaseCollapseToolWindow,
+  type FoldCreaseCollapseControls,
+  type FoldCreaseCollapseWindowVerbs,
+  type FoldCreaseCollapseWindowView,
+} from '../creaseCollapse/creaseCollapseToolWindow';
 import type { TurnRotation } from '../../lib/steps/turn';
 import { tuckToolWindow, type FoldTuckControls, type FoldTuckWindowView } from './tuck/tuckToolWindow';
 import {
@@ -189,6 +195,8 @@ export interface FoldToolWindowView extends FoldToolsView {
   rotate?: FoldRotateWindowView;
   /** Adjust order's: whether the Layer order dialog can open on the step on screen (`fold/order`). */
   adjustOrder?: FoldAdjustOrderWindowView;
+  /** Collapse's: the letter in hand, the creases set and where they stand (`fold/creaseCollapse`). */
+  creaseCollapse?: FoldCreaseCollapseWindowView;
   // The sequence tools' (`fold/return`, `fold/repeat`); absent where the surface offers none.
   /** Unfold to step's targets and the one taken. */
   unfold?: FoldUnfoldWindowView;
@@ -245,6 +253,8 @@ export interface FoldToolWindowVerbs
   // The sequence tools'.
   unfold?: FoldUnfoldWindowVerbs;
   repeat?: FoldRepeatWindowVerbs;
+  /** Collapse's letter in hand (`fold/creaseCollapse`). */
+  creaseCollapse?: FoldCreaseCollapseWindowVerbs;
 }
 
 /** The Divide line's controls: count or exact ratio (Edit's ratio expression), and clearing what is made. */
@@ -384,6 +394,8 @@ export interface FoldToolWindowModel {
   steps?: FoldStepChoice | null;
   /** Repeat's axis, how it is saved, and a layer order to choose (`fold/repeat`); absent for every other tool. */
   repeat?: FoldRepeatControls;
+  /** Collapse's letter control and its status line (`fold/creaseCollapse`); absent for every other tool. */
+  creaseCollapse?: FoldCreaseCollapseControls;
   /** Cancel and the commit; a window that offers one thing (Adjust order's) has no Cancel. */
   footer: { cancel?: FoldWindowButton; commit: FoldWindowButton } | null;
   /** The layers and the refusal are the last seed's, until this one's are in (`FoldPreview.held`). */
@@ -717,6 +729,7 @@ function toolWindow(
   if (isSinkTool(view.tool)) return sinkToolWindow(t, view, verbs, host);
   if (view.tool === 'rotate') return view.rotate ? rotateToolWindow(t, view, view.rotate, verbs, host) : null;
   if (view.tool === 'adjust-order') return view.adjustOrder ? adjustOrderToolWindow(t, view, view.adjustOrder, verbs, host) : null;
+  if (view.tool === 'collapse') return view.creaseCollapse ? creaseCollapseToolWindow(t, view, view.creaseCollapse, verbs, host) : null;
   if (view.tool === 'unfold-to') return view.unfold ? unfoldToolWindow(t, view, view.unfold, verbs, host) : null;
   if (view.tool === 'repeat') return view.repeat ? repeatToolWindow(t, view, view.repeat, verbs, host) : null;
   if (!isFoldKind(view.tool)) return null;

@@ -5,7 +5,7 @@ import { useFoldAngleDisplay } from '../../cp-workspace/foldAngle/useFoldAngleDi
 import { DEFAULT_ORISTUDIO_CP_LINE_STYLE } from '../../lib/creasePatternViewport';
 import { useWorkspaceStore } from '../../store/workspaceStore';
 import type { FoldLetter } from '../engine/foldEngineWire';
-import { foldLetterLineColor, type FoldCreasePatternLines } from './foldCreasePatternLines';
+import { FOLD_AUX_LINE_COLOR, foldLetterLineColor, type FoldCreasePatternLines } from './foldCreasePatternLines';
 
 /**
  * How much wider the instruction is drawn than a crease: the step's own lines
@@ -64,10 +64,14 @@ export function useFoldCreasePatternStrokes(
   const foldAngleDisplay = useFoldAngleDisplay();
   return useMemo(() => {
     if (!element || !lines) return null;
-    const groups = LETTERS.map((letter) => ({
-      color: foldLetterLineColor(letter),
-      segments: lines.instruction.filter((line) => line.letter === letter),
-    }));
+    // A crease to be left open (Collapse's) in Edit's auxiliary colour, under the folds.
+    const groups = [
+      { color: FOLD_AUX_LINE_COLOR, segments: lines.instruction.filter((line) => line.open) },
+      ...LETTERS.map((letter) => ({
+        color: foldLetterLineColor(letter),
+        segments: lines.instruction.filter((line) => !line.open && line.letter === letter),
+      })),
+    ];
     return cpPatternStrokes(
       lines.creases,
       element,

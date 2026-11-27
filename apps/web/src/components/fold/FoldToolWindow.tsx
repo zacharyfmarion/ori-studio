@@ -29,6 +29,7 @@ import { SegmentedControl } from '../ui/SegmentedControl';
 import { ToolHintInstructions } from '../ui/tools/ToolHintInstructions';
 import { ToolHintWindow } from '../ui/tools/ToolHintWindow';
 import { FoldCrossSectionPicker } from './FoldCrossSectionPicker';
+import { FoldCreaseCollapseControls } from './creaseCollapse/FoldCreaseCollapseControls';
 import { FoldFlapChips } from './FoldFlapChips';
 import { FoldKindMark } from './FoldKindMark';
 import { FoldRefusalNotice } from './FoldRefusalNotice';
@@ -168,6 +169,7 @@ export function FoldToolWindow({
     rotate,
     steps,
     repeat,
+    creaseCollapse,
     footer,
   } = model;
 
@@ -344,6 +346,12 @@ export function FoldToolWindow({
             onBack={repeat.order.back}
             onAccept={repeat.order.accept}
           />
+        </div>
+      )}
+      {/* Collapse's letter in hand, and what is set: its status line keeps its room. */}
+      {creaseCollapse && (
+        <div className={styles.section}>
+          <FoldCreaseCollapseControls controls={creaseCollapse} />
         </div>
       )}
       {kind && (

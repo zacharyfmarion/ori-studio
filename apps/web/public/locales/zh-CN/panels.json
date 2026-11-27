@@ -2019,6 +2019,7 @@
       },
       "closedSink": "将尖角闭合沉折：把尖端压入，各层保持在一起。",
       "collapse": "沿已保存的展开图收拢。",
+      "collapseCreases": "沿已有折痕收拢。",
       "cpJump": "按导入的折痕图折叠。",
       "crimp": {
         "inside": {

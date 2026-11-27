@@ -177,6 +177,8 @@ export interface FoldPaneCreaseLine {
   line: readonly [Point, Point];
   letter: FoldLetter;
   hidden?: true;
+  /** A crease to be left open (flat), as Collapse sets one: the flat crease's pen, never a fold's. */
+  open?: true;
 }
 
 /**
@@ -192,8 +194,8 @@ export function withFoldCreases(
   offset: Point = ORIGIN
 ): PaperScene {
   if (creases.length === 0) return scene;
-  const items = creases.map(({ line: [a, b], letter, hidden }) =>
-    lineItem(hidden ? 'diagram-hidden' : diagramRole(letter), a, b, undefined, offset)
+  const items = creases.map(({ line: [a, b], letter, hidden, open }) =>
+    lineItem(hidden ? 'diagram-hidden' : open ? 'aux' : diagramRole(letter), a, b, undefined, offset)
   );
   return { ...scene, items: [...scene.items, ...items] };
 }
@@ -236,6 +238,11 @@ export interface FoldPendingCreases {
   folded: readonly FoldPaneCreaseLine[];
   /** On the crease pattern, in sheet coordinates, each by its letter from the front. */
   creasePattern: readonly FoldInstructionLine[];
+  /**
+   * Drawn over a landed preview's crease pattern too, not only until one
+   * lands: Collapse's creases set, which are what its preview changes.
+   */
+  overLanded?: true;
 }
 
 /** What a tool's preview draws as creases on the folded pane (`withPreviewCreases`). */

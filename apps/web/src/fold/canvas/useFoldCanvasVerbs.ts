@@ -384,7 +384,7 @@ function vertexFormOf(op: FoldOp, shared: FoldSwivelShared | undefined): FoldSte
  * was committed, so a flaps seed is the top flap taken by default, not
  * flaps the folder picked (`layer_scope: top`).
  */
-function trackCommitted(op: FoldOp, defaulted: boolean, shared: FoldSwivelShared | undefined): void {
+function trackCommitted(op: FoldOp, defaulted: boolean, shared: FoldSwivelShared | undefined, collapseOrders = 1): void {
   const kind = opKindOf(op);
   if (!kind) return;
   // A rotation says how far it turned, bucketed: a preset, or `other` for an exact angle.
@@ -400,6 +400,11 @@ function trackCommitted(op: FoldOp, defaulted: boolean, shared: FoldSwivelShared
   }
   if (op.kind === 'turn' || op.kind === 'cp-jump' || op.kind === 'adjust-order' || op.kind === 'unfold-to' || op.kind === 'repeat') {
     trackFoldStepAdded(kind);
+    return;
+  }
+  // A Collapse locates no line and takes no layers: how many stretches it changed, and among how many orders.
+  if (op.kind === 'collapse') {
+    trackFoldStepAdded(kind, { collapse: { creases: op.creases.length, orders: collapseOrders } });
     return;
   }
   const via = 'line' in op ? op.line.via : 'crease';
@@ -486,14 +491,16 @@ export function useFoldCanvasVerbs(
       committing.current = true;
       const defaulted = tools.store.getState().seed.scope === 'top';
       const shared = tools.store.getState().otherEnd?.shared;
+      const collapseOrders = live.current.preview.creaseCollapse?.orders ?? 1;
       void live.current.session.commitStep(op, choices).then((outcome) => {
         committing.current = false;
         if (outcome.status !== 'committed') return;
-        trackCommitted(op, defaulted, shared);
+        trackCommitted(op, defaulted, shared, collapseOrders);
         tools.clear();
         // A rotation applied puts Rotate down, as Turn over is done at once:
         // left in hand, it would preview another turn on the step just made.
-        if (op.kind === 'rotate') tools.putDown();
+        // A Collapse is one step too: its creases are the state's it was made on.
+        if (op.kind === 'rotate' || op.kind === 'collapse') tools.putDown();
       }, (error: unknown) => {
         committing.current = false;
         reportError(error, { surface: 'fold:commit' });
@@ -523,7 +530,7 @@ export function useFoldCanvasVerbs(
       const { view: shown, preview: previewed, session: current } = live.current;
       const step = previewed.step;
       const index = shown.index;
-      if (!step || !index || step.op.kind === 'turn' || step.op.kind === 'rotate' || step.op.kind === 'cp-jump' || step.op.kind === 'adjust-order' || step.op.kind === 'unfold-to' || step.op.kind === 'repeat') return;
+      if (!step || !index || step.op.kind === 'turn' || step.op.kind === 'rotate' || step.op.kind === 'cp-jump' || step.op.kind === 'adjust-order' || step.op.kind === 'collapse' || step.op.kind === 'unfold-to' || step.op.kind === 'repeat') return;
       const sheet = topSheetPointAt(index, at);
       if (!sheet) return;
       const seed = state().seed;
@@ -637,6 +644,8 @@ export function useFoldCanvasVerbs(
         // Repeat: its axes, drawn on both panes, and an axis of the folder's
         // own located with the line modes, while one may be taken.
         if (tool.tool === 'repeat') return repeatHit(index, pane, at, radii, tool, live.current.preview.repeat ?? null, freePointHeld());
+        // Collapse: the crease under the pointer, on either pane, whatever the line mode.
+        if (tool.tool === 'collapse') return live.current.preview.creaseCollapse?.hitTest(pane, at, radii.line) ?? null;
         // A fan's hinge region, or a petal fold's flap, picked or picked
         // again: the paper under the pointer, whose region the panes light —
         // off it, nothing.
@@ -700,6 +709,11 @@ export function useFoldCanvasVerbs(
         // Nothing can be folded or marked on a newer build's sequence, or from a step locked behind one.
         if (!hit || live.current.session.readOnly || live.current.session.cursor.status === 'locked') return;
         const tool = state();
+        // Collapse: a click sets the crease to the letter in hand, or lets it go.
+        if (tool.tool === 'collapse') {
+          live.current.preview.creaseCollapse?.pick(hit);
+          return;
+        }
         if (tool.tool === 'repeat') {
           const repeat = live.current.preview.repeat;
           if (!repeat?.view.drawing) return;
@@ -1083,6 +1097,8 @@ export function useFoldCanvasVerbs(
         if (current.tool === 'unfold-to') return live.current.preview.unfold?.commit() ?? false;
         // Adjust order's commit opens the Layer order dialog, whose Apply adds the step.
         if (current.tool === 'adjust-order') return live.current.preview.adjustOrder?.open() ?? false;
+        // Collapse commits only creases that land: nothing set, or set so they do not fold, has no step to wait for.
+        if (current.tool === 'collapse' && live.current.preview.creaseCollapse?.view.status !== 'landed') return false;
         // A swivel by its valley and mountain, or a squash about a drawn
         // hinge: Enter takes the line located — the valley, or the hinge —
         // and the picks go on to the mountain, or the flap's end.
@@ -1138,6 +1154,13 @@ export function useFoldCanvasVerbs(
         if (state().tool === 'unfold-to') {
           setQueued(null);
           live.current.preview.unfold?.putDown();
+          return true;
+        }
+        // Collapse lets go of the creases set first, and is put down by the next Escape.
+        if (state().tool === 'collapse' && state().collapsePicks.length > 0) {
+          setQueued(null);
+          tools.clear();
+          live.current.session.cancel();
           return true;
         }
         // Rotate holds its preview from the moment it is in hand: Escape puts it down, and the turn with it.

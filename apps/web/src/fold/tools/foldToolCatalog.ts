@@ -64,6 +64,8 @@ export type FoldToolId =
   | 'rotate'
   // The layer order chosen again in the Layer order dialog, with no new crease (`fold/order`).
   | 'adjust-order'
+  // The model collapsed along creases it already has, their letters set (`fold/creaseCollapse`).
+  | 'collapse'
   | FoldSequenceToolId;
 
 /**
@@ -83,11 +85,11 @@ export function isSequenceTool(id: FoldToolId): id is FoldSequenceToolId {
 
 /**
  * The tools held for one step and put down once it is added, the tool they
- * were taken up from back in hand: Rotate, Adjust order, and the sequence
- * tools.
+ * were taken up from back in hand: Rotate, Adjust order, Collapse, and the
+ * sequence tools.
  */
-export function isOneStepTool(id: FoldToolId): id is 'rotate' | 'adjust-order' | FoldSequenceToolId {
-  return id === 'rotate' || id === 'adjust-order' || isSequenceTool(id);
+export function isOneStepTool(id: FoldToolId): id is 'rotate' | 'adjust-order' | 'collapse' | FoldSequenceToolId {
+  return id === 'rotate' || id === 'adjust-order' || id === 'collapse' || isSequenceTool(id);
 }
 
 /** The compound folds along a located line that are tools of their own, beside inside reverse. */
@@ -272,6 +274,8 @@ export const FOLD_TOOL_SHORTCUTS: Readonly<Partial<Record<FoldToolId, FoldShortc
   rotate: 'fold.rotate',
   // Adjust order, on Shift+T beside Turn over: the other model step that folds nothing.
   'adjust-order': 'fold.toolAdjustOrder',
+  // Collapse, on Shift+D beside Precrease (D): the precreases folded together.
+  collapse: 'fold.toolCollapse',
   // The sequence tools, on Shift+E and Shift+R.
   'unfold-to': 'fold.toolUnfoldTo',
   repeat: 'fold.toolRepeat',
@@ -345,6 +349,8 @@ export function foldToolLabel(t: TFunction, id: FoldToolId): string {
     // By its step's name, so the tool and the step it adds are named alike.
     case 'adjust-order':
       return t('panels:fold.words.adjustOrder', 'Adjust order');
+    case 'collapse':
+      return t('panels:fold.words.collapse', 'Collapse');
     // The sequence tools by their steps' names, so a tool and the step it adds are named alike.
     case 'unfold-to':
       return t('panels:fold.return.label', 'Unfold to step');
@@ -398,6 +404,8 @@ export function foldToolDescription(t: TFunction, id: FoldToolId): string {
       );
     case 'adjust-order':
       return t('tools:fold.tool.adjustOrderHelp', 'Change which layers lie in front, with no new crease.');
+    case 'collapse':
+      return t('tools:fold.tool.collapseHelp', 'Fold the model along creases it already has: set each to valley, mountain or open.');
     case 'unfold-to':
       return t(
         'tools:fold.tool.unfoldToHelp',

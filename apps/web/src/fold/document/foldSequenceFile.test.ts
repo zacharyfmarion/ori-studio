@@ -146,6 +146,13 @@ describe('the step tree', () => {
       { kind: 'adjust-order', orderJson: 7 },
       { kind: 'adjust-order', orderJson: '{}', turnDeg: 90 },
       { kind: 'adjust-order', orderJson: '{}', side: 'back' },
+      // A Collapse names at least one stretch, each by two sheet points and what it becomes, and stores its order.
+      { kind: 'collapse', creases: [], orderJson: '{}' },
+      { kind: 'collapse', creases: [{ a: [0, 0], b: [1, 1], to: 'valley' }] },
+      { kind: 'collapse', creases: [{ a: [0, 0], b: [1, 1], to: 'flat' }], orderJson: '{}' },
+      { kind: 'collapse', creases: [{ a: [0, 0], b: [1], to: 'valley' }], orderJson: '{}' },
+      { kind: 'collapse', creases: [{ a: [0, 0], b: [1, 1], to: 'valley', id: 3 }], orderJson: '{}' },
+      { kind: 'collapse', creases: [{ a: [0, 0], b: [1, 1], to: 'valley' }], orderJson: '{}', turnDeg: 90 },
       // A crimp's second line has no root to replay with, and its kind is one of two.
       { ...valleyOp, kind: 'crimp', second: valleyOp.line, crimp: 'sideways' },
       { ...valleyOp, kind: 'crimp', crimp: 'inside' },
@@ -176,6 +183,21 @@ describe('the step tree', () => {
 
   it('reads an Adjust order step, its order alone, and writes it back as it came', () => {
     const op = { kind: 'adjust-order', orderJson: '{"faces":[[0.25,0.5],[0.75,0.5]],"orders":[[0,1,1]]}' };
+    const held = readSteps([raw('a', null), raw('b', 'a', { op })]);
+    expect(isLockedStep(held.document.steps[1])).toBe(false);
+    expect((held.document.steps[1] as FoldStep).op).toEqual(op);
+    expect((writeFoldSequence(held).steps as { op: unknown }[])[1]!.op).toEqual(op);
+  });
+
+  it('reads a Collapse step, its stretches and its order, and writes it back as it came', () => {
+    const op = {
+      kind: 'collapse',
+      creases: [
+        { a: [0, 0], b: [1, 1], to: 'valley' },
+        { a: [0.5, 0], b: [0.5, 0.5], to: 'open' },
+      ],
+      orderJson: '{"faces":[[0.25,0.5],[0.75,0.5]],"orders":[[0,1,1]]}',
+    };
     const held = readSteps([raw('a', null), raw('b', 'a', { op })]);
     expect(isLockedStep(held.document.steps[1])).toBe(false);
     expect((held.document.steps[1] as FoldStep).op).toEqual(op);

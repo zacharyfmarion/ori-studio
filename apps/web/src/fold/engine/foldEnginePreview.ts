@@ -53,8 +53,8 @@ export interface FoldPreviewWants {
  * predicate, read by the tool's preview and the session alike.
  */
 export function foldPreviewWants(op: FoldEngineOp): FoldPreviewWants {
-  // A rotation moves no paper; an unfold to an earlier step and a repeat fold along no one line.
-  const lineless = op.kind === 'rotate' || op.kind === 'unfold-to' || op.kind === 'repeat';
+  // A rotation moves no paper; an unfold to an earlier step, a repeat and a collapse fold along no one line.
+  const lineless = op.kind === 'rotate' || op.kind === 'unfold-to' || op.kind === 'repeat' || op.kind === 'collapse';
   return { analysis: !lineless && !isVertexOp(op as FoldOp), action: !lineless };
 }
 

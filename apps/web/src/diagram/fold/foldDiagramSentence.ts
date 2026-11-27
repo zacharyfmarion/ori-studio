@@ -147,6 +147,7 @@ export function foldDiagramSentence(t: TFunction, step: FoldSentenceStep): strin
           ? t('panels:diagram.fold.instruction.unfoldToStep', 'Unfold to step {{number}}.', { number: step.number })
           : t('panels:diagram.fold.instruction.unfold', 'Unfold.');
     case 'cp-jump':
+    case 'collapse':
       return t('panels:diagram.fold.instruction.collapse', 'Collapse.');
     // Only the layer order changes: no crease, so no arrow, and the diagrammer's words for it.
     case 'adjust-order':

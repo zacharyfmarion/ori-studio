@@ -315,6 +315,27 @@
         "target": "More than one layer takes the tuck: the brightest is the one taken. Step through them, or press {{keys}}."
       }
     },
+    "collapse": {
+      "cannot": "These creases can’t collapse as set.",
+      "click": "Click a crease to set it to the letter below.",
+      "count_one": "{{count}} crease set",
+      "count_other": "{{count}} creases set",
+      "enter": "Enter collapses; Esc lets go of the creases set.",
+      "failed": "The fold could not be worked out. Change a crease to try again.",
+      "folds": "Folds flat.",
+      "letter": "Set to",
+      "missing": "A crease this Collapse folds is not on the paper as it was.",
+      "missingTitle": "A crease is not there",
+      "mountain": "Mountain",
+      "noOrder": "No layer order fits these letters.",
+      "notFlat": "The creases at the marked point can’t fold flat with these letters.",
+      "notFlatTitle": "These creases don’t fold flat",
+      "open": "Open",
+      "orders_one": "Folds flat.",
+      "orders_other": "Folds flat, {{count}} layer orders.",
+      "valley": "Valley",
+      "working": "Working out the fold…"
+    },
     "crimp": {
       "bothFit": "Both kinds of crimp fit here: choose which way the tip goes.",
       "firstLine": "First line",
@@ -904,6 +925,7 @@
     "tool": {
       "adjustOrderHelp": "Change which layers lie in front, with no new crease.",
       "closedSinkHelp": "Push a closed point’s tip into a pocket, its layers kept together.",
+      "collapseHelp": "Fold the model along creases it already has: set each to valley, mountain or open.",
       "crimpHelp": "Fold a flap in along one line and back out along a second, so its end turns.",
       "divideLine": "Divide line",
       "divideLineHelp": "Mark points that divide an edge or a crease into equal parts.",

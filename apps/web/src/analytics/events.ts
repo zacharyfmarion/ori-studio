@@ -45,6 +45,8 @@ export type FoldStepAddedOpKind =
   | 'rotate'
   // Adjust order: the layer order alone, chosen in the Layer order dialog.
   | 'adjust_order'
+  // Collapse: the state collapsed along creases it already has.
+  | 'collapse'
   // The reverse fold.
   | 'inside_reverse'
   | 'outside_reverse'

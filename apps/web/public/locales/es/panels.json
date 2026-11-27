@@ -2189,6 +2189,7 @@
       },
       "closedSink": "Hunde la punta en hundido cerrado: empújala hacia dentro con sus capas juntas.",
       "collapse": "Colapsa siguiendo el patrón de pliegues guardado.",
+      "collapseCreases": "Colapsa siguiendo los pliegues existentes.",
       "cpJump": "Pliega el papel según el patrón de pliegues importado.",
       "crimp": {
         "inside": {

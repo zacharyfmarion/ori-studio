@@ -151,9 +151,11 @@ export function toolInput(
   vertex: FoldVertexLines = FOLD_VERTEX_LINES_DEFAULT
 ): FoldInputModel {
   switch (tool) {
+    // Collapse's clicks set creases one at a time, as many as it takes: its own (`fold/creaseCollapse`).
     case 'rotate':
     case 'adjust-order':
     case 'unfold-to':
+    case 'collapse':
       return NO_CLICKS;
     case 'repeat':
     case 'valley':

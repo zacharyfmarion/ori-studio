@@ -224,6 +224,7 @@ export type FoldShortcutId =
   | 'fold.turnOver'
   | 'fold.rotate'
   | 'fold.toolAdjustOrder'
+  | 'fold.toolCollapse'
   | 'fold.lineAxiom1'
   | 'fold.lineAxiom2'
   | 'fold.lineAxiom3'
@@ -870,6 +871,7 @@ const FOLD_SHORTCUTS: ShortcutDefinition[] = [
   //   rail's order on Shift+Z, X, C;
   // - the sequence verbs beside each other: Shift+E Unfold to step, Shift+R
   //   Repeat on the other side; and Shift+T Adjust order, beside Turn over;
+  // - Shift+D Collapse, beside Precrease: the precreases folded together;
   //
   // The axioms on the bare digits, as the rail numbers them: in Fold they
   // shadow the viewport's digit keys (pan, rotate, zoom), whose verbs the
@@ -896,6 +898,9 @@ const FOLD_SHORTCUTS: ShortcutDefinition[] = [
   // Shift+T takes Adjust order in hand, beside Turn over, the other model step
   // that folds nothing: Enter opens the Layer order dialog.
   foldShortcut('fold.toolAdjustOrder', 'Adjust Order', { shift: true, key: 't' }),
+  // Shift+D takes Collapse in hand, beside Precrease (D): clicks set creases the
+  // model has, Enter collapses along them.
+  foldShortcut('fold.toolCollapse', 'Collapse', { shift: true, key: 'd' }),
   foldShortcut('fold.lineAxiom1', 'Axiom 1', { key: '1' }),
   foldShortcut('fold.lineAxiom2', 'Axiom 2', { key: '2' }),
   foldShortcut('fold.lineAxiom3', 'Axiom 3', { key: '3' }),

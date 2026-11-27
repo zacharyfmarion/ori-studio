@@ -2103,6 +2103,7 @@
       },
       "closedSink": "Closed-sink the point: push its tip in, its layers kept together.",
       "collapse": "Collapse along the saved crease pattern.",
+      "collapseCreases": "Collapse along existing creases.",
       "cpJump": "Collapse into the imported crease pattern.",
       "crimp": {
         "inside": {

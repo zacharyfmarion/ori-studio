@@ -2189,6 +2189,7 @@
       },
       "closedSink": "Enfoncez la pointe en enfoncement fermé : poussez-la vers l’intérieur, ses couches restant ensemble.",
       "collapse": "Mettez en forme selon le canevas de plis enregistré.",
+      "collapseCreases": "Mettez en forme selon les plis existants.",
       "cpJump": "Repliez le papier selon le patron de plis importé.",
       "crimp": {
         "inside": {

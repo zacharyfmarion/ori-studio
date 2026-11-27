@@ -5,6 +5,7 @@ import { useFoldRepeatTool, type FoldRepeatTool } from '../repeat/useFoldRepeatT
 import { useFoldOrderResolution, type FoldOrderResolution } from '../orders/useFoldOrderResolution';
 import { useFoldUnfoldTool, type FoldUnfoldTool } from '../return/useFoldUnfoldTool';
 import { useFoldAdjustOrderTool, type FoldAdjustOrderTool } from '../order/useFoldAdjustOrderTool';
+import { useFoldCreaseCollapseTool, type FoldCreaseCollapseTool } from '../creaseCollapse/useFoldCreaseCollapseTool';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { trackFoldRefused } from '../../analytics';
 import { reportError } from '../../monitoring';
@@ -180,6 +181,12 @@ export interface FoldToolPreview {
    * opening. It previews nothing.
    */
   adjustOrder?: FoldAdjustOrderTool | null;
+  /**
+   * Collapse's, while it is in hand (`fold/creaseCollapse/useFoldCreaseCollapseTool`):
+   * the creases set and where they stand, its clicks, and its step — the
+   * creases set and the order shown — previewed as any tool's.
+   */
+  creaseCollapse?: FoldCreaseCollapseTool | null;
 }
 
 const sectionKey = (analysis: FoldAnalysis) => `${analysis.line.n[0]},${analysis.line.n[1]},${analysis.line.d}:${analysis.side}`;
@@ -338,6 +345,10 @@ export function useFoldToolPreview(
   const repeat = useFoldRepeatTool(session, tools, index);
   // Adjust order previews nothing: its step is chosen in the Layer order dialog.
   const adjustOrder = useFoldAdjustOrderTool(session, tools);
+  // Collapse's step is the creases set and the order shown, previewed as any step's.
+  const creaseCollapse = useFoldCreaseCollapseTool(session, tools, view.scene);
+  const collapsing = tools.tool === 'collapse';
+  const collapseStep = creaseCollapse?.step ?? null;
   const unfolding = tools.tool === 'unfold-to';
   const repeating = tools.tool === 'repeat';
   const unfoldStep = unfold?.step ?? null;
@@ -348,6 +359,7 @@ export function useFoldToolPreview(
   const baseStep = useMemo<FoldToolStep | null>(() => {
     if (repeating) return repeatStep;
     if (unfolding) return unfoldStep;
+    if (collapsing) return collapseStep;
     if (rotating) {
       const op = rotateStepOp(rotation);
       return { op, key: foldStepInputKey({ op }) };
@@ -362,7 +374,7 @@ export function useFoldToolPreview(
     const chosen = override ?? (vertexing ? vertexBuilt : built);
     if (!chosen) return null;
     return { op: chosen.op, ...(chosen.choices ? { choices: chosen.choices } : {}), key: foldStepInputKey(chosen) };
-  }, [repeating, repeatStep, unfolding, unfoldStep, rotating, rotation, extentPending, compounding, vertexing, tools.override, build, findingSeed, vertexBuilt]);
+  }, [repeating, repeatStep, unfolding, unfoldStep, collapsing, collapseStep, rotating, rotation, extentPending, compounding, vertexing, tools.override, build, findingSeed, vertexBuilt]);
   const resolvedOrders = useFoldOrderResolution(session, baseStep, foldToolInputKey(tools));
   const step = resolvedOrders.step;
   // --- The last answer for the tools' line, which stands in while a new
@@ -629,7 +641,8 @@ export function useFoldToolPreview(
   return {
     pleatLines: pleatDrawing,
     locatedLine,
-    orderResolution: resolvedOrders.resolution,
+    // Collapse's orders are its own ‹ n of m ›, chosen in the same chooser.
+    orderResolution: collapsing ? (creaseCollapse?.resolution ?? null) : resolvedOrders.resolution,
     candidates,
     rootLine,
     build,
@@ -643,6 +656,7 @@ export function useFoldToolPreview(
     unfold,
     repeat,
     adjustOrder,
+    creaseCollapse,
   };
 }
 

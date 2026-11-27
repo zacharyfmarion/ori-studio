@@ -29,6 +29,7 @@ const STEP_LABELS: Record<FoldOpKind, string> = {
   rotate: 'Rotate',
   'cp-jump': 'Import crease pattern',
   'adjust-order': 'Adjust order',
+  collapse: 'Collapse',
   // Compound folds (plan D4), one block per family.
   'inside-reverse': 'Inside reverse fold',
   'outside-reverse': 'Outside reverse fold',

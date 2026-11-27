@@ -88,6 +88,8 @@ export function operationLabel(t: TFunction, step: FoldSentenceStep): string {
       return step.collapse ? t('panels:fold.words.collapse', 'Collapse') : t('panels:fold.words.cpJump', 'Import crease pattern');
     case 'adjust-order':
       return t('panels:fold.words.adjustOrder', 'Adjust order');
+    case 'collapse':
+      return t('panels:fold.words.collapse', 'Collapse');
     case 'reverse':
       return step.kind === 'inside'
         ? t('panels:fold.words.insideReverse', 'Inside reverse fold')
@@ -143,6 +145,8 @@ export function operationBadge(t: TFunction, step: FoldSentenceStep): string {
       return step.collapse ? t('panels:fold.words.collapse', 'Collapse') : t('panels:fold.words.badgeImported', 'Imported');
     case 'adjust-order':
       return t('panels:fold.words.adjustOrder', 'Adjust order');
+    case 'collapse':
+      return t('panels:fold.words.collapse', 'Collapse');
     case 'reverse':
       return step.kind === 'inside'
         ? t('panels:fold.words.badgeInsideReverse', 'Inside reverse')

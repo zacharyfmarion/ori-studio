@@ -343,6 +343,20 @@ function words(t: TFunction, refused: FoldRefused, context: FoldRefusalContext):
         title: t('tools:fold.refusal.unsupported.title', 'This step cannot be folded'),
         text: t('tools:fold.refusal.unsupported.text', 'This version of Ori Studio cannot fold it as it is stored.'),
       };
+    // A Collapse's own: its letters at a vertex, or a stretch the paper no longer has.
+    case 'collapse_not_flat_at_vertex':
+      return {
+        title: t('tools:fold.collapse.notFlatTitle', 'These creases don’t fold flat'),
+        text: t('tools:fold.collapse.notFlat', 'The creases at the marked point can’t fold flat with these letters.'),
+      };
+    case 'collapse_crease_missing':
+    case 'collapse_crease_twice':
+    case 'collapse_empty':
+    case 'collapse_not_finite':
+      return {
+        title: t('tools:fold.collapse.missingTitle', 'A crease is not there'),
+        text: t('tools:fold.collapse.missing', 'A crease this Collapse folds is not on the paper as it was.'),
+      };
     // Compound folds (plan D4), one block per family. A choice still to make
     // reads as the chooser's prompt; a stored one that no longer resolves as
     // a step this build cannot fold as it is stored.

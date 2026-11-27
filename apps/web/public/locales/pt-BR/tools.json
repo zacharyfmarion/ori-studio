@@ -323,6 +323,29 @@
         "target": "Mais de uma camada recebe o encaixe: a mais clara é a escolhida. Percorra-as ou pressione {{keys}}."
       }
     },
+    "collapse": {
+      "cannot": "Estas dobras não podem colapsar assim.",
+      "click": "Clique em uma dobra para defini-la com o tipo escolhido abaixo.",
+      "count_one": "{{count}} dobra definida",
+      "count_many": "{{count}} dobras definidas",
+      "count_other": "{{count}} dobras definidas",
+      "enter": "Enter colapsa; Esc descarta as dobras definidas.",
+      "failed": "Não foi possível calcular a dobra. Mude uma dobra e tente de novo.",
+      "folds": "Fica plano.",
+      "letter": "Definir como",
+      "missing": "Uma dobra deste colapso não está mais no papel como estava.",
+      "missingTitle": "Falta uma dobra",
+      "mountain": "Montanha",
+      "noOrder": "Nenhuma ordem de camadas serve para estes tipos.",
+      "notFlat": "As dobras no ponto marcado não ficam planas com estes tipos.",
+      "notFlatTitle": "Estas dobras não ficam planas",
+      "open": "Aberta",
+      "orders_one": "Fica plano.",
+      "orders_many": "Fica plano, {{count}} ordens de camadas.",
+      "orders_other": "Fica plano, {{count}} ordens de camadas.",
+      "valley": "Vale",
+      "working": "Calculando a dobra…"
+    },
     "crimp": {
       "bothFit": "Os dois tipos de crimp cabem aqui: escolha para onde vai a ponta.",
       "firstLine": "Primeira linha",
@@ -923,6 +946,7 @@
     "tool": {
       "adjustOrderHelp": "Mudar quais camadas ficam na frente, sem nenhum vinco novo.",
       "closedSinkHelp": "Empurrar a extremidade de uma ponta fechada para dentro de um bolso, mantendo as camadas juntas.",
+      "collapseHelp": "Dobre o modelo pelas dobras que ele já tem: defina cada uma como vale, montanha ou aberta.",
       "crimpHelp": "Dobrar uma aba para dentro ao longo de uma linha e de volta para fora ao longo de uma segunda, de modo que a ponta gire.",
       "divideLine": "Dividir linha",
       "divideLineHelp": "Marcar pontos que dividem uma borda ou um vinco em partes iguais.",
