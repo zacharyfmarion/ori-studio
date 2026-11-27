@@ -771,6 +771,49 @@ fn a_constraint_that_is_no_question_is_refused() {
     assert!(opposed.constraints().is_empty());
 }
 
+/// A square folded in half along a crease that is a mountain below its
+/// midpoint and a valley above it, with nothing else meeting the midpoint:
+/// what a host folds when the crease that crossed there is left out of the
+/// selection. The two halves are joined by two lines whose letters order
+/// them both ways.
+const HALF_MOUNTAIN_HALF_VALLEY: &str = r#"{
+    "vertices_coords": [[0,0],[0.5,0],[1,0],[1,1],[0.5,1],[0,1],[0.5,0.5]],
+    "edges_vertices": [[0,1],[1,2],[2,3],[3,4],[4,5],[5,0],[1,6],[6,4]],
+    "edges_assignment": ["B","B","B","B","B","B","M","V"]
+}"#;
+
+/// Creases whose letters give one pair of faces both orders admit no layer
+/// order: the open says so, naming the pair, rather than failing as a defect
+/// (Sentry ORI-STUDIO-1P).
+#[test]
+fn letters_that_order_one_pair_both_ways_admit_no_order() {
+    let mut cp = CpSession::new();
+    let document = cp
+        .load_fold(HALF_MOUNTAIN_HALF_VALLEY, "")
+        .expect("the square loads");
+    let fold = fold_source(&cp, document);
+    let source = LayerSource::from_oriedita(&fold).expect("the source");
+    assert_eq!(source.view().faces().len(), 2);
+    assert_eq!(source.letter_seeds().len(), 2, "one letter per line");
+    let halves = vec![FaceId(0), FaceId(1)];
+    for opened in [
+        ConstraintSession::open(source, &Limits::default()).map(|_| ()),
+        ConstraintSession::open_showing(
+            LayerSource::from_oriedita(&fold).expect("the source"),
+            &[],
+            &Limits::default(),
+        )
+        .map(|_| ()),
+    ] {
+        assert_eq!(
+            opened,
+            Err(SessionRefusal::NoOrder {
+                faces: halves.clone()
+            })
+        );
+    }
+}
+
 /// A constraint reads the same from either side in its own words: "in front
 /// of" from one side is "behind" from the other.
 #[test]
