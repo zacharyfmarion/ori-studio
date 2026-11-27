@@ -96,7 +96,12 @@ Next:
   1. Install this build yourself and confirm it launches.
   2. Arm it — this is what starts offering the update to users:
 
-       gh release edit $tag --repo $RELEASE_GITHUB_REPO --prerelease=false
+       gh release edit $tag --repo $RELEASE_GITHUB_REPO --prerelease=false --latest
+
+     Keep --latest: a release published as a prerelease does not become Latest
+     when the flag is cleared. Confirm the arm took; this must print $tag:
+
+       gh api repos/$RELEASE_GITHUB_REPO/releases/latest --jq .tag_name
 
   Until then \`releases/latest\` still points at the previous release, so the
   build is downloadable but offered to nobody.
