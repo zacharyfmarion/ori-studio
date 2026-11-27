@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { track } from '../analytics';
+import { ANALYTICS_EVENTS, track } from '../analytics';
 import { getRuntimeSurface, type RuntimeSurface } from './runtime';
 
 export type FileCommand =
@@ -94,6 +94,46 @@ export class FolderTooLargeError extends Error {
 
 /** The error string `list_import_folder` returns past its entry cap (`lib.rs`). */
 const DESKTOP_FOLDER_TOO_LARGE = 'FOLDER_TOO_LARGE';
+
+/**
+ * A desktop save another program kept the file from: an image viewer showing
+ * it, a scanner, a sync client. The shell has already waited and tried
+ * replacing the file. Expected, not a defect: say what to do, report nothing.
+ */
+export class FileInUseError extends Error {
+  /** What `humanizeError` words for the reader, and what the store's `engineError` keeps. */
+  readonly code = 'file_in_use';
+
+  constructor() {
+    super('Another program is using this file.');
+    this.name = 'FileInUseError';
+  }
+}
+
+export function isFileInUseError(error: unknown): error is FileInUseError {
+  return error instanceof FileInUseError;
+}
+
+/** The error string the desktop write commands return for a file that stayed in use (`file_write.rs`). */
+const DESKTOP_FILE_IN_USE = 'FILE_IN_USE';
+
+/** Write through the shell, counting a failure by its kind and the file's extension, never its path. */
+async function writeDesktopFile(
+  command: 'write_text_file' | 'write_binary_file',
+  args: { path: string; contents: string } | { path: string; bytes: number[] },
+  extensions: string[]
+): Promise<void> {
+  try {
+    await invoke(command, args);
+  } catch (error) {
+    const inUse = error === DESKTOP_FILE_IN_USE;
+    track(ANALYTICS_EVENTS.fileSaveFailed, {
+      format: extensions[0] ?? 'none',
+      reason: inUse ? 'in_use' : 'other',
+    });
+    throw inUse ? new FileInUseError() : error;
+  }
+}
 
 export interface SaveFileResult {
   name: string;
@@ -709,7 +749,7 @@ class TauriFileService implements FileService {
       options.path ??
       (await this.chooseSavePath(options.title, options.suggestedName, options.extensions));
     if (!path) return null;
-    await invoke('write_text_file', { path, contents: options.contents });
+    await writeDesktopFile('write_text_file', { path, contents: options.contents }, options.extensions);
     return { name: filenameFromPath(path), path };
   }
 
@@ -718,7 +758,11 @@ class TauriFileService implements FileService {
       options.path ??
       (await this.chooseSavePath(options.title, options.suggestedName, options.extensions));
     if (!path) return null;
-    await invoke('write_binary_file', { path, bytes: Array.from(options.bytes) });
+    await writeDesktopFile(
+      'write_binary_file',
+      { path, bytes: Array.from(options.bytes) },
+      options.extensions
+    );
     return { name: filenameFromPath(path), path };
   }
 

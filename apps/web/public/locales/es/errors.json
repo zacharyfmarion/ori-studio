@@ -42,6 +42,9 @@
   "explori": {
     "unrouted": "Esta versión no puede conectarse al servicio de búsqueda."
   },
+  "file": {
+    "inUse": "Otro programa está usando este archivo. Ciérralo allí o elige otro nombre, e inténtalo de nuevo."
+  },
   "fileDrop": {
     "dialogOpen": "Termina el diálogo abierto antes de soltar un archivo.",
     "imageNotHere": "Suelta {{name}} sobre el patrón de pliegues para añadirlo como imagen de referencia.",

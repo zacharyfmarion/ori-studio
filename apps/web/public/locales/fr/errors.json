@@ -42,6 +42,9 @@
   "explori": {
     "unrouted": "Cette version ne peut pas joindre le service de recherche."
   },
+  "file": {
+    "inUse": "Un autre programme utilise ce fichier. Fermez-le dans ce programme ou choisissez un autre nom, puis réessayez."
+  },
   "fileDrop": {
     "dialogOpen": "Terminez la boîte de dialogue ouverte avant de déposer un fichier.",
     "imageNotHere": "Déposez {{name}} sur le patron de plis pour l’ajouter comme image de référence.",

@@ -31,8 +31,9 @@ import {
   DESKTOP_PNG_CANVAS_LIMIT,
   pngFitsCanvas,
 } from '../../lib/paper/pngCanvasLimits';
+import { humanizeError } from '../../lib/toastMessages';
 import { exportFilename } from '../../platform/exportFilename';
-import { getFileService, type FileService } from '../../platform/fileService';
+import { getFileService, isFileInUseError, type FileService } from '../../platform/fileService';
 import { isAppleMobilePlatform } from '../../platform/runtime';
 import { savePaperExportZip } from '../../paperExport/savePaperExport';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -406,7 +407,8 @@ export function useDiagramExport(
       close();
     } catch (cause) {
       if (signal.aborted || (cause instanceof DOMException && cause.name === 'AbortError')) return;
-      reportError(cause, { surface: 'diagram:export' });
+      // A file another program holds is the reader's to free, not a defect.
+      if (!isFileInUseError(cause)) reportError(cause, { surface: 'diagram:export' });
       setSaveError(saveErrorMessage(cause, t));
     } finally {
       if (!signal.aborted) {
@@ -470,12 +472,16 @@ function spreadLabel(spread: readonly (number | null)[], t: ReturnType<typeof us
     : t('dialogs:diagramExport.pageLabel', 'Page {{number}}', { number: numbers[0] ?? 1 });
 }
 
-/** What went wrong, for the dialog's footer. */
+/**
+ * What went wrong, for the dialog's footer: the PDF writer's failures in the
+ * dialog's words; a file another program holds, and any other coded failure,
+ * as `humanizeError` words it; anything else as it was thrown.
+ */
 function saveErrorMessage(cause: unknown, t: ReturnType<typeof useTranslation>['t']): string {
   if (cause instanceof DiagramPdfError) {
     return cause.code === 'text'
       ? t('dialogs:diagramExport.pdfText', 'Some text can’t be printed in the diagram’s fonts.')
       : t('dialogs:diagramExport.pdfFailed', 'The PDF couldn’t be written: {{message}}', { message: cause.message });
   }
-  return cause instanceof Error ? cause.message : String(cause);
+  return humanizeError(cause, t);
 }

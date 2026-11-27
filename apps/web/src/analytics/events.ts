@@ -1455,6 +1455,14 @@ export const ANALYTICS_EVENTS = {
   projectOpened: 'project opened',
   projectSaved: 'project saved',
   fileExported: 'file exported',
+  /**
+   * A desktop save could not write its file. `reason` is `in_use` when another
+   * program kept the file through every retry (`file_write.rs` in the desktop
+   * shell), `other` for anything else; `format` is the file's extension, as on
+   * `file exported`. Whether saves still meet files held open, now that one is
+   * no error report. Never the path, the name or the system's message.
+   */
+  fileSaveFailed: 'file save failed',
   foldabilityChecked: 'foldability checked',
   foldabilityFixApplied: 'foldability fix applied',
   foldAnglesSolved: 'fold angles solved',
@@ -1680,7 +1688,8 @@ export const ANALYTICS_EVENTS = {
   /**
    * A save from the export dialog threw. The dialog shows the message and stays
    * open; this counts it, by `surface`, `format` and `scope`, and the error
-   * itself goes to Sentry. Never the message.
+   * itself goes to Sentry, unless it is a file another program holds
+   * ({@link ANALYTICS_EVENTS.fileSaveFailed}). Never the message.
    */
   paperExportFailed: 'paper export failed',
   foldedFigureOrbited: 'folded figure orbited',

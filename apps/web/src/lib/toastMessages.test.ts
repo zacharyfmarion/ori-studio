@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
+import { FileInUseError } from '../platform/fileService';
 import { formatUnknownError, humanizeError } from './toastMessages';
 
 // Stand-in that returns the English fallback, like i18next with a missing key.
@@ -33,6 +34,18 @@ describe('toast message helpers', () => {
     const message = humanizeError({ code: 'fold_engine_kept_stopping', message: 'The fold engine kept stopping.' }, t);
     expect(message).toContain('undo your last change');
     expect(message).toContain('reload Ori Studio');
+  });
+
+  // ORI-STUDIO-1G: Windows' own words were "cannot be performed on a file with a
+  // user-mapped section open", shown as they came. The store keeps a save's
+  // error as a `{ code, message }` envelope, so both shapes are read.
+  it('says another program has the file, and what to do, for a held save target', () => {
+    const plain =
+      'Another program is using this file. Close it there, or choose another name, and try again.';
+    expect(humanizeError(new FileInUseError(), t)).toBe(plain);
+    expect(
+      humanizeError({ code: 'file_in_use', message: 'Another program is using this file.' }, t)
+    ).toBe(plain);
   });
 
   it('humanizes structural fold error codes', () => {

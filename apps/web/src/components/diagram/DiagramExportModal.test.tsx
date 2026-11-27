@@ -18,7 +18,7 @@ import type { DiagramExportDependencies } from '../../diagram/export/useDiagramE
 import { FIXTURE_FONTS, fixtureSubsetter } from '../../diagram/fonts/diagramFonts.fixtures';
 import type { FontSubsetter } from '../../diagram/fonts/fontSubset';
 import { overflowingDiagram } from '../../diagram/pages/pageOverflow.fixtures';
-import type { FileService } from '../../platform/fileService';
+import { FileInUseError, type FileService } from '../../platform/fileService';
 import { useSettingsStore } from '../../store/settingsStore';
 import { TooltipProvider } from '../ui/Tooltip';
 import { useDiagramExportUiStore } from '../../store/diagramExportUiStore';
@@ -374,6 +374,27 @@ describe('DiagramExportDialog', () => {
     expect(host.querySelector('[role="alert"]')?.textContent).toMatch(/Step 3 would be [\d,]+ × [\d,]+ px/);
     expect(saveBinaryFile).not.toHaveBeenCalled();
     expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it('says a file another program holds in plain words, stays open, and reports nothing', async () => {
+    saveBinaryFile.mockRejectedValueOnce(new FileInUseError());
+    await open();
+    await click(exportButton());
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+      'Couldn’t export: Another program is using this file. Close it there, or choose another name, and try again.'
+    );
+    expect(exportButton().disabled).toBe(false);
+    expect(toastSuccess).not.toHaveBeenCalled();
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it('says any other failed save as it was thrown, and reports it', async () => {
+    const failure = new Error('The disk is full.');
+    saveBinaryFile.mockRejectedValueOnce(failure);
+    await open();
+    await click(exportButton());
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe('Couldn’t export: The disk is full.');
+    expect(reportError).toHaveBeenCalledExactlyOnceWith(failure, { surface: 'diagram:export' });
   });
 
   it('shows the Page tab for Edit page setup, from whichever workspace the dialog was opened in', async () => {

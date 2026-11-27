@@ -2,6 +2,10 @@ import { resetPlacement } from './pages/placementActions';
 import { useCallback, useMemo, useState } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
+import { humanizeError } from '../lib/toastMessages';
+import { reportError } from '../monitoring';
+import { isFileInUseError } from '../platform/fileService';
 import {
   trackDiagramPictureExported,
   trackDiagramPicturePosed,
@@ -288,6 +292,17 @@ function hasDrawablePicture(step: DiagramStep, assets: Parameters<typeof stepPic
   return stepPictureSource(step, assets) !== null;
 }
 
+/**
+ * Export picture… could not save its file: said where it was asked for, in
+ * the words the Diagram's export dialog uses (`humanizeError`). A file
+ * another program holds is the reader's to free, not a defect, so only
+ * anything else is reported.
+ */
+function sayPictureExportFailed(cause: unknown, t: TFunction): void {
+  if (!isFileInUseError(cause)) reportError(cause, { surface: 'diagram:export-picture' });
+  toast.error(t('dialogs:diagramExport.saveFailed', 'Couldn’t export: {{message}}', { message: humanizeError(cause, t) }));
+}
+
 /** What a step's picture is, for analytics: an upload by its asset, a link by how it shows its pattern. */
 function pictureKind(diagram: DiagramDocument, step: DiagramStep): DiagramPictureKind | null {
   const render = posedRenderOf(step.source);
@@ -392,9 +407,12 @@ function bindStepActions(
       exportPicture: () => {
         const diagram = store().diagram;
         if (!diagram) return;
-        void exportStepPicture(diagram, stepId).then((format) => {
-          if (format) trackDiagramPictureExported(format);
-        });
+        void exportStepPicture(diagram, stepId).then(
+          (format) => {
+            if (format) trackDiagramPictureExported(format);
+          },
+          (cause: unknown) => sayPictureExportFailed(cause, t)
+        );
       },
       removePicture: () => {
         const diagram = store().diagram;

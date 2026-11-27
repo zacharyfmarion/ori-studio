@@ -42,6 +42,9 @@
   "explori": {
     "unrouted": "Esta versão não consegue acessar o serviço de pesquisa."
   },
+  "file": {
+    "inUse": "Outro programa está usando este arquivo. Feche-o nesse programa ou escolha outro nome e tente novamente."
+  },
   "fileDrop": {
     "dialogOpen": "Conclua a caixa de diálogo aberta antes de soltar um arquivo.",
     "imageNotHere": "Solte {{name}} sobre o padrão de vincos para adicioná-lo como imagem de referência.",
