@@ -11,6 +11,7 @@ import {
   getResolvedShortcuts,
   getShortcutRegistryDiagnostics,
   keyChordEquals,
+  keyChordFromKeyboardEvent,
   keyChordId,
   ORIEDITA_ACTION_TARGETS,
   parseOrieditaKeyStroke,
@@ -242,6 +243,16 @@ describe('shortcut registry', () => {
 
   it('normalizes equivalent chords', () => {
     expect(keyChordEquals({ key: 'DELETE' }, { key: 'delete' })).toBe(true);
+  });
+
+  it('reads no chord from a keydown that carries no key', () => {
+    // A plain `Event` named keydown, the shape Chrome's autofill sends: no `key`.
+    const keyless = new Event('keydown', { bubbles: true, cancelable: true }) as KeyboardEvent;
+    expect(keyChordFromKeyboardEvent(keyless)).toBeNull();
+    expect(keyChordFromKeyboardEvent(new KeyboardEvent('keydown', { key: 'A', shiftKey: true }))).toEqual({
+      key: 'a',
+      shift: true,
+    });
   });
 
   it('binds the same-type vertex sweep to the upstream chord, platform-aware', () => {

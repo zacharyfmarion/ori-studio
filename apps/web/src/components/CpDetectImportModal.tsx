@@ -56,6 +56,7 @@ import { getFileService, type OpenBinaryFileResult } from '../platform/fileServi
 import {
   cpDetectError,
   getCpDetectClient,
+  runOnCpDetectClient,
   whileCpDetectClientAlive,
 } from '../store/workspaceStore/cpDetectRuntime';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -401,8 +402,7 @@ export function CpDetectImportModal() {
     setModelUpdating(true);
     setError(null);
     try {
-      const client = await getCpDetectClient();
-      const manifest = await whileCpDetectClientAlive(
+      const manifest = await runOnCpDetectClient((client) =>
         client.loadModel(
           { model: next, manifestUrl: next.manifest_url },
           proxy((progress: CpDetectModelDownloadProgress) => setModelProgress(progress))
@@ -716,16 +716,16 @@ export function CpDetectImportModal() {
     track('cp detect started');
     let recognized: CpDetectRecognizeResult;
     try {
-      const client = await getCpDetectClient();
       // Raced against the worker's loss signal, because comlink's proxy settles
       // only when the worker answers: a wasm trap or an OOM mid-inference would
       // otherwise leave this dialog on "Running model" with nothing ever ending
       // it. The solve below has its own transport and its own version of this.
+      // A runtime whose threads cannot start runs again on one thread.
       //
       // The first run on a device is also the download: the worker installs
       // the model the registry named, reporting progress here, before its
       // session exists.
-      recognized = await whileCpDetectClientAlive(
+      recognized = await runOnCpDetectClient((client) =>
         client.recognizeRectifiedFold(
           rectified.image,
           {
