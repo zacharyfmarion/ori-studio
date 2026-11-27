@@ -6,7 +6,7 @@ import {
   noteFoldedFigureSpreadSet,
   resetFoldedFigureSpreadRecency,
 } from './foldedFigureSpreadStarts';
-import { DEFAULT_AFFINE_SPREAD, DEFAULT_CONNECTED_SPREAD, DEFAULT_DEPTH_SPREAD } from './layerSpreadSettings';
+import { DEFAULT_AFFINE_SPREAD, DEFAULT_CONNECTED_SPREAD, SHARED_CONNECTED_SPREAD, DEFAULT_DEPTH_SPREAD } from './layerSpreadSettings';
 
 function figure(id: string, spread?: LayerSpreadOptions): OristudioCpFoldedFigureEntry {
   return {
@@ -35,8 +35,8 @@ describe('what a figure’s spread starts from', () => {
   it('is the default with no other figure spread', () => {
     const starts = foldedFigureSpreadStarts([figure('a'), figure('b', wide)], 'b');
     expect(starts).toEqual({
-      any: DEFAULT_CONNECTED_SPREAD,
-      connected: DEFAULT_CONNECTED_SPREAD,
+      any: SHARED_CONNECTED_SPREAD,
+      connected: SHARED_CONNECTED_SPREAD,
       depth: DEFAULT_DEPTH_SPREAD,
       affine: DEFAULT_AFFINE_SPREAD,
     });
@@ -46,7 +46,7 @@ describe('what a figure’s spread starts from', () => {
     const figures = [figure('a', wide), figure('b', down), figure('c')];
     noteFoldedFigureSpreadSet('b');
     noteFoldedFigureSpreadSet('a');
-    expect(foldedFigureSpreadStarts(figures, 'c')).toMatchObject({ any: wide, connected: wide, depth: down });
+    expect(foldedFigureSpreadStarts(figures, 'c')).toMatchObject({ any: { ...wide, version: 3 }, connected: { ...wide, version: 3 }, depth: down });
     noteFoldedFigureSpreadSet('b');
     expect(foldedFigureSpreadStarts(figures, 'c').any).toBe(down);
   });
@@ -56,13 +56,13 @@ describe('what a figure’s spread starts from', () => {
     expect(foldedFigureSpreadStarts(figures, 'c').any).toBe(down);
     // A figure set this session comes before them.
     noteFoldedFigureSpreadSet('a');
-    expect(foldedFigureSpreadStarts(figures, 'c').any).toBe(wide);
+    expect(foldedFigureSpreadStarts(figures, 'c').any).toEqual({ ...wide, version: 3 });
   });
 
   it('never starts a figure from a newer build’s spread, or from its own', () => {
     const newer = { ...figure('a'), spread: { kind: 'newer' as const, saved: { spread: { kind: 'radial' } } } };
     noteFoldedFigureSpreadSet('a');
     noteFoldedFigureSpreadSet('c');
-    expect(foldedFigureSpreadStarts([newer, figure('c', wide)], 'c').any).toEqual(DEFAULT_CONNECTED_SPREAD);
+    expect(foldedFigureSpreadStarts([newer, figure('c', wide)], 'c').any).toEqual(SHARED_CONNECTED_SPREAD);
   });
 });

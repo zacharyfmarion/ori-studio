@@ -11,13 +11,10 @@ import {
   spatialBaseMesh,
   spatialSource,
 } from './folded3dSpread';
+import { spatialOpeningGain } from '../../layer-spread/spatialOpening';
 import type { SpatialSpreadSolution } from './folded3dMaterial';
 
-export function usePreparedSpatialMesh(
-  model: OristudioCpFolded3dRenderModel | undefined,
-  aux: OristudioCpFolded3dAuxLines | null,
-  enabled: boolean
-) {
+function useSpatialSolution(model: OristudioCpFolded3dRenderModel | undefined, enabled: boolean) {
   const [solved, setSolved] = useState<{
     model: OristudioCpFolded3dRenderModel;
     solution: SpatialSpreadSolution;
@@ -50,19 +47,34 @@ export function usePreparedSpatialMesh(
       release?.();
     };
   }, [model, enabled]);
+  return { solution: enabled && model && solved?.model === model ? solved.solution : null, status };
+}
+
+/** A legacy spread's Update shares the renderer's solve, without building another mesh. */
+export function useSpatialOpeningGain(model: OristudioCpFolded3dRenderModel | undefined) {
+  const { solution } = useSpatialSolution(model, !!model);
+  return model && solution ? spatialOpeningGain(spatialSource(model).input, solution) : null;
+}
+
+export function usePreparedSpatialMesh(
+  model: OristudioCpFolded3dRenderModel | undefined,
+  aux: OristudioCpFolded3dAuxLines | null,
+  enabled: boolean
+) {
+  const { solution, status } = useSpatialSolution(model, enabled);
   const built = useMemo(() => {
     try {
       return {
         mesh:
-          enabled && model && solved?.model === model
-            ? spatialBaseMesh(model, aux, solved.solution)
+          model && solution
+            ? spatialBaseMesh(model, aux, solution)
             : null,
         failed: false,
       };
     } catch {
       return { mesh: null, failed: true };
     }
-  }, [enabled, model, aux, solved]);
+  }, [model, aux, solution]);
   return {
     mesh: built.mesh,
     status: built.failed ? ('unavailable' as const) : status,

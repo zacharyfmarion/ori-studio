@@ -22,7 +22,7 @@ import type {
   LayerSpreadOptions,
   SpreadKind,
 } from '../../cp-workspace/folded/foldedLayerSpread';
-import { spreadStartsAmong, type LayerSpreadStarts } from '../../cp-workspace/folded/layerSpreadSettings';
+import { SHARED_SPREAD_STARTS, spreadOutOfPerspective, spreadStartsAmong, type LayerSpreadStarts } from '../../cp-workspace/folded/layerSpreadSettings';
 import type { DiagramWhiteArrowWidth } from '../../lib/stepDiagram/diagramInk';
 import type { StepDiagramModel } from '../../lib/stepDiagram/stepDiagramModel';
 import type { WhiteArrowTail } from '../../lib/stepDiagram/stepDiagramGeometry';
@@ -322,8 +322,8 @@ export {
   clampSpreadAxis,
   DEFAULT_DEPTH_SPREAD,
   DEFAULT_AFFINE_SPREAD,
-  DEFAULT_LAYER_SPREAD,
-  DEFAULT_SPREAD_STARTS,
+  SHARED_CONNECTED_SPREAD as DEFAULT_LAYER_SPREAD,
+  SHARED_SPREAD_STARTS as DEFAULT_SPREAD_STARTS,
   sameSpread,
 } from '../../cp-workspace/folded/layerSpreadSettings';
 
@@ -380,7 +380,7 @@ export function nearestEarlierShowAs(document: DiagramDocument, stepId: string):
 
 /** {@link DiagramSpreadStarts} for a step of `document`: the shared start rule over the steps before it. */
 export function spreadStartsFor(document: DiagramDocument, stepId: string): DiagramSpreadStarts {
-  return spreadStartsAmong(earlierSpreads(document, stepId));
+  return spreadStartsAmong(earlierSpreads(document, stepId), SHARED_SPREAD_STARTS);
 }
 
 /**
@@ -448,11 +448,12 @@ export type DiagramFlatRender = Extract<DiagramCpRender, { mode: 'folded-flat' }
 /**
  * A flat fold whose layers its Default spread could not spread, as its step
  * keeps it: the spread kept, so the step says it failed and offers another
- * kind, and no presentation, which only a spread drawn is drawn in.
+ * kind, and no presentation, which only a spread drawn is drawn in. With no
+ * presentation, the spread is version 1 (`spreadOutOfPerspective`).
  */
 export function spreadFailedRender(render: DiagramFlatRender): DiagramFlatRender {
   const { presentation: _presentation, ...kept } = render;
-  return kept;
+  return kept.spread ? { ...kept, spread: spreadOutOfPerspective(kept.spread) } : kept;
 }
 
 /** Whether a step's picture is its fold drawn unspread because its layers could not be spread (`spreadFailed`). */

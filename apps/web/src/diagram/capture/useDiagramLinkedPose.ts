@@ -1,5 +1,7 @@
+import { useSpatialOpeningGain } from '../../cp-workspace/folded/useSpatialFoldedMesh';
 import { useSpatialSpreadAmount, type SpatialSpreadAmount } from './useSpatialSpreadAmount';
 import { queueStepPoseEdit } from './stepPoseQueue';
+import { useEqualOpeningUpdate, type EqualOpeningUpdate } from './useEqualOpeningUpdate';
 import type { ConnectedSpreadView } from '../../layer-spread/view';
 import type { SpreadPresentation } from '../../layer-spread/presentation';
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
@@ -78,6 +80,8 @@ export interface DiagramLinkedPose {
   connectedSpread: import('@oristudio/layer-spread').ConnectedSpread | null;
   onReveal: (reveal: [number, number]) => void;
   setPresentation: (kind: SpreadPresentation['kind']) => Promise<void>;
+  /** Update, for a Default spread saved in Perspective 3D before equal opening; none for any other. */
+  equalOpening?: EqualOpeningUpdate | null;
   actions: DiagramLinkedPoseAction[];
   /**
    * The step detail's toolbar's verbs: {@link DiagramLinkedPose.actions}, but
@@ -245,6 +249,22 @@ export function useDiagramLinkedPose(
     return queueStepPoseEdit(stepId, 'presentation', (current) =>
       controller.run({ verb: 'spread-presentation', kind }, { current }));
   }, [controller, readOnly, stepId]);
+  const applyEqualOpening = useCallback((amount: number) => {
+    if (readOnly || !controller || !stepId) return Promise.resolve();
+    return queueStepPoseEdit(stepId, 'spread-equal-opening', async (current) => {
+      const { diagram } = useWorkspaceStore.getState();
+      if (diagram && stepById(diagram, stepId)?.source === source) {
+        await controller.run({ verb: 'spread-equal-opening', amount }, { current });
+      }
+    });
+  }, [controller, readOnly, source, stepId]);
+  const unknownMarks = step?.annotations.some((annotation) => !!annotation.unknown) ?? false;
+  const updateBlocked = readOnly || unknownMarks || spreadFailed;
+  const legacySpatial = source?.render.mode === 'folded-3d' && source.render.spread?.version === 1;
+  const spatialGain = useSpatialOpeningGain(legacySpatial && !updateBlocked ? view?.model : undefined);
+  const equalOpening = useEqualOpeningUpdate(
+    source?.render, connectedView, { blocked: updateBlocked, busy }, applyEqualOpening, spatialGain,
+  );
   const storedCamera = source?.render.mode === 'folded-3d' ? source.render.camera : flat?.presentation?.camera ?? null;
   const onCamera = useCallback(
     (camera: FoldedFigureCamera) => controller?.orbit(camera, storedCamera),
@@ -444,6 +464,7 @@ export function useDiagramLinkedPose(
             connectedPreparing,
             connectedSpread: shownPreview?.spread.kind === 'connected' ? shownPreview.spread : flat?.spread?.kind === 'connected' ? flat.spread : null,
             setPresentation,
+            equalOpening,
             onReveal,
             onCamera,
             registerLiveView,
@@ -471,6 +492,7 @@ export function useDiagramLinkedPose(
       shownPreview,
       flat,
       setPresentation,
+      equalOpening,
       onReveal,
       onCamera,
       registerLiveView,

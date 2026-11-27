@@ -21,7 +21,9 @@ import type { PaperSurface } from '../lib/paper/paperStyleResolve';
 import type { PaperExportMark, PaperExportMarks } from '../lib/paperExportSettings';
 import type { FoldedObjUnavailableReason } from '../lib/foldedExport';
 import type { OristudioCpFolded3dRenderModel } from '../engine/oristudioCpTypes';
+import type { ConnectedSpread } from '@oristudio/layer-spread';
 import type { FoldedFigureCamera } from '../cp-workspace/folded/folded3dCamera';
+import type { SpatialSpread } from '../cp-workspace/folded/foldedFigureSpread';
 import type { ConnectedSpreadView } from '../layer-spread/view';
 
 /**
@@ -42,11 +44,13 @@ export interface PaperObjSpread {
 /**
  * The fold an OBJ's spread is previewed from: a flat figure's paper scene
  * with its solve, which Perspective 3D draws, or a 3D figure's render model,
- * which its window draws, from the figure's own camera.
+ * which its window draws, from the figure's own camera. Each carries the
+ * version the Amount is read by, so the preview and the file lift as the
+ * figure would at that Amount.
  */
 export type PaperObjSpreadView =
-  | { kind: 'connected'; view: ConnectedSpreadView }
-  | { kind: 'spatial'; model: OristudioCpFolded3dRenderModel; camera: FoldedFigureCamera | null };
+  | { kind: 'connected'; view: ConnectedSpreadView; version: ConnectedSpread['version'] }
+  | { kind: 'spatial'; model: OristudioCpFolded3dRenderModel; camera: FoldedFigureCamera | null; version: SpatialSpread['version'] };
 
 /**
  * The fold behind an OBJ whose spread the dialog sets: which spread it is,

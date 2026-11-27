@@ -22,6 +22,7 @@ import { SimulatorViewport, type SimulatorViewportHandle } from '../../simulator
 import { simulatorDevicePixelRatio } from '../../simulator/simulatorDevicePixelRatio';
 import type { SimulatorViewHandle } from '../../simulator/simulatorViewRegistry';
 import { sameCamera } from '../../diagram/capture/poseController';
+import { spatialDrawAmount } from '../../cp-workspace/folded/spatialSpreadSettings';
 import type { SpatialSpread } from '../../cp-workspace/folded/foldedFigureSpread';
 import { usePreparedSpatialMesh } from '../../cp-workspace/folded/useSpatialFoldedMesh';
 import { DiagramPoseStage, type DiagramPoseAnnotations } from './DiagramPoseStage';
@@ -73,7 +74,7 @@ export function DiagramPose3dView({
   }, [view]);
   const { mesh: spatialMesh } = usePreparedSpatialMesh(view.model, view.aux, !!spread);
   const mesh = spread && spread.amount > 0 ? spatialMesh : legacyMesh;
-  const amount = spread?.amount ?? 0;
+  const amount = spatialDrawAmount(spread, spatialMesh?.spreadGain);
   const present = useCallback((bitmap: ImageBitmap) => viewportRef.current?.presentBitmap(bitmap), []);
   const { status, setCamera, setRenderSettings } = useFolded3dMeshRuntime({ mesh, onFrame: present });
 

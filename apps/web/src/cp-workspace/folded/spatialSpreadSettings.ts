@@ -7,6 +7,12 @@ export const MAX_SPATIAL_SPREAD_AMOUNT = 4;
 
 /** The amount Spread layers turns a 3D figure's spread on at, and its Amount's reset: 25%. */
 export const DEFAULT_SPATIAL_SPREAD_AMOUNT = 1;
+export const DEFAULT_SPATIAL_SPREAD: SpatialSpread = { kind: 'spatial', version: 2, amount: DEFAULT_SPATIAL_SPREAD_AMOUNT };
+
+/** The stored amount is always in slider units. Only a v2 picture applies the mesh gain. */
+export function spatialDrawAmount(spread: SpatialSpread | null | undefined, gain = 1): number {
+  return spread ? spread.amount * (spread.version === 2 ? gain : 1) : 0;
+}
 
 export const clampSpatialSpreadAmount = (amount: number): number =>
   Math.max(0, Math.min(MAX_SPATIAL_SPREAD_AMOUNT, amount));
@@ -25,7 +31,7 @@ export function readSpatialSpread(
   if (
     hasNewerKey(value, new Set(['kind', 'version', 'amount'])) ||
     value.kind !== 'spatial' ||
-    value.version !== 1
+    (value.version !== 1 && value.version !== 2)
   )
     return NEWER;
   if (
@@ -35,5 +41,5 @@ export function readSpatialSpread(
   )
     return null;
   if (value.amount > MAX_SPATIAL_SPREAD_AMOUNT) return NEWER;
-  return { kind: 'spatial', version: 1, amount: value.amount };
+  return { kind: 'spatial', version: value.version, amount: value.amount };
 }

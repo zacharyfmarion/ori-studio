@@ -1,7 +1,8 @@
 import {withSpreadCamera} from '../../layer-spread/presentation';
+import { entersPerspective, spreadInPerspective } from '../../layer-spread/equalOpening';
 import type { SpreadPresentation } from '../../layer-spread/presentation';
 import type { SpatialSpread } from '../../cp-workspace/folded/foldedFigureSpread';
-import { clampSpatialSpreadAmount } from '../../cp-workspace/folded/spatialSpreadSettings';
+import { clampSpatialSpreadAmount, DEFAULT_SPATIAL_SPREAD } from '../../cp-workspace/folded/spatialSpreadSettings';
 import { DEFAULT_FOLDED_3D_CAMERA } from '../../cp-workspace/folded/folded3dCamera';
 /**
  * What a Pose verb does to a linked step's picture (D5): the new render, and
@@ -21,6 +22,8 @@ import {
 import type { SpreadKind } from '../../cp-workspace/folded/foldedLayerSpread';
 import {
   LAYER_SPREAD_EDIT_VERBS,
+  startedSpread,
+  spreadOutOfPerspective,
   withSpreadField,
   type LayerSpreadEdit,
 } from '../../cp-workspace/folded/layerSpreadSettings';
@@ -230,6 +233,7 @@ export async function poseLinkedStep(
     const mirrorAxes = await session.flatMirrorAxes();
     const turn = upright ? (uprightTurn(mirrorAxes, rotationDeg) ?? rotationDeg) : rotationDeg;
     const picture = await session.flatPicture(turn, spread, presentation);
+    if (request.verb === 'spread-equal-opening' && capturedSpreadFailed(picture)) return { status: 'unavailable' };
     const drawn: DiagramFlatRender = {
       mode: 'folded-flat',
       side: state.side,
@@ -281,7 +285,7 @@ export async function poseLinkedStep(
   const foldedAsRemembered = (): Promise<LinkedPoseResult> => {
     const target = renderToShowAs({ render, remembered }, 'folded', spreadStart.any);
     if (target.mode === 'folded-flat' && !spatialRoute) return flat(target);
-    if (target.mode === 'folded-3d' && spatialRoute) return spatial(target.camera, target.side);
+    if (target.mode === 'folded-3d' && spatialRoute) return spatial(target.camera, target.side, target.spread);
     return folded(target.mode === 'folded-flat' ? target.rotationDeg : 0);
   };
 
@@ -310,8 +314,9 @@ export async function poseLinkedStep(
   if (request.verb === 'layer-order') {
     // A flat fold's, in the pose it was opened on: creases that fold in 3D now cannot take it.
     if (spatialRoute) return { status: 'order-refused' };
-    const { side, rotationDeg, foldCase, spread } = request.render;
-    return flat({ side, rotationDeg, foldCase, ...(spread ? { spread } : {}) }, undefined, undefined, {
+    // Shown as it was: a picture in Perspective 3D stays there, at its version.
+    const { side, rotationDeg, foldCase, spread, presentation } = request.render;
+    return flat({ side, rotationDeg, foldCase, ...(spread ? { spread } : {}), ...(presentation ? { presentation } : {}) }, undefined, undefined, {
       applied: { applied: request.applied, frame: request.frame },
     });
   }
@@ -382,7 +387,11 @@ export async function poseLinkedStep(
     const { rotationDeg, foldCase, spread } = render;
     const pose: FlatPose = { ...render };
     if (request.verb === 'spread-presentation' && spread?.kind === 'connected') {
-      return flat({...pose, presentation: {...render.presentation, kind: request.kind,
+      // A presentation says the pose has been in Perspective 3D: Diagram asked of one never there writes none.
+      if (request.kind === 'diagram' && !render.presentation) return flat(pose);
+      // Shown in Perspective 3D for the first time, a spread is drawn by version 2; one shown there before keeps its version.
+      const shown = entersPerspective(render.presentation, request.kind) ? spreadInPerspective(spread) : spread;
+      return flat({...pose, spread: shown, presentation: {...render.presentation, kind: request.kind,
         camera: render.presentation?.camera ?? DEFAULT_FOLDED_3D_CAMERA, orderSide: render.presentation?.orderSide ?? 'front'}});
     }
     if (request.verb === 'orbit' && spread?.kind === 'connected' && render.presentation?.kind === 'perspective') {
@@ -416,17 +425,19 @@ export async function poseLinkedStep(
         // The order it leaves exists, though a fold opened fresh to go back has not found it.
         return flat({ ...pose, foldCase: Math.max(1, foldCase - 1) }, undefined, foldCase);
       case 'reset':
-        // Upright, from the front, the first order: the spread has its own off switch.
-        return flat({ side: 'front', rotationDeg: 0, foldCase: 1, ...(spread ? { spread } : {}) });
+        // Upright, from the front, the first order: the spread has its own off switch. With
+        // no presentation left, a Default spread goes back to version 1, which draws alike here.
+        return flat({ side: 'front', rotationDeg: 0, foldCase: 1, ...(spread ? { spread: spreadOutOfPerspective(spread) } : {}) });
       case 'spread-layers': {
         const { spread: _was, ...unspread } = pose;
-        return flat(spread ? unspread : { ...unspread, spread: spreadStart.any });
+        return flat(spread ? unspread : { ...unspread, spread: startedSpread(spreadStart.any) });
       }
       case 'spread-kind':
         // The other kind, from where the steps before left it: each kind keeps its own settings.
         if (!spread || request.verb !== 'spread-kind' || spread.kind === request.kind) return flat(pose);
-        return flat({ ...pose, spread: spreadStart[request.kind] });
+        return flat({ ...pose, spread: startedSpread(spreadStart[request.kind]) });
       case 'spread-amount':
+      case 'spread-equal-opening':
       case 'spread-direction':
       case 'spread-keep':
       case 'spread-skew':
@@ -444,9 +455,12 @@ export async function poseLinkedStep(
   const fromSide = (view: FoldedFigureCamera) => (side === 'back' ? antipodalCamera(view) : view);
   switch (verb) {
     case 'spread-layers':
-      return spatial(camera, side, render.spread ? null : { kind: 'spatial', version: 1, amount: 1 });
+      return spatial(camera, side, render.spread ? null : DEFAULT_SPATIAL_SPREAD);
     case 'spread-amount':
       return spatial(camera, side, render.spread && request.verb === 'spread-amount' ? { ...render.spread, amount: clampSpatialSpreadAmount(request.amount) } : undefined);
+    case 'spread-equal-opening':
+      if (request.verb !== 'spread-equal-opening' || render.spread?.version !== 1) return { status: 'unavailable' };
+      return spatial(camera, side, { ...render.spread, version: 2, amount: clampSpatialSpreadAmount(request.amount) });
     case 'orbit':
       return spatial(request.verb === 'orbit' ? request.camera : camera, side);
     case 'turn-over':

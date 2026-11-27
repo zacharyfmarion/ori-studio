@@ -41,10 +41,16 @@ multiplies it. No solve runs when the amount or the reveal changes.
 **Held past the nominal opening.** The second-order form overshoots once
 slopes are steep. Past amount 1 (50% on the slider) the shift stops growing.
 Perspective 3D doubles the height multiplier before projection, so there the
-hold is reached at 25% on the slider.
+hold is reached at 25% on the slider. That is a version 1 spread. A version 2
+one (equal opening, `spread-equal-opening.md`) draws 2k times its stored amount,
+so it reaches the hold at 25%/k on the slider: about 2.3% for bodo (k 10.8),
+96% for the two-face fold (k 0.26), and never when k is under 1/4. Past the
+hold, lifted paper stretches, as a version 1 spread does past 25%.
 
 **No new recipe version.** `ConnectedSpread.version` stays 1 and no file
-field is added. Reasons:
+field is added. (This shift added none. Version 2 has since gone to equal
+opening, so a shift gate would need the next free version or a field of its
+own, never 2.) Reasons:
 
 - A saved picture is a frozen scene. It does not redraw on open, so no saved
   picture changes until the user re-poses it.
@@ -57,8 +63,8 @@ field is added. Reasons:
 This follows the saved-document policy that look tweaks reach every file and
 only layout needs consent. The cost: an existing step at a high amount draws
 slightly differently the next time it is re-posed, and Fold's live pane does
-so at once. If that proves wrong, gate `shiftedXY` on a version 2 and read
-both; the solver output would not change.
+so at once. If that proves wrong, gate `shiftedXY` on a new version (not 2,
+which is equal opening's) and read both; the solver output would not change.
 
 **Where it lives.**
 

@@ -1724,8 +1724,11 @@
       "withTurnOver": "Mit dem Wenden davor"
     },
     "spread": {
+      "cappedOpeningNotice": "Der Abstand in dieser Ansicht übersteigt das neue Maximum. Beim Aktualisieren wird er auf 100 % begrenzt und die Lagen rücken näher zusammen.",
       "diagram": "Diagramm",
       "drag": "Ziehen, um Lagen sichtbar zu machen",
+      "equalOpeningNotice": "Dieses Bild verwendet eine ältere Skala für den Abstand. Beim Aktualisieren bleibt der Abstand in dieser Ansicht erhalten.",
+      "equalOpeningUpdate": "Aktualisieren",
       "padHint": "Ebenen durch Ziehen sichtbar machen. Pfeiltasten zum Anpassen; Umschalt für größere Schritte.",
       "perspective": "3D-Perspektive",
       "presentation": "Darstellung",

@@ -443,6 +443,8 @@ export type DiagramPoseAction =
   | 'spread_skew'
   | 'spread_reveal' | 'spread_presentation'
   | 'spread_axis'
+  // A Perspective 3D picture saved before equal opening, updated to it: its picture kept, or brought down to the new 100% where it opened further.
+  | 'spread_equal_opening'
   | 'paper_side'
   // A crease pattern on its back turned over side to side, or back (the Step pane's Flip creases).
   | 'flip_creases_on'
@@ -495,7 +497,9 @@ export const DIAGRAM_SPREAD_PERCENT_BUCKETS = [2.5, 7.5, 12.5] as const;
  * shows it — its height multiplier, 0 to 2, read as 0 to 100% — bucketed on
  * a ladder of its own: `<=10` (Fold's 7% start), `<=25` (the 25% every other
  * surface starts at), `<=50`, `>50`. The depth and affine ladder above would
- * put the 25% default in its top bucket every time. Never the value.
+ * put the 25% default in its top bucket every time. In Perspective 3D a
+ * version 2 spread draws a percent at its model's own gain (equal opening),
+ * so a bucket there is not one height on every model. Never the value.
  */
 export const DIAGRAM_CONNECTED_SPREAD_PERCENT_BUCKETS = [10, 25, 50] as const;
 
@@ -1877,6 +1881,7 @@ export const ANALYTICS_EVENTS = {
    */
   foldSpreadChanged: 'fold spread changed',
   spatialSpreadChanged: 'spatial spread changed',
+  figureSpacingUpdated: 'figure spacing updated',
   foldFreeLineSnapChanged: 'fold free line snapping changed',
   /**
    * The Fold engine crashed and the session restarted it, or gave up: how

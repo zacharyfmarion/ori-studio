@@ -108,6 +108,15 @@ describe('a step captured with a Default spread its layers can’t take', () => 
     expect(result.source.render).toEqual({ ...FLAT, spread: DEFAULT_CONNECTED_SPREAD });
   });
 
+  it('puts a version 2 spread back to version 1 with its presentation, which older builds would lock', async () => {
+    spread.solveFails = LIMIT;
+    const shown: DiagramCpRender = { ...SPREAD_FLAT, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 } };
+    const result = await captureStep(fakeCaptureRuntime(), request(shown));
+    if (result.status !== 'captured') throw new Error(`not captured: ${result.status}`);
+    expect(capturedSpreadFailed(result.captured)).toBe(true);
+    expect(result.source.render).toEqual({ ...FLAT, spread: DEFAULT_CONNECTED_SPREAD });
+  });
+
   it('keeps a spread it can take, unmarked, as it always did', async () => {
     const result = await captureStep(fakeCaptureRuntime(), request({ ...FLAT, spread: DEFAULT_CONNECTED_SPREAD }));
     if (result.status !== 'captured') throw new Error(`not captured: ${result.status}`);
@@ -135,6 +144,17 @@ describe('a step posed with a Default spread its layers can’t take', () => {
     poseLinkedStep(held, { document, creases: choice.creases, render, style: DEFAULT_DIAGRAM_STYLE }, verb);
   const failed = (posed: Awaited<ReturnType<typeof pose>>) => posed.status === 'posed' && capturedSpreadFailed(posed.picture);
 
+  it('leaves the previous recipe and picture available when an explicit Update fails', async () => {
+    const held = session();
+    const saved = { ...FLAT, spread: DEFAULT_CONNECTED_SPREAD };
+    spread.solveFails = LIMIT;
+    expect(await pose(held, saved, { verb: 'spread-equal-opening', amount: 0.5 })).toEqual({ status: 'unavailable' });
+    spread.solveFails = null;
+    expect(await pose(held, saved, { verb: 'spread-equal-opening', amount: 0.5 })).toMatchObject({
+      status: 'posed', render: { spread: { version: 3, amount: 0.5 } },
+    });
+  });
+
   it('is folded unspread, its Default spread kept, and solved again by the next pose', async () => {
     const held = session();
     spread.solveFails = LIMIT;
@@ -151,6 +171,15 @@ describe('a step posed with a Default spread its layers can’t take', () => {
     expect(spread.solves).toBe(solvesBefore + 1);
     expect(failed(turned)).toBe(false);
     expect(turned).toMatchObject({ status: 'posed', render: { spread: DEFAULT_LAYER_SPREAD } });
+  });
+
+  it('leaves a spread shown in Perspective 3D whose layers can’t be spread at version 1, with no presentation', async () => {
+    const held = session();
+    spread.solveFails = LIMIT;
+    const entered = await pose(held, { ...FLAT, spread: DEFAULT_CONNECTED_SPREAD }, { verb: 'spread-presentation', kind: 'perspective' });
+    if (entered.status !== 'posed') throw new Error(`not posed: ${entered.status}`);
+    expect(failed(entered)).toBe(true);
+    expect(entered.render).toEqual({ ...FLAT, spread: DEFAULT_CONNECTED_SPREAD });
   });
 
   it('takes another kind, which needs no solve, from a spread its layers couldn’t take', async () => {
@@ -177,7 +206,7 @@ describe('a step posed with a Default spread its layers can’t take', () => {
     };
     const switched = await pose(held, affine, { verb: 'spread-kind', kind: 'connected' });
     expect(failed(switched)).toBe(true);
-    expect(switched).toMatchObject({ status: 'posed', render: { spread: DEFAULT_CONNECTED_SPREAD } });
+    expect(switched).toMatchObject({ status: 'posed', render: { spread: DEFAULT_LAYER_SPREAD } });
   });
 
   it('turns Spread layers on, kept on, when its layers still can’t be spread', async () => {

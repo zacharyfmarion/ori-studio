@@ -36,7 +36,7 @@ import {
   twoSquaresIndex,
 } from './capture.fixtures';
 import { chooseStepCreases } from './captureCreases';
-import { captureModel, type CpCaptureRuntime } from './captureFolded';
+import { captureModel, capturedSpreadFailed, type CpCaptureRuntime } from './captureFolded';
 import { layerOrderSourceOf } from '../../lib/layerOrder/layerOrderSource';
 import { stepLayerOrderOf } from './captureLayerOrder';
 import { CaptureSessionClosedError, createCaptureSession, type CaptureSessionDeps } from './captureSession';
@@ -673,7 +673,7 @@ describe('a flat fold’s spread (Phase 13)', () => {
     const document = cpDocument();
     expect(spreadOf(await poseWith(session, FLAT, { verb: 'spread-layers' }))).toEqual(DEFAULT_LAYER_SPREAD);
     // Affine, on (Zach, 2026-10-05).
-    expect(DEFAULT_LAYER_SPREAD).toEqual(DEFAULT_CONNECTED_SPREAD);
+    expect(DEFAULT_LAYER_SPREAD).toEqual({ ...DEFAULT_CONNECTED_SPREAD, version: 3 });
     expect(spreadOf(await poseWith(session, FLAT, { verb: 'spread-layers' }, STARTS))).toEqual(STARTS.any);
     const off = await pose(session, SPREAD_FLAT, { verb: 'spread-layers' }, document);
     expect(off.status === 'posed' && off.render).toEqual({ mode: 'folded-flat', side: 'front', rotationDeg: 30, foldCase: 1 });
@@ -801,9 +801,162 @@ describe('a flat fold’s spread (Phase 13)', () => {
   });
 });
 
+describe('equal opening in Perspective 3D (implementation-plans/spread-equal-opening.md)', () => {
+  const camera = { yaw: 0.3, pitch: -0.4, zoom: 1 };
+  const PERSPECTIVE = { kind: 'perspective' as const, camera, orderSide: 'front' as const };
+  const DIAGRAM_SHOWN: DiagramCpRender = { ...FLAT, spread: DEFAULT_CONNECTED_SPREAD };
+  const SAVED: DiagramCpRender = { ...DIAGRAM_SHOWN, presentation: PERSPECTIVE };
+  const renderOf = (result: Awaited<ReturnType<typeof pose>>) => (result.status === 'posed' ? result.render : null);
+  const spreadOf = (result: Awaited<ReturnType<typeof pose>>) =>
+    result.status === 'posed' && result.render.mode === 'folded-flat' ? result.render.spread : null;
+  /** Drawn spread, not a failed spread drawn flat (which would also drop the presentation). */
+  const spreadDrawn = (result: Awaited<ReturnType<typeof pose>>) => result.status === 'posed' && !capturedSpreadFailed(result.picture);
+
+  it('draws a spread shown in Perspective 3D for the first time by version 2, keeping its amount', async () => {
+    const { session } = sessionWith();
+    const entered = await pose(session, DIAGRAM_SHOWN, { verb: 'spread-presentation', kind: 'perspective' });
+    expect(spreadDrawn(entered)).toBe(true);
+    expect(renderOf(entered)).toMatchObject({ presentation: { kind: 'perspective' }, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 } });
+  });
+
+  it('keeps a picture saved in Perspective 3D by version 1, and there, through every other pose', async () => {
+    const { session } = sessionWith();
+    const requests: LinkedPoseRequest[] = [
+      { verb: 'orbit', camera: { yaw: 1, pitch: -1, zoom: 1 } },
+      { verb: 'spread-amount', amount: 0.5 },
+      { verb: 'spread-reveal', reveal: [0.1, 0.2] },
+      { verb: 'spread-presentation', kind: 'perspective' },
+      { verb: 'view-top' },
+      { verb: 'turn-over' },
+      { verb: 'reset' },
+      { verb: 'rotate-right' },
+      { verb: 'upright' },
+      { verb: 'show-folded' },
+    ];
+    for (const request of requests) {
+      const result = await pose(session, SAVED, request);
+      expect(spreadDrawn(result), request.verb).toBe(true);
+      expect(renderOf(result), request.verb).toMatchObject({ presentation: { kind: 'perspective' }, spread: { kind: 'connected', version: 1 } });
+    }
+  });
+
+  it('brings a picture saved there back from Diagram at version 1: switching is reversible', async () => {
+    const { session } = sessionWith();
+    const inDiagram = renderOf(await pose(session, SAVED, { verb: 'spread-presentation', kind: 'diagram' }))!;
+    expect(inDiagram).toMatchObject({ presentation: { kind: 'diagram', camera }, spread: DEFAULT_CONNECTED_SPREAD });
+    expect(renderOf(await pose(session, inDiagram, { verb: 'spread-presentation', kind: 'perspective' }))).toEqual(SAVED);
+    // One drawn by version 2 comes back by version 2.
+    const shown: DiagramCpRender = { ...SAVED, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 } };
+    const away = renderOf(await pose(session, shown, { verb: 'spread-presentation', kind: 'diagram' }))!;
+    expect(renderOf(await pose(session, away, { verb: 'spread-presentation', kind: 'perspective' }))).toEqual(shown);
+  });
+
+  it('writes no presentation when Diagram is asked of a pose never shown in Perspective 3D', async () => {
+    const { session } = sessionWith();
+    expect(renderOf(await pose(session, DIAGRAM_SHOWN, { verb: 'spread-presentation', kind: 'diagram' }))).toEqual(DIAGRAM_SHOWN);
+  });
+
+  it('keeps Perspective 3D and version 1 through a layer order the dialog applied', async () => {
+    const { session } = sessionWith();
+    await pose(session, SAVED, { verb: 'show-folded' });
+    const { source, frame } = await session.heldFlatSource();
+    const flatSaved = SAVED as Extract<DiagramCpRender, { mode: 'folded-flat' }>;
+    const applied = await pose(session, SAVED, { verb: 'layer-order', applied: dialogApplied(source), frame, render: flatSaved });
+    expect(renderOf(applied)).toMatchObject({ presentation: PERSPECTIVE, spread: { kind: 'connected', version: 1 } });
+  });
+
+  it('puts a Default spread back to version 1 when Reset leaves it no presentation', async () => {
+    const { session } = sessionWith();
+    const away: DiagramCpRender = {
+      ...FLAT,
+      rotationDeg: 90,
+      spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 },
+      presentation: { ...PERSPECTIVE, kind: 'diagram' },
+    };
+    expect(renderOf(await pose(session, away, { verb: 'reset' })))
+      .toEqual({ mode: 'folded-flat', side: 'front', rotationDeg: 0, foldCase: 1, spread: DEFAULT_CONNECTED_SPREAD });
+  });
+
+  it('starts a Default spread at the shared scale in both presentations', async () => {
+    const { session } = sessionWith();
+    const affineThere: DiagramCpRender = { ...FLAT, spread: DEFAULT_AFFINE_SPREAD, presentation: PERSPECTIVE };
+    expect(spreadOf(await pose(session, affineThere, { verb: 'spread-kind', kind: 'connected' })))
+      .toEqual({ ...DEFAULT_CONNECTED_SPREAD, version: 3 });
+    const offThere: DiagramCpRender = { ...FLAT, presentation: PERSPECTIVE };
+    expect(spreadOf(await pose(session, offThere, { verb: 'spread-layers' }))).toEqual({ ...DEFAULT_CONNECTED_SPREAD, version: 3 });
+    expect(spreadOf(await pose(session, FLAT, { verb: 'spread-layers' }))).toEqual({ ...DEFAULT_CONNECTED_SPREAD, version: 3 });
+    expect(spreadOf(await pose(session, { ...FLAT, spread: DEFAULT_AFFINE_SPREAD }, { verb: 'spread-kind', kind: 'connected' })))
+      .toEqual({ ...DEFAULT_CONNECTED_SPREAD, version: 3 });
+  });
+
+  it('restarts a spread under a Diagram kept from Perspective 3D at the shared scale', async () => {
+    const { session } = sessionWith();
+    const shown: DiagramCpRender = { ...SAVED, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 2 } };
+    const away = renderOf(await pose(session, shown, { verb: 'spread-presentation', kind: 'diagram' }))!;
+    // Spread Layers turned off and on; Default chosen again after another kind.
+    const off = renderOf(await pose(session, away, { verb: 'spread-layers' }))!;
+    const turnedOn = renderOf(await pose(session, off, { verb: 'spread-layers' }))!;
+    const affine = renderOf(await pose(session, away, { verb: 'spread-kind', kind: 'affine' }))!;
+    const chosen = renderOf(await pose(session, affine, { verb: 'spread-kind', kind: 'connected' }))!;
+    for (const [name, restarted] of [['spread-layers', turnedOn], ['spread-kind', chosen]] as const) {
+      expect(restarted, name).toMatchObject({ presentation: { kind: 'diagram', camera }, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 3 } });
+      const back = await pose(session, restarted, { verb: 'spread-presentation', kind: 'perspective' });
+      expect(spreadDrawn(back), name).toBe(true);
+      expect(renderOf(back), name).toEqual({ ...restarted, presentation: PERSPECTIVE });
+    }
+  });
+
+  it('updates a saved picture to version 3 at the amount it is given, still in Perspective 3D', async () => {
+    const { session } = sessionWith();
+    const updated = await pose(session, SAVED, { verb: 'spread-equal-opening', amount: 0.0185 });
+    expect(spreadDrawn(updated)).toBe(true);
+    expect(renderOf(updated)).toEqual({ ...SAVED, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 3, amount: 0.0185 } });
+  });
+
+  it('keeps the shared recipe through both presentation switches and a pose reset', async () => {
+    const { session } = sessionWith();
+    const spread = { ...DEFAULT_CONNECTED_SPREAD, version: 3 as const, amount: 0.72 };
+    const entered = renderOf(await pose(session, { ...FLAT, spread }, { verb: 'spread-presentation', kind: 'perspective' }));
+    if (!entered) throw new Error('Perspective pose unavailable');
+    expect(entered).toMatchObject({ spread, presentation: { kind: 'perspective' } });
+    const back = renderOf(await pose(session, entered, { verb: 'spread-presentation', kind: 'diagram' }));
+    if (!back) throw new Error('Diagram pose unavailable');
+    expect(back).toMatchObject({ spread, presentation: { kind: 'diagram' } });
+    expect(renderOf(await pose(session, back, { verb: 'reset' }))).toMatchObject({ spread });
+  });
+
+  it('brings a remembered Perspective 3D pose back as it was saved, by its own version (D19)', async () => {
+    const { session } = sessionWith();
+    for (const version of [1, 2] as const) {
+      const remembered: DiagramCpRender = { ...SAVED, spread: { ...DEFAULT_CONNECTED_SPREAD, version, amount: 0.3 } };
+      const back = await pose(session, CP, { verb: 'show-folded' }, cpDocument(), { folded: remembered });
+      expect(spreadDrawn(back), `version ${version}`).toBe(true);
+      expect(renderOf(back), `version ${version}`).toEqual(remembered);
+    }
+  });
+});
+
 describe('posing a 3D fold', () => {
   const THREE_D: DiagramCpRender = { mode: 'folded-3d', camera: DEFAULT_FOLDED_3D_CAMERA, side: 'front' };
   const partial = () => cpDocument(undefined, (cp, id) => (id === 8 ? { ...cp, fold_magnitude: 90 } : cp));
+
+  it.each([1, 2] as const)('restores a remembered spatial v%s, and creates v2 only on a fresh start or Update', async (version) => {
+    folded3dStoredScene.folded3dFigureScene.mockReturnValue(sheetWithCrease());
+    const { session } = sessionWith(fakeCaptureRuntime({ fold3d: vi.fn(async () => placed) }));
+    const spread = { kind: 'spatial' as const, version, amount: 0.5 };
+    const saved: DiagramCpRender = { ...THREE_D, spread };
+    const document = partial();
+    expect(await pose(session, CP, { verb: 'show-folded' }, document, { folded: saved })).toMatchObject({ render: saved });
+    expect(await pose(session, saved, { verb: 'reset' }, document)).toMatchObject({ render: { spread } });
+    expect(await pose(session, THREE_D, { verb: 'spread-layers' }, document)).toMatchObject({
+      render: { spread: { kind: 'spatial', version: 2, amount: 1 } },
+    });
+    if (version === 1) {
+      expect(await pose(session, saved, { verb: 'spread-equal-opening', amount: 1.5 }, document)).toMatchObject({
+        render: { spread: { kind: 'spatial', version: 2, amount: 1.5 } },
+      });
+    }
+  });
 
   it('looks from the other side, from above, and from where the view rests, on one fold', async () => {
     folded3dStoredScene.folded3dFigureScene.mockReturnValue(sheetWithCrease());

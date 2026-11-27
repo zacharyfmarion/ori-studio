@@ -1655,8 +1655,11 @@
       "withTurnOver": "连同前面的翻面"
     },
     "spread": {
+      "cappedOpeningNotice": "当前视图的间距超过了新的上限。更新后将使用 100%，各层之间的距离会缩小。",
       "diagram": "图解",
       "drag": "拖动以显示层次",
+      "equalOpeningNotice": "此图使用旧的间距刻度。更新后将使用新刻度，并保留当前视图的层间距。",
+      "equalOpeningUpdate": "更新",
       "padHint": "拖动以显露纸层。使用方向键调整，按住 Shift 可增大移动幅度。",
       "perspective": "透视 3D",
       "presentation": "显示方式",

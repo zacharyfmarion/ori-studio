@@ -1793,8 +1793,11 @@
       "withTurnOver": "Con la vuelta anterior"
     },
     "spread": {
+      "cappedOpeningNotice": "Esta vista supera el nuevo máximo. Al actualizar, se aplicará el 100 % y las capas quedarán más juntas.",
       "diagram": "Diagrama",
       "drag": "Arrastra para mostrar las capas",
+      "equalOpeningNotice": "Esta imagen usa una escala de separación anterior. Actualízala para conservar la separación de esta vista con la nueva escala.",
+      "equalOpeningUpdate": "Actualizar",
       "padHint": "Arrastra para mostrar las capas. Usa las flechas para ajustar; Mayús aumenta el desplazamiento.",
       "perspective": "Perspectiva 3D",
       "presentation": "Presentación",

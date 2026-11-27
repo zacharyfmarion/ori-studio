@@ -44,6 +44,7 @@ import {
   type QuarterTurns,
 } from '../document/diagramDocument';
 import { stepPictureFrame } from '../pictures/pictureFrame';
+import { scenesDrawAlike } from '../pictures/scenesDrawAlike';
 import { storedScene } from '../pictures/storedScene';
 import { followOwnPicture, type OwnPictureChange } from '../zoom/zoomFrames';
 import { carryAnnotation, mirrorMove, type PictureMove, type PicturePoint } from './annotationModel';
@@ -234,6 +235,31 @@ function recolouredOnly(before: DiagramStep, after: DiagramStep): boolean {
       (wasRender.flipCreases === true) !== (isRender.flipCreases === true)) &&
     samePosedLink(from, to)
   );
+}
+
+/** Preserve marks when a scale upgrade in the same pose actually preserves the drawing. */
+function equalOpeningKept(before: DiagramStep, after: DiagramStep): boolean {
+  const [from, to] = [before.source, after.source];
+  const [was, is] = [before.picture, after.picture];
+  if (!isPosedSource(from) || !isPosedSource(to) || was?.kind !== 'scene' || is?.kind !== 'scene') return false;
+  if (was.paperScale !== is.paperScale || !samePosedLink(from, to)) return false;
+  const [a, b] = [from.render, to.render];
+  if (a.mode === 'folded-3d' && b.mode === 'folded-3d') {
+    return a.spread?.version === 1 && b.spread?.version === 2 && a.side === b.side &&
+      JSON.stringify(a.camera) === JSON.stringify(b.camera) && drawnAlike(was, is);
+  }
+  if (a.mode !== 'folded-flat' || b.mode !== 'folded-flat') return false;
+  const [old, updated] = [a.spread, b.spread];
+  return old?.kind === 'connected' && old.version < 3 && updated?.kind === 'connected' && updated.version === 3 &&
+    JSON.stringify(a.presentation) === JSON.stringify(b.presentation) && a.side === b.side && a.rotationDeg === b.rotationDeg &&
+    sameLayerOrder(a, b, from, to) && old.reveal[0] === updated.reveal[0] && old.reveal[1] === updated.reveal[1] &&
+    drawnAlike(was, is);
+}
+
+/** Whether two scene pictures draw alike (`scenesDrawAlike`); not when either does not read. */
+function drawnAlike(was: DiagramScenePicture, is: DiagramScenePicture): boolean {
+  const [a, b] = [storedScene(was), storedScene(is)];
+  return a !== null && b !== null && scenesDrawAlike(a, b);
 }
 
 /**
@@ -567,7 +593,9 @@ export function withCarriedAnnotations(
   if (after.annotations.length === 0 || after.annotations !== before.annotations) return after;
   const inStep = before.annotatedPictureKey !== null && before.annotatedPictureKey === (before.picture?.key ?? null);
   // Nothing moved, so nothing is carried — not even an annotation this build cannot read.
-  if (inStep && recolouredOnly(before, after)) return { ...after, annotatedPictureKey: after.picture?.key ?? null };
+  if (inStep && (recolouredOnly(before, after) || equalOpeningKept(before, after))) {
+    return { ...after, annotatedPictureKey: after.picture?.key ?? null };
+  }
   const authorsGo = inStep && before.annotations.every(isKnownAnnotation);
   const goes = (annotation: DiagramAnnotation): annotation is KnownDiagramAnnotation =>
     isKnownAnnotation(annotation) && (authorsGo || isCardMark(before, annotation));
@@ -589,5 +617,6 @@ function ownPictureChange(
   assets: Readonly<Record<string, DiagramAsset>>
 ): OwnPictureChange {
   if (!before.picture || !after.picture) return null;
-  return recolouredOnly(before, after) ? 'recoloured' : pictureMove(before, after, assets);
+  // Updated to equal opening, the picture is where it was: as recoloured, nothing moved.
+  return recolouredOnly(before, after) || equalOpeningKept(before, after) ? 'recoloured' : pictureMove(before, after, assets);
 }

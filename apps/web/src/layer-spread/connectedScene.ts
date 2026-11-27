@@ -1,3 +1,4 @@
+import { connectedDrawAmount } from './equalOpening';
 import { preparedInk } from './preparedInk';
 import {
   interpolate,
@@ -87,23 +88,26 @@ export function connectedDrawing(
   spread: ConnectedSpread,
   toScenePx: (point: Point) => ScenePoint,
   baseInk: readonly PaperItem[],
+  perspective = false,
 ): ConnectedDrawing {
   const { source, solution } = prepared,
     { input, back } = source;
+  const amount = connectedDrawAmount(spread, prepared, perspective);
+  const [revealX, revealY] = perspective ? [0, 0] : spread.reveal;
   const reference = solution.references[back ? 1 : 0].plane;
   const unit = Math.hypot(...source.frame.ex);
   const origin = toScenePx({ x: 0, y: 0 }),
     basis = toScenePx({ x: unit, y: 0 });
   const scale = Math.hypot(basis[0] - origin[0], basis[1] - origin[1]);
   // Lifted paper keeps its size: faces draw shortened along their slope.
-  const placed = shiftedXY(input, solution, spread.amount, back);
+  const placed = shiftedXY(input, solution, amount, back);
   const positions: Point3[] = input.xy.map(([x, y], v) => {
     const p = toScenePx(scenePoint(source, placed[v]!));
     const z = solution.heights[v]!;
-    const h = spread.amount * (z - reference[0] * x - reference[1] * y - reference[2]) * scale;
+    const h = amount * (z - reference[0] * x - reference[1] * y - reference[2]) * scale;
     // A screen drag pulls the near side; layers behind reveal oppositely.
     const side = back ? -1 : 1;
-    return [p[0] + side * spread.reveal[0] * h, p[1] + side * spread.reveal[1] * h, side * spread.amount * z * scale];
+    return [p[0] + side * revealX * h, p[1] + side * revealY * h, side * amount * z * scale];
   });
   const mesh: ProjectedSpread = {
     positions,

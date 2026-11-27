@@ -5,11 +5,13 @@
  * - **A 3D figure** writes its render model's material source — every sheet
  *   vertex once, where the fold put it — and, with the spatial spread the
  *   export dialog sets (opening on the figure's own), each vertex moved by the
- *   spread's solve at that amount: the field the window draws
- *   (`posedMaterialPositions`), and the dialog's preview with it.
+ *   spread's solve at that amount, read by the figure's spread's version: the
+ *   field the window draws (`posedMaterialPositions`), and the dialog's
+ *   preview with it.
  * - **A flat figure** writes the kernel's paper scene, flat, or lifted by the
  *   Default spread the export dialog sets — opening on the figure's own — as
- *   Perspective 3D lifts it, which the dialog previews: the true-size shift in
+ *   Perspective 3D lifts it at the figure's spread's version
+ *   (`connectedDrawAmount`), which the dialog previews: the true-size shift in
  *   the plane, and each vertex's height above the shown side's reference
  *   plane, which is what that shift keeps the paper its size against. A reveal
  *   is the shear a flat picture draws a lift with, not geometry, and is left
@@ -35,14 +37,22 @@
  *
  * Creases, aux lines and colours are not written, as the simulator's are not.
  */
-import { shiftedXY, type Point as Pair, type Point3, type SpreadSolution, type Triangle } from '@oristudio/layer-spread';
+import {
+  shiftedXY,
+  type ConnectedSpread,
+  type Point as Pair,
+  type Point3,
+  type SpreadSolution,
+  type Triangle,
+} from '@oristudio/layer-spread';
 import type {
   OristudioCpFolded3dRenderModel,
   OristudioCpFoldedFigureEntry,
   OristudioCpFoldedPaperScene,
 } from '../../engine/oristudioCpTypes';
+import { connectedDrawAmount } from '../../layer-spread/equalOpening';
 import { prepareConnected } from '../../layer-spread/prepareConnected';
-import { perspectiveSpread } from '../../layer-spread/presentation';
+import { spatialOpeningGain } from '../../layer-spread/spatialOpening';
 import type { ConnectedSpreadView } from '../../layer-spread/view';
 import { foldedObj } from '../../lib/foldedExport';
 import { sheetUvs } from '../../lib/sheetUvs';
@@ -51,9 +61,15 @@ import { connectedSpreadSource, scenePoint, type ConnectedSpreadSource } from '.
 import { posedMaterialPositions, type SpatialSpreadSolution } from './folded3dMaterial';
 import { toSimBasis } from './folded3dMesh';
 import { ensureSpatialSolution, spatialAmount, spatialSource } from './folded3dSpread';
+import type { SpatialSpread } from './foldedFigureSpread';
 import type { LayerSpreadOptions } from './foldedLayerSpread';
-import { DEFAULT_CONNECTED_SPREAD } from './layerSpreadSettings';
-import { DEFAULT_SPATIAL_SPREAD_AMOUNT } from './spatialSpreadSettings';
+import { SHARED_CONNECTED_SPREAD } from './layerSpreadSettings';
+import {
+  clampSpatialSpreadAmount,
+  DEFAULT_SPATIAL_SPREAD,
+  DEFAULT_SPATIAL_SPREAD_AMOUNT,
+  spatialDrawAmount,
+} from './spatialSpreadSettings';
 import { triangulateSpreadFace } from './triangulateSpreadFace';
 
 /** A render model's material source: the sheet's vertices, where the fold put them, and its faces. */
@@ -211,13 +227,19 @@ export function folded3dFigureObjSpread(
   return amount !== null && amount > 0 ? { on: true, amount } : { on: false, amount: DEFAULT_SPATIAL_SPREAD_AMOUNT };
 }
 
+/** The version a 3D figure's OBJ reads its Amount by: its spatial spread's, else the one Spread layers turns on. */
+function folded3dFigureObjVersion(figure: Pick<OristudioCpFoldedFigureEntry, 'spread'>): SpatialSpread['version'] {
+  return figure.spread?.kind === 'spatial' ? figure.spread.version : DEFAULT_SPATIAL_SPREAD.version;
+}
+
 /**
  * A 3D figure's OBJ for the export dialog: its material, posed by the spatial
- * spread the dialog sets — opening on the figure's own — as the window poses
- * it (`posedMaterialPositions`), which the dialog's preview draws. A fold with
- * no determined layer order has no layers to spread, so it offers no spread.
- * The solve is asked for once and let go when it lands or `signal` aborts.
- * None for a model that carries no material source.
+ * spread the dialog sets — opening on the figure's own, read by its version —
+ * as the window poses it (`posedMaterialPositions`), which the dialog's
+ * preview draws. A fold with no determined layer order has no layers to
+ * spread, so it offers no spread. The solve is asked for once and let go when
+ * it lands or `signal` aborts. None for a model that carries no material
+ * source.
  */
 export function folded3dFigureObjExport(
   figure: Pick<OristudioCpFoldedFigureEntry, 'spread' | 'displayStyle' | 'folded3d' | 'camera'>,
@@ -229,6 +251,7 @@ export function folded3dFigureObjExport(
   // Read with care: a snapshot written before verdicts has none, and no layer order to spread.
   const spreads = figure.folded3d?.verdict?.verdict === 'folded';
   const initial = folded3dFigureObjSpread(figure);
+  const version = folded3dFigureObjVersion(figure);
   let solved: Promise<SpatialSpreadSolution> | null = null;
   const solve = () => (solved ??= ensureSpatialSolution(model, signal));
   return {
@@ -238,7 +261,7 @@ export function folded3dFigureObjExport(
           spread: {
             kind: 'spatial',
             initial,
-            prepare: () => solve().then(() => ({ kind: 'spatial', model, camera: figure.camera ?? null })),
+            prepare: () => solve().then(() => ({ kind: 'spatial', model, camera: figure.camera ?? null, version })),
             // The fold is the material, whatever the solve does.
             unspread: async () => true,
           },
@@ -248,36 +271,46 @@ export function folded3dFigureObjExport(
       let positions: readonly Point3[] = material.positions;
       if (spread.on && spread.amount > 0) {
         if (!spreads) throw new Error('Spatial spread requires a determined, closed fold');
-        positions = posedMaterialPositions(spatialSource(model), await solve(), spread.amount);
+        const source = spatialSource(model);
+        const solution = await solve();
+        const drawn = { kind: 'spatial', version, amount: clampSpatialSpreadAmount(spread.amount) } as const;
+        positions = posedMaterialPositions(source, solution, spatialDrawAmount(drawn, spatialOpeningGain(source.input, solution)));
       }
       return foldedFigureObj(folded3dObjMesh(material, positions, model.span));
     },
   };
 }
 
+/** What a flat figure's OBJ opens on: the dialog's first spread, and the version its Amount is read by. */
+export interface FoldedFigureObjSpread {
+  initial: PaperObjSpread;
+  version: ConnectedSpread['version'];
+}
+
 /**
- * The spread a flat figure's OBJ opens on: its own Default spread, else none,
- * at Default's starting amount, from which the dialog's Amount moves. An
+ * The spread a flat figure's OBJ opens on: its own Default spread, at its own
+ * version, else none at the start and version a new Default spread is made
+ * at (`SHARED_CONNECTED_SPREAD`), from which the dialog's Amount moves. An
  * Affine or Depth spread moves the picture alone and has no 3D form.
  */
-export function foldedFigureObjSpread(spread: LayerSpreadOptions | null): PaperObjSpread {
+export function foldedFigureObjSpread(spread: LayerSpreadOptions | null): FoldedFigureObjSpread {
   return spread?.kind === 'connected'
-    ? { on: spread.amount > 0, amount: spread.amount }
-    : { on: false, amount: DEFAULT_CONNECTED_SPREAD.amount };
+    ? { initial: { on: spread.amount > 0, amount: spread.amount }, version: spread.version }
+    : { initial: { on: false, amount: SHARED_CONNECTED_SPREAD.amount }, version: SHARED_CONNECTED_SPREAD.version };
 }
 
 /**
  * A flat figure's OBJ for the export dialog, from the paper scene `scene`
  * gives — the one its picture is drawn from, or one read or folded again on
  * the first ask (`foldedFigureObjScene`) — written flat, or lifted by the
- * Default spread the dialog sets as Perspective 3D lifts it
- * (`perspectiveSpread`): what the dialog's preview draws is the file.
- * `initial` is the figure's own spread. The scene and its solve are asked
- * for once and held until `signal` aborts, as the dialog closes.
+ * Default spread the dialog sets as Perspective 3D lifts it at the figure's
+ * spread's version (`connectedDrawAmount`): what the dialog's preview draws
+ * is the file. `own` is the figure's own spread. The scene and its solve are
+ * asked for once and held until `signal` aborts, as the dialog closes.
  */
 export function foldedFlatFigureObjExport(
   scene: () => Promise<OristudioCpFoldedPaperScene>,
-  initial: PaperObjSpread,
+  { initial, version }: FoldedFigureObjSpread,
   signal: AbortSignal
 ): PaperObjExport {
   let read: Promise<OristudioCpFoldedPaperScene> | null = null;
@@ -295,7 +328,7 @@ export function foldedFlatFigureObjExport(
     spread: {
       kind: 'connected',
       initial,
-      prepare: () => prepare().then((view) => ({ kind: 'connected', view })),
+      prepare: () => prepare().then((view) => ({ kind: 'connected', view, version })),
       unspread: () =>
         sceneOnce().then(
           () => true,
@@ -308,7 +341,7 @@ export function foldedFlatFigureObjExport(
         return foldedFigureObj(foldedFlatObjMesh(kernel, connectedSpreadSource(kernel), null));
       }
       const { prepared } = await prepare();
-      const { amount } = perspectiveSpread({ amount: spread.amount, reveal: [0, 0] });
+      const amount = connectedDrawAmount({ version, amount: spread.amount }, prepared, true);
       return foldedFigureObj(foldedFlatObjMesh(kernel, prepared.source, { solution: prepared.solution, amount }));
     },
   };

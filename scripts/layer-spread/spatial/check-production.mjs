@@ -72,7 +72,7 @@ try {
           }
         }
       console.log(
-        `${name}: 0–100% (0–4× displacement), both camera sides, capture and picking passed`
+        `${name}: 0–100%, both camera sides, capture and picking passed`
       );
     }
     await page.evaluate(() => window.runSpatialCase('strip', 4));

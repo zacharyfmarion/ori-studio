@@ -1655,8 +1655,11 @@
       "withTurnOver": "앞의 뒤집기 포함"
     },
     "spread": {
+      "cappedOpeningNotice": "이 보기의 간격이 새 최댓값을 초과합니다. 업데이트하면 100%가 적용되어 층 사이의 간격이 좁아집니다.",
       "diagram": "도해",
       "drag": "드래그하여 층 드러내기",
+      "equalOpeningNotice": "이 그림은 이전 간격 척도를 사용합니다. 업데이트하면 이 보기의 간격을 유지하면서 새 척도를 사용합니다.",
+      "equalOpeningUpdate": "업데이트",
       "padHint": "드래그하여 레이어를 드러냅니다. 방향키로 조절하고 Shift를 누르면 더 크게 이동합니다.",
       "perspective": "원근 3D",
       "presentation": "표현 방식",

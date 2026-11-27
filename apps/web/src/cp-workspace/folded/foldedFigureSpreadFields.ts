@@ -26,7 +26,7 @@
  */
 import type { TFunction } from 'i18next';
 import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
-import type { FieldNote, PropertyField, PropertySection, PropertySupport, ToggleField } from '../../lib/propertyDescriptors';
+import type { FieldNote, PropertyField, PropertySection, PropertyNotice, PropertySupport, ToggleField } from '../../lib/propertyDescriptors';
 import {
   foldedFigureSpreadBlock,
   foldedFigureSpreadOptions,
@@ -43,7 +43,7 @@ import {
   spreadValuesHold,
   type LayerSpreadChoice,
 } from './layerSpreadControls';
-import { DEFAULT_SPATIAL_SPREAD_AMOUNT, spatialSpreadFromPercent, spatialSpreadPercent } from './spatialSpreadSettings';
+import { DEFAULT_SPATIAL_SPREAD, DEFAULT_SPATIAL_SPREAD_AMOUNT, spatialSpreadFromPercent, spatialSpreadPercent } from './spatialSpreadSettings';
 import {
   DEFAULT_CONNECTED_SPREAD,
   SPREAD_AXIS_RANGE,
@@ -69,6 +69,7 @@ export interface FoldedFigureSpreadFieldDeps {
   locale: string;
   /** Where the figure's spread stands on the canvas (`foldedFigureSpreadStatus.ts`); read, never written. */
   spreadStatus: FoldedFigureSpreadStatus | null;
+  spacingNotice?: PropertyNotice;
   /** True while another surface holds the folded layer's bracket. */
   held: boolean;
   /** Open the layer's bracket for a continuous field; false when refused. */
@@ -144,11 +145,13 @@ export function foldedFigureSpreadSection(
     protocol: 'discrete',
     // A newer build's spread is on, by that build's rules.
     value: figure.spread != null,
-    commit: (on) => deps.setSpread(on ? figure.folded3d ? { kind: 'spatial', version: 1, amount: DEFAULT_SPATIAL_SPREAD_AMOUNT } : { kind: 'record', spread: deps.spreadStarts().any } : null),
+    commit: (on) => deps.setSpread(on ? figure.folded3d ? DEFAULT_SPATIAL_SPREAD : { kind: 'record', spread: deps.spreadStarts().any } : null),
   };
   if (figure.spread?.kind === 'spatial' && figure.folded3d) {
+    const spatial = figure.spread;
     return {
       id: 'spread', title: t('panels:cpProperties.folded.spread', 'Spread'),
+      notice: deps.spacingNotice,
       fields: [toggle, {
         id: 'spreadAmount', kind: 'slider', label: t('panels:diagram.pose.spreadAmount', 'Amount'),
         ariaLabel: t('panels:diagram.pose.spreadAmountName', 'Spread amount'),
@@ -158,7 +161,7 @@ export function foldedFigureSpreadSection(
         protocol: 'continuous', begin: () => deps.begin('spread-amount'),
         update: amount => deps.writeSpread({ verb: 'spread-amount', amount: spatialSpreadFromPercent(amount) }),
         end: () => deps.end(undoLabel), held: deps.held,
-        reset: () => deps.setSpread({ kind: 'spatial', version: 1, amount: DEFAULT_SPATIAL_SPREAD_AMOUNT }),
+        reset: () => deps.setSpread({ ...spatial, amount: DEFAULT_SPATIAL_SPREAD_AMOUNT }),
       }],
     };
   }
@@ -168,6 +171,7 @@ export function foldedFigureSpreadSection(
   return {
     id: 'spread',
     title: t('panels:cpProperties.folded.spread', 'Spread'),
+    notice: deps.spacingNotice,
     fields: shown ? [toggle, ...spreadValueFields(shown, held, undoLabel, deps)] : [toggle],
   };
 }

@@ -46,6 +46,8 @@ import { readFoldRunCapture } from './foldRunCapture';
 export interface FoldStepCaptureRequest {
   sequence: string;
   step: string;
+  /** A spacing update can only commit a successful spread picture. */
+  requireSpread?: boolean;
   /** The last of a run of steps drawn as one, from `step`, before it folds (`foldPrecreaseMerge.ts`). */
   through?: string;
   moment: DiagramFoldMoment;
@@ -192,6 +194,7 @@ export async function captureFoldStep(
         const spread = await connectedFlatPicture(scene, asked.rotationDeg, asked.spread, lease.promise, asked.presentation);
         if (spread.kind === 'spread') picture = foldStepPicture(input, asked, newId, spread.connected, spread.captured);
         else {
+          if (request.requireSpread) throw spread.cause;
           // Layers that could not be spread are drawn unspread, the spread kept to say so (`spreadFailedPicture`).
           const { spread: _spread, presentation: _presentation, ...unspread } = asked;
           const drawn = foldStepPicture(input, unspread, newId);

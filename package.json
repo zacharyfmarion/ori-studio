@@ -18,6 +18,7 @@
     "build:simulator": "npm --workspace @treemaker/origami-simulator run build",
     "lint:web": "npm --workspace @treemaker/web run lint",
     "test:simulator": "npm --workspace @treemaker/origami-simulator run test",
+    "test:layer-spread": "npm --workspace @oristudio/layer-spread run test",
     "test:web": "npm --workspace @treemaker/web run test",
     "test:scripts": "node --test \"scripts/*.test.mjs\" \"scripts/**/*.test.mjs\"",
     "diagram-corpus": "node scripts/diagram-dataset/run.mjs",

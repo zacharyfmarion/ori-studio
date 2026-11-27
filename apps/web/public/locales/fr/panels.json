@@ -1793,8 +1793,11 @@
       "withTurnOver": "Avec le retournement qui précède"
     },
     "spread": {
+      "cappedOpeningNotice": "Cette vue dépasse le nouveau maximum. La mise à jour appliquera 100 % et rapprochera les couches.",
       "diagram": "Diagramme",
       "drag": "Glisser pour révéler les couches",
+      "equalOpeningNotice": "Cette image utilise une ancienne échelle d’écartement. La mise à jour conserve l’écartement de cette vue avec la nouvelle échelle.",
+      "equalOpeningUpdate": "Mettre à jour",
       "padHint": "Faites glisser pour révéler les couches. Ajustez avec les flèches ; Maj augmente le déplacement.",
       "perspective": "Perspective 3D",
       "presentation": "Présentation",

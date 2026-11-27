@@ -1655,8 +1655,11 @@
       "withTurnOver": "直前の裏返しも含める"
     },
     "spread": {
+      "cappedOpeningNotice": "この表示の間隔は新しい上限を超えています。更新すると 100% に設定され、層の間隔が狭くなります。",
       "diagram": "図解",
       "drag": "ドラッグして層を見せる",
+      "equalOpeningNotice": "この図は以前の間隔スケールを使用しています。更新すると、この表示での間隔を保ったまま新しいスケールに切り替わります。",
+      "equalOpeningUpdate": "更新",
       "padHint": "ドラッグしてレイヤーを表示します。矢印キーで調整し、Shiftで移動量を大きくします。",
       "perspective": "透視投影3D",
       "presentation": "表示方式",

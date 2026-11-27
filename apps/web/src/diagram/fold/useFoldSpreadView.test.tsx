@@ -51,3 +51,29 @@ it('ignores an old scene that arrives after navigation',async()=>{
   await act(async()=>done[1]!({status:'unavailable'}));
   expect(result.preparing).toBe(false);expect(mocks.release).toHaveBeenCalledTimes(2);
 });
+
+/**
+ * The Step pane's Fold-step Update measures the open Pose's solve, as a linked
+ * step's pane reads the open Pose: the pane is not live, never reads the step
+ * or solves it, and gets the view the detail solved as `solved` (review E1).
+ */
+it('gives a reader that is not live the view the open Pose solved, and nothing once Pose closes', async () => {
+  mocks.read.mockResolvedValue({ status: 'ready', input: { picture: { shown: {} } } });
+  mocks.prepared = { prepared: { source: {}, solution: {} }, status: 'ready' };
+  const seen: Record<string, ReturnType<typeof useFoldSpreadView>> = {};
+  function Probe({ name, live }: { name: string; live: boolean }) {
+    const value = useFoldSpreadView(source, live);
+    useLayoutEffect(() => { seen[name] = value; });
+    return null;
+  }
+  root = createRoot(host);
+  await act(async () => root.render(<Probe key="pane" name="pane" live={false} />));
+  expect(seen.pane).toMatchObject({ view: null, solved: null });
+  await act(async () => root.render(<><Probe key="detail" name="detail" live /><Probe key="pane" name="pane" live={false} /></>));
+  await act(async () => { await vi.waitFor(() => expect(seen.detail?.view).not.toBeNull()); });
+  // The pane measures from the detail's solve, but draws nothing of its own and reads nothing.
+  expect(seen.pane).toMatchObject({ view: null, solved: seen.detail!.view });
+  expect(mocks.read).toHaveBeenCalledOnce();
+  await act(async () => root.render(<Probe key="pane" name="pane" live={false} />));
+  expect(seen.pane).toMatchObject({ view: null, solved: null });
+});

@@ -17,7 +17,7 @@
 import type { OristudioCpFoldedFigureEntry } from '../../engine/oristudioCpTypes';
 import { foldedFigureSpreadOptions } from './foldedFigureSpread';
 import type { LayerSpreadOptions } from './foldedLayerSpread';
-import { spreadStartsAmong, type LayerSpreadStarts } from './layerSpreadSettings';
+import { SHARED_SPREAD_STARTS, spreadStartsAmong, type LayerSpreadStarts } from './layerSpreadSettings';
 
 /** How many recently set figures are remembered: far more than a canvas holds at once. */
 const REMEMBERED = 64;
@@ -57,6 +57,7 @@ export function foldedFigureSpreadStarts(
     ordered.flatMap((figure): LayerSpreadOptions[] => {
       const spread = foldedFigureSpreadOptions(figure);
       return spread ? [spread] : [];
-    })
+    }),
+    SHARED_SPREAD_STARTS
   );
 }

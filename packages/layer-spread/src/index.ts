@@ -4,3 +4,4 @@ export * from './visibility.js';
 export * from './fragments.js';
 export * from './spatialVisibility.js';
 export * from './poseOrder.js';
+export * from './opening.js';

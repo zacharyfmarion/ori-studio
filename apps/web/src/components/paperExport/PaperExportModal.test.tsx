@@ -242,6 +242,7 @@ describe('PaperExportModal', () => {
     const VIEW: PaperObjSpreadView = {
       kind: 'connected',
       view: { scene: { faces: [] }, prepared: {} } as unknown as ConnectedSpreadView,
+      version: 3,
     };
     function spreading(overrides: Partial<PaperObjSpreadSource> = {}) {
       const build = vi.fn(async (spread?: PaperObjSpread) => `o ${spread?.on ? spread.amount : 'flat'}\n`);
@@ -306,7 +307,7 @@ describe('PaperExportModal', () => {
       const { opened, build } = spreading({
         kind: 'spatial',
         initial: { on: true, amount: 1 },
-        prepare: vi.fn(async (): Promise<PaperObjSpreadView> => ({ kind: 'spatial', model, camera: null })),
+        prepare: vi.fn(async (): Promise<PaperObjSpreadView> => ({ kind: 'spatial', model, camera: null, version: 2 })),
       });
       await open(opened, null, 'obj');
       await flush();

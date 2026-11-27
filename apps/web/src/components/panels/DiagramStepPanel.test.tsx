@@ -12,6 +12,7 @@ import {
   buildDiagramSpreadControls,
 } from '../../diagram/actions/diagramLinkedPoseActions';
 import { publishOpenLinkedPose } from '../../diagram/capture/openLinkedPose';
+import type { EqualOpeningUpdate } from '../../diagram/capture/useEqualOpeningUpdate';
 import type { OristudioCpDocumentState } from '../../engine/oristudioCpTypes';
 import { ANNOTATE_TOOL_GROUPS, annotateToolHelp } from '../../diagram/annotate/annotateTools';
 import i18n from '../../i18n';
@@ -545,7 +546,7 @@ describe('DiagramStepPanel', () => {
       const verbs = { pose: vi.fn(), kind: vi.fn(), direction: vi.fn(), keep: vi.fn(), preview: vi.fn(), commit: vi.fn() };
       const t = ((_key: string, fallback: string, values?: Record<string, unknown>) =>
         fallback.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(values?.[name]))) as never;
-      const publish = (render: DiagramCpRender, busy = false) => {
+      const publish = (render: DiagramCpRender, busy = false, equalOpening: EqualOpeningUpdate | null = null) => {
         const poseState = { render, readOnly: false, busy, solutions: { discovered: 1, hasNext: false } };
         const controls = buildDiagramSpreadControls(poseState, null, { t, ...verbs });
         publishOpenLinkedPose('step-f', {
@@ -565,6 +566,7 @@ describe('DiagramStepPanel', () => {
           wantsSave: () => false,
           spread: controls && { ...controls, previewReveal: vi.fn(), preview: verbs.preview, commit: verbs.commit, start: () => true },
           preview: null,
+          equalOpening,
         });
       };
       const flat = { mode: 'folded-flat' as const, side: 'front' as const, rotationDeg: 0, foldCase: 1 };
@@ -591,6 +593,27 @@ describe('DiagramStepPanel', () => {
       expect(select.disabled).toBe(false);
       act(() => select.click());
       expect([...document.querySelectorAll('[role="option"]')].map((el) => el.textContent)).toEqual(['Diagram', 'Perspective 3D']);
+    });
+
+    it('offers Update under Presentation for a picture saved in Perspective 3D before equal opening, and only then', () => {
+      const { publish, flat } = spreadPane();
+      const presentation = { kind: 'perspective' as const, camera: { yaw: 0, pitch: -0.4, zoom: 1 }, orderSide: 'front' as const };
+      const render = { ...flat, spread: DEFAULT_CONNECTED_SPREAD, presentation };
+      const update = { run: vi.fn(), disabled: false };
+      act(() => {
+        useWorkspaceStore.setState({ diagram: { ...createDiagram(), steps: [cpStep('step-f', render)] } });
+        publish(render, false, update);
+      });
+      expect(host!.textContent).toContain('This picture uses an older Amount scale');
+      act(() => textButton('Update')!.click());
+      expect(update.run).toHaveBeenCalledOnce();
+      // Held until it can be measured: the button stays, disabled, so nothing shifts.
+      act(() => publish(render, false, { ...update, disabled: true }));
+      expect(textButton('Update')!.disabled).toBe(true);
+      // A picture drawn by equal opening, on the shared scale, has nothing to update.
+      act(() => publish({ ...render, spread: { ...DEFAULT_CONNECTED_SPREAD, version: 3 } }, false, null));
+      expect(host!.textContent).not.toContain('older Amount scale');
+      expect(textButton('Update')).toBeFalsy();
     });
 
     it('keeps Presentation available while a Fold-derived capture runs', () => {

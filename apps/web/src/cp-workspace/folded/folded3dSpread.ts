@@ -10,6 +10,8 @@ import {
   type SpatialMaterial,
   type SpatialSpreadSolution,
 } from './folded3dMaterial';
+import { spatialOpeningGain } from '../../layer-spread/spatialOpening';
+import { spatialDrawAmount } from './spatialSpreadSettings';
 import type { Folded3dMesh } from './folded3dMesh';
 
 const sources = new WeakMap<OristudioCpFolded3dRenderModel, SpatialMaterial>();
@@ -48,6 +50,7 @@ export function spatialBaseMesh(
     opened.positions,
     (v, i) => v - rest.positions[i]!
   );
+  rest.spreadGain = spatialOpeningGain(source.input, solution);
   meshes.set(model, { aux, solution, mesh: rest });
   return rest;
 }
@@ -74,11 +77,12 @@ export function posedSpatialMesh(
     meshes.get(model)?.solution ?? spatialSpreadService().peek(source.input);
   if (!solution) return null;
   const base = spatialBaseMesh(model, aux, solution);
+  const scale = spatialDrawAmount(figure.spread?.kind === 'spatial' ? figure.spread : null, base.spreadGain);
   return {
     ...base,
     positions: Float32Array.from(
       base.positions,
-      (v, i) => v + amount * base.displacement![i]!
+      (v, i) => v + scale * base.displacement![i]!
     ),
   };
 }
